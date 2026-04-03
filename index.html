@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>股票損益追蹤</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e4e4e4;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .last-refresh {
+      font-size: 12px;
+      color: #999;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:active { opacity: 0.7; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-ghost { background: #f0f2f5; color: #444; }
+    .btn-danger { background: #fee2e2; color: #dc2626; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+    /* Add form card */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e4e4e4;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+    }
+
+    .form-group input {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus { border-color: #2563eb; }
+
+    .fg-symbol { min-width: 110px; }
+    .fg-price  { min-width: 120px; }
+    .fg-qty    { min-width: 100px; }
+    .fg-note   { min-width: 140px; flex: 1; }
+
+    /* Summary bar */
+    .summary-bar {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e4e4e4;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .summary-item { display: flex; flex-direction: column; gap: 3px; }
+    .summary-label { font-size: 12px; color: #888; }
+    .summary-value { font-size: 18px; font-weight: 700; }
+
+    /* Holdings table */
+    .holdings-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e4e4e4;
+      overflow: hidden;
+    }
+
+    .holdings-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .holdings-header .card-title { margin-bottom: 0; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      padding: 10px 14px;
+      text-align: right;
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      background: #fafafa;
+      border-bottom: 1px solid #f0f0f0;
+      white-space: nowrap;
+    }
+    thead th:first-child { text-align: left; }
+
+    tbody tr {
+      border-bottom: 1px solid #f5f5f5;
+      transition: background 0.1s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafafe; }
+
+    td {
+      padding: 12px 14px;
+      font-size: 14px;
+      text-align: right;
+      vertical-align: middle;
+    }
+    td:first-child { text-align: left; }
+
+    .stock-symbol {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.3px;
+    }
+    .stock-name {
+      font-size: 12px;
+      color: #999;
+      margin-top: 2px;
+    }
+    .stock-note {
+      font-size: 11px;
+      color: #bbb;
+      margin-top: 1px;
+    }
+
+    /* Timestamp — the important bit */
+    .timestamp {
+      font-size: 11px;
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .ts-fresh  { color: #10b981; }
+    .ts-old    { color: #f59e0b; }
+    .ts-stale  { color: #ef4444; }
+    .ts-never  { color: #ccc; }
+    .ts-error  { color: #ef4444; font-weight: 600; }
+
+    .price-cell { font-variant-numeric: tabular-nums; }
+
+    .loading-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #2563eb;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .gain  { color: #16a34a; }
+    .loss  { color: #dc2626; }
+    .zero  { color: #888; }
+
+    .pct-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pct-gain { background: #dcfce7; color: #16a34a; }
+    .pct-loss { background: #fee2e2; color: #dc2626; }
+    .pct-zero { background: #f3f4f6; color: #6b7280; }
+
+    .actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: #bbb;
+      font-size: 14px;
+    }
+
+    /* Edit inline form */
+    .edit-row td {
+      background: #eff6ff;
+      padding: 10px 14px;
+    }
+
+    @media (max-width: 600px) {
+      .form-row { flex-direction: column; }
+      .fg-symbol, .fg-price, .fg-qty, .fg-note { min-width: unset; width: 100%; }
+      .summary-bar { gap: 20px; }
+      td, th { padding: 10px 8px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📈 股票損益追蹤</h1>
+  <div class="header-right">
+    <span class="last-refresh" id="globalRefreshTime"></span>
+    <button class="btn btn-primary" id="refreshAllBtn" onclick="refreshAll()">重新整理全部</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Add form -->
+  <div class="card">
+    <div class="card-title">新增持股</div>
+    <div class="form-row">
+      <div class="form-group fg-symbol">
+        <label>股票代號</label>
+        <input type="text" id="inp-symbol" placeholder="AAPL / 2330" autocomplete="off" autocapitalize="characters">
+      </div>
+      <div class="form-group fg-price">
+        <label>買入價格</label>
+        <input type="number" id="inp-buy" placeholder="150.00" step="0.01" min="0">
+      </div>
+      <div class="form-group fg-qty">
+        <label>股數（選填）</label>
+        <input type="number" id="inp-qty" placeholder="100" step="1" min="0">
+      </div>
+      <div class="form-group fg-note">
+        <label>備註（選填）</label>
+        <input type="text" id="inp-note" placeholder="例：長期持有">
+      </div>
+      <button class="btn btn-primary" onclick="addStock()" style="margin-bottom:1px">新增</button>
+    </div>
+    <div id="add-error" style="color:#dc2626;font-size:12px;margin-top:8px;display:none"></div>
+    <div style="margin-top:10px;font-size:12px;color:#aaa;">
+      台股輸入純數字代號（如 2330），美股輸入英文代號（如 AAPL）。資料來源：Yahoo Finance。
+    </div>
+  </div>
+
+  <!-- Summary bar -->
+  <div class="summary-bar" id="summaryBar" style="display:none">
+    <div class="summary-item">
+      <span class="summary-label">持股數</span>
+      <span class="summary-value" id="sum-count">—</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">總投入成本</span>
+      <span class="summary-value" id="sum-cost">—</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">目前市值</span>
+      <span class="summary-value" id="sum-value">—</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">未實現損益</span>
+      <span class="summary-value" id="sum-pnl">—</span>
+    </div>
+  </div>
+
+  <!-- Holdings -->
+  <div class="holdings-card">
+    <div class="holdings-header">
+      <div class="card-title" style="margin:0">持股清單</div>
+    </div>
+    <div id="holdingsContainer">
+      <div class="empty-state">尚未新增任何持股</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Storage ──────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'stock_portfolio_v1';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+
+function save(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+let portfolio = load();
+
+// ─── Yahoo Finance ────────────────────────────────────────────────────────────
+
+function toYahooSymbol(symbol) {
+  const s = symbol.trim();
+  // Pure digits → Taiwan stock
+  if (/^\d+$/.test(s)) return s + '.TW';
+  return s.toUpperCase();
+}
+
+async function fetchPrice(symbol) {
+  const ys = toYahooSymbol(symbol);
+  const hosts = ['query1', 'query2'];
+  let lastErr;
+  for (const host of hosts) {
+    try {
+      const res = await fetch(
+        `https://${host}.finance.yahoo.com/v8/finance/chart/${ys}?interval=1d&range=1d`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const result = json?.chart?.result?.[0];
+      if (!result) throw new Error('無資料');
+      return {
+        price:    result.meta.regularMarketPrice,
+        currency: result.meta.currency || '',
+        name:     result.meta.longName || result.meta.shortName || symbol,
+      };
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('抓取失敗');
+}
+
+// ─── ID ───────────────────────────────────────────────────────────────────────
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ─── Time display ─────────────────────────────────────────────────────────────
+
+function fmtTime(isoStr) {
+  if (!isoStr) return null;
+  const d = new Date(isoStr);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMin = diffMs / 60000;
+
+  const pad = n => String(n).padStart(2, '0');
+  const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+  // Different day: show date
+  const isToday = d.toDateString() === now.toDateString();
+  const label = isToday
+    ? timeStr
+    : `${d.getMonth()+1}/${d.getDate()} ${timeStr}`;
+
+  return { label, diffMin };
+}
+
+function timestampHtml(isoStr, errMsg) {
+  if (errMsg) {
+    return `<div class="timestamp ts-error">⚠ ${errMsg}</div>`;
+  }
+  if (!isoStr) {
+    return `<div class="timestamp ts-never">— 尚未更新</div>`;
+  }
+  const { label, diffMin } = fmtTime(isoStr);
+  let cls = 'ts-fresh';
+  let icon = '●';
+  if (diffMin > 120) { cls = 'ts-stale'; icon = '●'; }
+  else if (diffMin > 30) { cls = 'ts-old'; icon = '●'; }
+
+  return `<div class="timestamp ${cls}" title="更新時間：${label}">${icon} ${label}</div>`;
+}
+
+// ─── Number formatting ────────────────────────────────────────────────────────
+
+function fmtNum(n, decimals = 2) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('zh-TW', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function pctHtml(pct) {
+  if (pct == null || isNaN(pct)) return '<span class="pct-badge pct-zero">—</span>';
+  const sign = pct > 0 ? '+' : '';
+  const cls = pct > 0 ? 'pct-gain' : pct < 0 ? 'pct-loss' : 'pct-zero';
+  return `<span class="pct-badge ${cls}">${sign}${fmtNum(pct)}%</span>`;
+}
+
+function pnlClass(v) {
+  if (v == null || isNaN(v)) return 'zero';
+  return v > 0 ? 'gain' : v < 0 ? 'loss' : 'zero';
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+
+function render() {
+  const container = document.getElementById('holdingsContainer');
+  const summaryBar = document.getElementById('summaryBar');
+
+  if (portfolio.length === 0) {
+    container.innerHTML = '<div class="empty-state">尚未新增任何持股</div>';
+    summaryBar.style.display = 'none';
+    return;
+  }
+
+  // Summary
+  let totalCost = 0, totalValue = 0, hasQty = false;
+  portfolio.forEach(s => {
+    if (s.qty && s.qty > 0) {
+      hasQty = true;
+      totalCost  += s.buyPrice * s.qty;
+      if (s.currentPrice != null) totalValue += s.currentPrice * s.qty;
+    }
+  });
+  const totalPnl = totalValue - totalCost;
+
+  summaryBar.style.display = 'flex';
+  document.getElementById('sum-count').textContent = portfolio.length;
+  document.getElementById('sum-cost').textContent  = hasQty ? fmtNum(totalCost) : '—';
+  document.getElementById('sum-value').textContent = hasQty ? fmtNum(totalValue) : '—';
+  const pnlEl = document.getElementById('sum-pnl');
+  pnlEl.textContent = hasQty ? (totalPnl >= 0 ? '+' : '') + fmtNum(totalPnl) : '—';
+  pnlEl.className = 'summary-value ' + (hasQty ? pnlClass(totalPnl) : 'zero');
+
+  // Table
+  const rows = portfolio.map(s => {
+    const isTW = /^\d+$/.test(s.symbol.trim());
+    const currLabel = s.currency || (isTW ? 'TWD' : 'USD');
+
+    const buyPriceStr = fmtNum(s.buyPrice);
+    const curPriceStr = s.loading
+      ? '<span class="loading-dot"></span>'
+      : s.currentPrice != null ? fmtNum(s.currentPrice) : '—';
+
+    const diff = s.currentPrice != null ? s.currentPrice - s.buyPrice : null;
+    const diffPct = diff != null ? (diff / s.buyPrice) * 100 : null;
+
+    // P&L by amount (only if qty provided)
+    let pnlAmtStr = '—';
+    if (s.qty > 0 && diff != null) {
+      const pnlAmt = diff * s.qty;
+      const sign = pnlAmt >= 0 ? '+' : '';
+      pnlAmtStr = `<span class="${pnlClass(pnlAmt)}">${sign}${fmtNum(pnlAmt)}</span>`;
+    }
+
+    const nameDisplay = s.fetchedName
+      ? `<div class="stock-name">${escHtml(s.fetchedName)}</div>`
+      : '';
+    const noteDisplay = s.note
+      ? `<div class="stock-note">${escHtml(s.note)}</div>`
+      : '';
+
+    const tsHtml = s.loading
+      ? '<div class="timestamp ts-never">正在抓取…</div>'
+      : timestampHtml(s.lastUpdated, s.fetchError);
+
+    return `<tr>
+      <td>
+        <div class="stock-symbol">${escHtml(s.symbol.toUpperCase())}</div>
+        ${nameDisplay}
+        ${noteDisplay}
+        ${tsHtml}
+      </td>
+      <td class="price-cell">${buyPriceStr}<br><span style="font-size:11px;color:#bbb">${currLabel}</span></td>
+      <td class="price-cell">${curPriceStr}</td>
+      <td>${pctHtml(diffPct)}</td>
+      <td>${pnlAmtStr}</td>
+      <td><span style="font-size:13px;color:#999">${s.qty > 0 ? fmtNum(s.qty, 0) : '—'}</span></td>
+      <td>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="refreshOne('${s.id}')">↻</button>
+          <button class="btn btn-ghost btn-sm" onclick="startEdit('${s.id}')">編輯</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteStock('${s.id}')">刪除</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left">代號 / 名稱</th>
+          <th>買入價</th>
+          <th>現價</th>
+          <th>漲跌幅</th>
+          <th>損益金額</th>
+          <th>股數</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─── CRUD ─────────────────────────────────────────────────────────────────────
+
+function addStock() {
+  const symbol   = document.getElementById('inp-symbol').value.trim();
+  const buyPrice = parseFloat(document.getElementById('inp-buy').value);
+  const qty      = parseFloat(document.getElementById('inp-qty').value) || 0;
+  const note     = document.getElementById('inp-note').value.trim();
+
+  const errEl = document.getElementById('add-error');
+
+  if (!symbol) { showErr(errEl, '請輸入股票代號'); return; }
+  if (isNaN(buyPrice) || buyPrice <= 0) { showErr(errEl, '請輸入有效的買入價格'); return; }
+  errEl.style.display = 'none';
+
+  const entry = { id: uid(), symbol, buyPrice, qty, note, currentPrice: null, fetchedName: '', currency: '', lastUpdated: null, fetchError: null };
+  portfolio.push(entry);
+  save(portfolio);
+
+  document.getElementById('inp-symbol').value = '';
+  document.getElementById('inp-buy').value = '';
+  document.getElementById('inp-qty').value = '';
+  document.getElementById('inp-note').value = '';
+
+  render();
+  fetchAndUpdate(entry.id);
+}
+
+function showErr(el, msg) {
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function deleteStock(id) {
+  portfolio = portfolio.filter(s => s.id !== id);
+  save(portfolio);
+  render();
+}
+
+// ─── Edit inline ──────────────────────────────────────────────────────────────
+
+function startEdit(id) {
+  const s = portfolio.find(p => p.id === id);
+  if (!s) return;
+
+  const container = document.getElementById('holdingsContainer');
+  const rows = container.querySelectorAll('tbody tr');
+  const idx = portfolio.findIndex(p => p.id === id);
+
+  // Close any open edit rows first
+  closeAllEdits();
+
+  const editRow = document.createElement('tr');
+  editRow.className = 'edit-row';
+  editRow.dataset.editId = id;
+  editRow.innerHTML = `
+    <td colspan="7">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="min-width:100px">
+          <label>代號</label>
+          <input type="text" id="edit-symbol-${id}" value="${escHtml(s.symbol)}" style="width:100%">
+        </div>
+        <div class="form-group" style="min-width:110px">
+          <label>買入價格</label>
+          <input type="number" id="edit-buy-${id}" value="${s.buyPrice}" step="0.01" min="0" style="width:100%">
+        </div>
+        <div class="form-group" style="min-width:100px">
+          <label>股數</label>
+          <input type="number" id="edit-qty-${id}" value="${s.qty || ''}" step="1" min="0" style="width:100%">
+        </div>
+        <div class="form-group" style="flex:1;min-width:130px">
+          <label>備註</label>
+          <input type="text" id="edit-note-${id}" value="${escHtml(s.note || '')}" style="width:100%">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveEdit('${id}')">儲存</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeAllEdits()">取消</button>
+      </div>
+    </td>`;
+
+  const targetRow = rows[idx];
+  if (targetRow) targetRow.after(editRow);
+}
+
+function closeAllEdits() {
+  document.querySelectorAll('.edit-row').forEach(r => r.remove());
+}
+
+function saveEdit(id) {
+  const symbol   = document.getElementById(`edit-symbol-${id}`)?.value.trim();
+  const buyPrice = parseFloat(document.getElementById(`edit-buy-${id}`)?.value);
+  const qty      = parseFloat(document.getElementById(`edit-qty-${id}`)?.value) || 0;
+  const note     = document.getElementById(`edit-note-${id}`)?.value.trim() || '';
+
+  if (!symbol || isNaN(buyPrice) || buyPrice <= 0) return;
+
+  const s = portfolio.find(p => p.id === id);
+  if (!s) return;
+
+  const symbolChanged = s.symbol !== symbol;
+  s.symbol = symbol; s.buyPrice = buyPrice; s.qty = qty; s.note = note;
+  if (symbolChanged) { s.currentPrice = null; s.fetchedName = ''; s.lastUpdated = null; s.fetchError = null; }
+
+  save(portfolio);
+  render();
+  if (symbolChanged) fetchAndUpdate(id);
+}
+
+// ─── Fetch & refresh ──────────────────────────────────────────────────────────
+
+async function fetchAndUpdate(id) {
+  const s = portfolio.find(p => p.id === id);
+  if (!s) return;
+
+  s.loading = true;
+  s.fetchError = null;
+  render();
+
+  try {
+    const { price, currency, name } = await fetchPrice(s.symbol);
+    s.currentPrice = price;
+    s.currency     = currency;
+    s.fetchedName  = name;
+    s.lastUpdated  = new Date().toISOString();
+    s.fetchError   = null;
+  } catch (e) {
+    s.fetchError  = e.message || '抓取失敗';
+    s.lastUpdated = new Date().toISOString(); // Still record the attempt time
+  } finally {
+    s.loading = false;
+    save(portfolio);
+    render();
+  }
+}
+
+async function refreshOne(id) {
+  await fetchAndUpdate(id);
+}
+
+async function refreshAll() {
+  const btn = document.getElementById('refreshAllBtn');
+  btn.disabled = true;
+  btn.textContent = '更新中…';
+
+  // Fetch all concurrently
+  await Promise.allSettled(portfolio.map(s => fetchAndUpdate(s.id)));
+
+  btn.disabled = false;
+  btn.textContent = '重新整理全部';
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('globalRefreshTime').textContent =
+    `上次整批更新：${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+// ─── Keyboard shortcut ────────────────────────────────────────────────────────
+
+document.getElementById('inp-note').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addStock();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+render();
+
+// Auto-refresh prices for existing holdings on load
+if (portfolio.length > 0) {
+  Promise.allSettled(portfolio.map(s => fetchAndUpdate(s.id)));
+}
+</script>
+
+</body>
+</html>
