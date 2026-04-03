@@ -175,51 +175,51 @@
     thead th:first-child { text-align: left; }
 
     tbody tr {
-      border-bottom: 1px solid #f5f5f5;
       transition: background 0.1s;
     }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #fafafe; }
 
     td {
       padding: 12px 14px;
       font-size: 14px;
       text-align: right;
-      vertical-align: middle;
+      vertical-align: top;
     }
     td:first-child { text-align: left; }
 
-    /* Frozen first 3 columns */
-    .col-s1 { position: sticky; left: 0;    width: 195px; min-width: 195px; max-width: 195px; }
-    .col-s2 { position: sticky; left: 195px; width: 96px;  min-width: 96px;  max-width: 96px;  }
-    .col-s3 { position: sticky; left: 291px; width: 118px; min-width: 118px; max-width: 118px; }
+    /* Frozen first 2 data columns */
+    .col-buy { position: sticky; left: 0;    width: 88px;  min-width: 88px; }
+    .col-cur { position: sticky; left: 88px; width: 108px; min-width: 108px; border-right: 1px solid #e8e8e8; }
 
-    thead .col-s1, thead .col-s2, thead .col-s3 { background: #fafafa; z-index: 2; }
-    tbody td.col-s1, tbody td.col-s2, tbody td.col-s3 { background: #fff; z-index: 1; }
-    tbody tr:hover td.col-s1,
-    tbody tr:hover td.col-s2,
-    tbody tr:hover td.col-s3 { background: #fafafe; }
-    .edit-row td.col-s1, .edit-row td.col-s2, .edit-row td.col-s3 { background: #eff6ff; }
+    thead .col-buy, thead .col-cur { background: #fafafa; z-index: 2; }
+    tbody td.col-buy, tbody td.col-cur { background: #fff; z-index: 1; }
 
-    /* Shadow separating frozen columns from scrolling area */
-    .col-s3 { border-right: 1px solid #e8e8e8; }
+    /* Per-stock group: hover lights up both rows, border separates groups */
+    tbody.stock-group { border-top: 1px solid #f0f0f0; }
+    tbody.stock-group:first-of-type { border-top: none; }
+    tbody.stock-group:hover td.col-buy,
+    tbody.stock-group:hover td.col-cur { background: #fafafe !important; }
+    .edit-row td { background: #eff6ff !important; }
 
     /* P&L column — hidden by default */
     table.hide-pnl .col-pnl { display: none; }
 
-    /* Change info inside price cell */
-    .price-change {
-      font-size: 12px;
-      font-variant-numeric: tabular-nums;
-      margin-top: 2px;
+    /* Name row (spans full width) */
+    .stock-name-row > td {
+      padding: 10px 14px 3px;
+      text-align: left;
     }
-
-    /* Stock identity row: symbol · name · timestamp all inline */
-    .stock-row {
+    .name-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .name-info {
       display: flex;
       align-items: baseline;
       gap: 5px;
       overflow: hidden;
+      min-width: 0;
     }
     .stock-symbol {
       font-weight: 700;
@@ -239,7 +239,7 @@
     .stock-note {
       font-size: 11px;
       color: #bbb;
-      margin-top: 2px;
+      margin-top: 3px;
     }
 
     /* Timestamp — the important bit */
@@ -255,7 +255,11 @@
     .ts-never  { color: #ccc; }
     .ts-error  { color: #ef4444; font-weight: 600; }
 
+    /* Data row */
+    .stock-data-row > td { padding: 2px 14px 10px; }
+
     .price-cell { font-variant-numeric: tabular-nums; }
+    .price-change { font-size: 12px; font-variant-numeric: tabular-nums; line-height: 1.5; }
 
     .loading-dot {
       display: inline-block;
@@ -389,7 +393,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.5';
+const VERSION = '1.0.6';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -540,32 +544,51 @@ function render() {
   // Table
   const pnlHidden = !(document.getElementById('pnlToggleBtn')?.dataset.show === '1');
 
-  const rows = portfolio.map(s => {
-    const isTW = /^\d+$/.test(s.symbol.trim());
-    const currLabel = s.currency || (isTW ? 'TWD' : 'USD');
-
-    const buyPriceStr = fmtNum(s.buyPrice);
-
-    const diff = s.currentPrice != null ? s.currentPrice - s.buyPrice : null;
+  const groups = portfolio.map(s => {
+    const diff    = s.currentPrice != null ? s.currentPrice - s.buyPrice : null;
     const diffPct = diff != null ? (diff / s.buyPrice) * 100 : null;
 
-    // Price cell: current price on line 1, change info on line 2
-    let priceCellInner;
+    // ── Name row ──────────────────────────────────────────────────────────────
+    const nameSpan = s.fetchedName
+      ? `<span class="stock-name">${escHtml(s.fetchedName)}</span>` : '';
+    const tsSpan = s.loading
+      ? '<span class="timestamp ts-never">…</span>'
+      : timestampHtml(s.lastUpdated, s.fetchError, true);
+    const noteDiv = s.note
+      ? `<div class="stock-note">${escHtml(s.note)}</div>` : '';
+
+    const nameRow = `<tr class="stock-name-row">
+      <td colspan="99">
+        <div class="name-line">
+          <div class="name-info">
+            <span class="stock-symbol">${escHtml(s.symbol.toUpperCase())}</span>
+            ${nameSpan}
+            ${tsSpan}
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm" onclick="fetchAndUpdate('${s.id}')">更新</button>
+            <button class="btn btn-ghost btn-sm" onclick="startEdit('${s.id}')">編輯</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteStock('${s.id}')">刪除</button>
+          </div>
+        </div>
+        ${noteDiv}
+      </td>
+    </tr>`;
+
+    // ── Data row ──────────────────────────────────────────────────────────────
+    let curCell;
     if (s.loading) {
-      priceCellInner = '<span class="loading-dot"></span>';
+      curCell = '<span class="loading-dot"></span>';
     } else if (s.currentPrice != null) {
-      const sign = diff >= 0 ? '+' : '';
-      const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
+      const sign   = diff >= 0 ? '+' : '';
       const chgCls = diff > 0 ? 'gain' : diff < 0 ? 'loss' : 'zero';
-      const chgLine = diff != null
-        ? `<div class="price-change ${chgCls}">${arrow} ${sign}${fmtNum(diff)} (${sign}${fmtNum(diffPct)}%)</div>`
-        : '';
-      priceCellInner = `${fmtNum(s.currentPrice)}${chgLine}`;
+      curCell = `${fmtNum(s.currentPrice)}`
+        + `<div class="price-change ${chgCls}">${sign}${fmtNum(diff)}</div>`
+        + `<div class="price-change ${chgCls}">(${sign}${fmtNum(diffPct)}%)</div>`;
     } else {
-      priceCellInner = '—';
+      curCell = '—';
     }
 
-    // P&L amount (only if qty provided)
     let pnlAmtStr = '—';
     if (s.qty > 0 && diff != null) {
       const pnlAmt = diff * s.qty;
@@ -573,38 +596,14 @@ function render() {
       pnlAmtStr = `<span class="${pnlClass(pnlAmt)}">${sign}${fmtNum(pnlAmt)}</span>`;
     }
 
-    const nameSpan = s.fetchedName
-      ? `<span class="stock-name">${escHtml(s.fetchedName)}</span>`
-      : '';
-    const noteDisplay = s.note
-      ? `<div class="stock-note">${escHtml(s.note)}</div>`
-      : '';
-
-    const tsSpan = s.loading
-      ? '<span class="timestamp ts-never">…</span>'
-      : timestampHtml(s.lastUpdated, s.fetchError, true);
-
-    return `<tr>
-      <td class="col-s1">
-        <div class="stock-row">
-          <span class="stock-symbol">${escHtml(s.symbol.toUpperCase())}</span>
-          ${nameSpan}
-          ${tsSpan}
-        </div>
-        ${noteDisplay}
-      </td>
-      <td class="price-cell col-s2">${buyPriceStr}<br><span style="font-size:11px;color:#bbb">${currLabel}</span></td>
-      <td class="price-cell col-s3">${priceCellInner}</td>
+    const dataRow = `<tr class="stock-data-row">
+      <td class="col-buy price-cell">${fmtNum(s.buyPrice)}</td>
+      <td class="col-cur price-cell">${curCell}</td>
       <td class="col-pnl">${pnlAmtStr}</td>
-      <td><span style="font-size:13px;color:#999">${s.qty > 0 ? fmtNum(s.qty, 0) : '—'}</span></td>
-      <td>
-        <div class="actions">
-          <button class="btn btn-ghost btn-sm" onclick="fetchAndUpdate('${s.id}')" title="強制更新此筆">更新</button>
-          <button class="btn btn-ghost btn-sm" onclick="startEdit('${s.id}')">編輯</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteStock('${s.id}')">刪除</button>
-        </div>
-      </td>
+      <td style="font-size:13px;color:#999">${s.qty > 0 ? fmtNum(s.qty, 0) : '—'}</td>
     </tr>`;
+
+    return `<tbody class="stock-group" data-stock-id="${s.id}">${nameRow}${dataRow}</tbody>`;
   }).join('');
 
   const tableClass = pnlHidden ? 'hide-pnl' : '';
@@ -613,15 +612,13 @@ function render() {
       <table class="${tableClass}">
         <thead>
           <tr>
-            <th class="col-s1" style="text-align:left">代號 / 名稱</th>
-            <th class="col-s2">買入價</th>
-            <th class="col-s3">現價 / 漲跌幅</th>
+            <th class="col-buy">買入價</th>
+            <th class="col-cur">現價</th>
             <th class="col-pnl">損益金額</th>
             <th>股數</th>
-            <th></th>
           </tr>
         </thead>
-        <tbody>${rows}</tbody>
+        ${groups}
       </table>
     </div>`;
 }
@@ -680,18 +677,15 @@ function startEdit(id) {
   if (!s) return;
 
   const container = document.getElementById('holdingsContainer');
-  const rows = container.querySelectorAll('tbody tr');
-  const idx = portfolio.findIndex(p => p.id === id);
 
-  // Close any open edit rows first
   closeAllEdits();
 
   const editRow = document.createElement('tr');
   editRow.className = 'edit-row';
   editRow.dataset.editId = id;
   editRow.innerHTML = `
-    <td colspan="6" class="col-s1" style="max-width:unset;width:auto">
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <td colspan="99">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:4px 0">
         <div class="form-group" style="min-width:100px">
           <label>代號</label>
           <input type="text" id="edit-symbol-${id}" value="${escHtml(s.symbol)}" style="width:100%">
@@ -713,7 +707,7 @@ function startEdit(id) {
       </div>
     </td>`;
 
-  const targetRow = rows[idx];
+  const targetRow = container.querySelector(`tbody.stock-group[data-stock-id="${id}"] tr.stock-data-row`);
   if (targetRow) targetRow.after(editRow);
 }
 
