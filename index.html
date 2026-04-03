@@ -150,9 +150,16 @@
 
     .holdings-header .card-title { margin-bottom: 0; }
 
+    /* Horizontal scroll wrapper — allows table to scroll on mobile */
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
+      min-width: 520px; /* ensure horizontal scroll kicks in before layout breaks */
     }
 
     thead th {
@@ -181,6 +188,31 @@
       vertical-align: middle;
     }
     td:first-child { text-align: left; }
+
+    /* Frozen first 3 columns */
+    .col-s1 { position: sticky; left: 0;    width: 158px; min-width: 158px; max-width: 158px; }
+    .col-s2 { position: sticky; left: 158px; width: 96px;  min-width: 96px;  max-width: 96px;  }
+    .col-s3 { position: sticky; left: 254px; width: 118px; min-width: 118px; max-width: 118px; }
+
+    thead .col-s1, thead .col-s2, thead .col-s3 { background: #fafafa; z-index: 2; }
+    tbody td.col-s1, tbody td.col-s2, tbody td.col-s3 { background: #fff; z-index: 1; }
+    tbody tr:hover td.col-s1,
+    tbody tr:hover td.col-s2,
+    tbody tr:hover td.col-s3 { background: #fafafe; }
+    .edit-row td.col-s1, .edit-row td.col-s2, .edit-row td.col-s3 { background: #eff6ff; }
+
+    /* Shadow separating frozen columns from scrolling area */
+    .col-s3 { border-right: 1px solid #e8e8e8; }
+
+    /* P&L column — hidden by default */
+    table.hide-pnl .col-pnl { display: none; }
+
+    /* Change info inside price cell */
+    .price-change {
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
 
     .stock-symbol {
       font-weight: 700;
@@ -259,7 +291,8 @@
       .form-row { flex-direction: column; }
       .fg-symbol, .fg-price, .fg-qty, .fg-note { min-width: unset; width: 100%; }
       .summary-bar { gap: 20px; }
-      td, th { padding: 10px 8px; font-size: 13px; }
+      .header-right { gap: 6px; }
+      .header-right .btn { padding: 6px 10px; font-size: 13px; }
     }
   </style>
 </head>
@@ -273,7 +306,8 @@
   <div class="header-right">
     <span class="last-refresh" id="globalRefreshTime"></span>
     <button class="btn btn-ghost" onclick="toggleAddForm()">＋ 新增持股</button>
-    <button class="btn btn-primary" id="refreshAllBtn" onclick="refreshAll()">重新整理全部</button>
+    <button class="btn btn-ghost" id="refreshAllBtn" onclick="refreshAll()" title="略過5分鐘內已更新的資料">重新整理</button>
+    <button class="btn btn-primary" id="forceRefreshBtn" onclick="forceRefreshAll()" title="不論資料新舊，全部重新抓取">更新全部</button>
   </div>
 </header>
 
@@ -331,6 +365,7 @@
   <div class="holdings-card">
     <div class="holdings-header">
       <div class="card-title" style="margin:0">持股清單</div>
+      <button class="btn btn-ghost btn-sm" id="pnlToggleBtn" onclick="togglePnlCol()">顯示損益金額</button>
     </div>
     <div id="holdingsContainer">
       <div class="empty-state">尚未新增任何持股</div>
@@ -342,7 +377,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.3';
+const VERSION = '1.0.4';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -490,19 +525,34 @@ function render() {
   pnlEl.className = 'summary-value ' + (hasQty ? pnlClass(totalPnl) : 'zero');
 
   // Table
+  const pnlHidden = !(document.getElementById('pnlToggleBtn')?.dataset.show === '1');
+
   const rows = portfolio.map(s => {
     const isTW = /^\d+$/.test(s.symbol.trim());
     const currLabel = s.currency || (isTW ? 'TWD' : 'USD');
 
     const buyPriceStr = fmtNum(s.buyPrice);
-    const curPriceStr = s.loading
-      ? '<span class="loading-dot"></span>'
-      : s.currentPrice != null ? fmtNum(s.currentPrice) : '—';
 
     const diff = s.currentPrice != null ? s.currentPrice - s.buyPrice : null;
     const diffPct = diff != null ? (diff / s.buyPrice) * 100 : null;
 
-    // P&L by amount (only if qty provided)
+    // Price cell: current price on line 1, change info on line 2
+    let priceCellInner;
+    if (s.loading) {
+      priceCellInner = '<span class="loading-dot"></span>';
+    } else if (s.currentPrice != null) {
+      const sign = diff >= 0 ? '+' : '';
+      const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
+      const chgCls = diff > 0 ? 'gain' : diff < 0 ? 'loss' : 'zero';
+      const chgLine = diff != null
+        ? `<div class="price-change ${chgCls}">${arrow} ${sign}${fmtNum(diff)} (${sign}${fmtNum(diffPct)}%)</div>`
+        : '';
+      priceCellInner = `${fmtNum(s.currentPrice)}${chgLine}`;
+    } else {
+      priceCellInner = '—';
+    }
+
+    // P&L amount (only if qty provided)
     let pnlAmtStr = '—';
     if (s.qty > 0 && diff != null) {
       const pnlAmt = diff * s.qty;
@@ -522,20 +572,19 @@ function render() {
       : timestampHtml(s.lastUpdated, s.fetchError);
 
     return `<tr>
-      <td>
+      <td class="col-s1">
         <div class="stock-symbol">${escHtml(s.symbol.toUpperCase())}</div>
         ${nameDisplay}
         ${noteDisplay}
         ${tsHtml}
       </td>
-      <td class="price-cell">${buyPriceStr}<br><span style="font-size:11px;color:#bbb">${currLabel}</span></td>
-      <td class="price-cell">${curPriceStr}</td>
-      <td>${pctHtml(diffPct)}</td>
-      <td>${pnlAmtStr}</td>
+      <td class="price-cell col-s2">${buyPriceStr}<br><span style="font-size:11px;color:#bbb">${currLabel}</span></td>
+      <td class="price-cell col-s3">${priceCellInner}</td>
+      <td class="col-pnl">${pnlAmtStr}</td>
       <td><span style="font-size:13px;color:#999">${s.qty > 0 ? fmtNum(s.qty, 0) : '—'}</span></td>
       <td>
         <div class="actions">
-          <button class="btn btn-ghost btn-sm" onclick="refreshOne('${s.id}')">↻</button>
+          <button class="btn btn-ghost btn-sm" onclick="fetchAndUpdate('${s.id}')" title="強制更新此筆">更新</button>
           <button class="btn btn-ghost btn-sm" onclick="startEdit('${s.id}')">編輯</button>
           <button class="btn btn-danger btn-sm" onclick="deleteStock('${s.id}')">刪除</button>
         </div>
@@ -543,21 +592,23 @@ function render() {
     </tr>`;
   }).join('');
 
+  const tableClass = pnlHidden ? 'hide-pnl' : '';
   container.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th style="text-align:left">代號 / 名稱</th>
-          <th>買入價</th>
-          <th>現價</th>
-          <th>漲跌幅</th>
-          <th>損益金額</th>
-          <th>股數</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    <div class="table-wrapper">
+      <table class="${tableClass}">
+        <thead>
+          <tr>
+            <th class="col-s1" style="text-align:left">代號 / 名稱</th>
+            <th class="col-s2">買入價</th>
+            <th class="col-s3">現價 / 漲跌幅</th>
+            <th class="col-pnl">損益金額</th>
+            <th>股數</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 function escHtml(s) {
@@ -624,7 +675,7 @@ function startEdit(id) {
   editRow.className = 'edit-row';
   editRow.dataset.editId = id;
   editRow.innerHTML = `
-    <td colspan="7">
+    <td colspan="6" class="col-s1" style="max-width:unset;width:auto">
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
         <div class="form-group" style="min-width:100px">
           <label>代號</label>
@@ -702,25 +753,57 @@ async function fetchAndUpdate(id) {
   }
 }
 
-async function refreshOne(id) {
-  await fetchAndUpdate(id);
+const FRESH_MS = 5 * 60 * 1000; // 5 minutes
+
+function isStale(s) {
+  if (!s.lastUpdated || s.fetchError) return true;
+  return (Date.now() - new Date(s.lastUpdated)) > FRESH_MS;
 }
 
 async function refreshAll() {
   const btn = document.getElementById('refreshAllBtn');
   btn.disabled = true;
+  btn.textContent = '整理中…';
+
+  const stale = portfolio.filter(isStale);
+  const skipped = portfolio.length - stale.length;
+  await Promise.allSettled(stale.map(s => fetchAndUpdate(s.id)));
+
+  btn.disabled = false;
+  btn.textContent = '重新整理';
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const note = skipped > 0 ? `（略過 ${skipped} 筆新資料）` : '';
+  document.getElementById('globalRefreshTime').textContent = `${time}${note}`;
+}
+
+async function forceRefreshAll() {
+  const btn = document.getElementById('forceRefreshBtn');
+  btn.disabled = true;
   btn.textContent = '更新中…';
 
-  // Fetch all concurrently
   await Promise.allSettled(portfolio.map(s => fetchAndUpdate(s.id)));
 
   btn.disabled = false;
-  btn.textContent = '重新整理全部';
+  btn.textContent = '更新全部';
 
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
   document.getElementById('globalRefreshTime').textContent =
-    `上次整批更新：${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+// ─── P&L column toggle ────────────────────────────────────────────────────────
+
+function togglePnlCol() {
+  const btn = document.getElementById('pnlToggleBtn');
+  const showing = btn.dataset.show === '1';
+  btn.dataset.show = showing ? '0' : '1';
+  btn.textContent  = showing ? '顯示損益金額' : '隱藏損益金額';
+  // Re-render to apply the table class
+  render();
 }
 
 // ─── Add form toggle ──────────────────────────────────────────────────────────
