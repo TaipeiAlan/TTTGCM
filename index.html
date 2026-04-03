@@ -187,8 +187,8 @@
     td:first-child { text-align: left; }
 
     /* Frozen first 2 data columns */
-    .col-buy { position: sticky; left: 0;    width: 88px;  min-width: 88px; }
-    .col-cur { position: sticky; left: 88px; min-width: 145px; border-right: 1px solid #e8e8e8; }
+    .col-buy { position: sticky; left: 0;   width: 80px; min-width: 80px; }
+    .col-cur { position: sticky; left: 80px; width: 80px; min-width: 80px; border-right: 1px solid #e8e8e8; }
 
     thead .col-buy, thead .col-cur { background: #fafafa; z-index: 2; }
     tbody td.col-buy, tbody td.col-cur { background: #fff; z-index: 1; }
@@ -260,16 +260,6 @@
 
     .price-cell { font-variant-numeric: tabular-nums; }
     .price-change { font-size: 12px; font-variant-numeric: tabular-nums; line-height: 1.5; }
-
-    /* qty + actions footer inside the 現價 cell */
-    .cell-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-      margin-top: 6px;
-    }
-    .qty-label { font-size: 12px; color: #aaa; white-space: nowrap; }
 
     .loading-dot {
       display: inline-block;
@@ -403,7 +393,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.7';
+const VERSION = '1.0.8';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -579,42 +569,38 @@ function render() {
     </tr>`;
 
     // ── Data row ──────────────────────────────────────────────────────────────
-    let curCell;
-    if (s.loading) {
-      curCell = '<span class="loading-dot"></span>';
-    } else if (s.currentPrice != null) {
-      const sign   = diff >= 0 ? '+' : '';
-      const chgCls = diff > 0 ? 'gain' : diff < 0 ? 'loss' : 'zero';
-      curCell = `${fmtNum(s.currentPrice)}`
-        + `<div class="price-change ${chgCls}">${sign}${fmtNum(diff)}</div>`
-        + `<div class="price-change ${chgCls}">(${sign}${fmtNum(diffPct)}%)</div>`;
-    } else {
-      curCell = '—';
-    }
+    const sign   = diff != null ? (diff >= 0 ? '+' : '') : '';
+    const chgCls = diff != null ? (diff > 0 ? 'gain' : diff < 0 ? 'loss' : 'zero') : 'zero';
 
-    const qtyLabel = s.qty > 0 ? `<span class="qty-label">${fmtNum(s.qty, 0)} 股</span>` : '<span></span>';
+    const curPriceStr = s.loading
+      ? '<span class="loading-dot"></span>'
+      : s.currentPrice != null ? fmtNum(s.currentPrice) : '—';
+    const chgAmtStr  = diff != null ? `<span class="${chgCls}">${sign}${fmtNum(diff)}</span>` : '—';
+    const chgPctStr  = diffPct != null ? `<span class="${chgCls}">(${sign}${fmtNum(diffPct)}%)</span>` : '—';
 
     let pnlAmtStr = '—';
     if (s.qty > 0 && diff != null) {
       const pnlAmt = diff * s.qty;
-      const sign = pnlAmt >= 0 ? '+' : '';
-      pnlAmtStr = `<span class="${pnlClass(pnlAmt)}">${sign}${fmtNum(pnlAmt)}</span>`;
+      const psign = pnlAmt >= 0 ? '+' : '';
+      pnlAmtStr = `<span class="${pnlClass(pnlAmt)}">${psign}${fmtNum(pnlAmt)}</span>`;
     }
+
+    const qtyStr = s.qty > 0 ? `${fmtNum(s.qty, 0)} 股` : '—';
 
     const dataRow = `<tr class="stock-data-row">
       <td class="col-buy price-cell">${fmtNum(s.buyPrice)}</td>
-      <td class="col-cur price-cell">
-        ${curCell}
-        <div class="cell-footer">
-          ${qtyLabel}
-          <div class="actions">
-            <button class="btn btn-ghost btn-sm" onclick="fetchAndUpdate('${s.id}')">更新</button>
-            <button class="btn btn-ghost btn-sm" onclick="startEdit('${s.id}')">編輯</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteStock('${s.id}')">刪除</button>
-          </div>
+      <td class="col-cur price-cell">${curPriceStr}</td>
+      <td class="price-cell">${chgAmtStr}</td>
+      <td class="price-cell">${chgPctStr}</td>
+      <td class="col-pnl">${pnlAmtStr}</td>
+      <td style="font-size:13px;color:#999;white-space:nowrap">${qtyStr}</td>
+      <td>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="fetchAndUpdate('${s.id}')">更新</button>
+          <button class="btn btn-ghost btn-sm" onclick="startEdit('${s.id}')">編輯</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteStock('${s.id}')">刪除</button>
         </div>
       </td>
-      <td class="col-pnl">${pnlAmtStr}</td>
     </tr>`;
 
     return `<tbody class="stock-group" data-stock-id="${s.id}">${nameRow}${dataRow}</tbody>`;
@@ -628,7 +614,11 @@ function render() {
           <tr>
             <th class="col-buy">買入價</th>
             <th class="col-cur">現價</th>
+            <th>漲跌</th>
+            <th></th>
             <th class="col-pnl">損益金額</th>
+            <th>股數</th>
+            <th></th>
           </tr>
         </thead>
         ${groups}
