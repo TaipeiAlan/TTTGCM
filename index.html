@@ -266,7 +266,10 @@
 <body>
 
 <header>
-  <h1>📈 股票損益追蹤</h1>
+  <div style="display:flex;align-items:baseline;gap:8px">
+    <h1>📈 股票損益追蹤</h1>
+    <span id="versionBadge" style="font-size:11px;color:#bbb;font-weight:500;letter-spacing:0.3px"></span>
+  </div>
   <div class="header-right">
     <span class="last-refresh" id="globalRefreshTime"></span>
     <button class="btn btn-ghost" onclick="toggleAddForm()">＋ 新增持股</button>
@@ -337,6 +340,11 @@
 </div>
 
 <script>
+// ─── Version ──────────────────────────────────────────────────────────────────
+
+const VERSION = '1.0.3';
+document.getElementById('versionBadge').textContent = 'v' + VERSION;
+
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'stock_portfolio_v1';
