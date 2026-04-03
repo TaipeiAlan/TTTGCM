@@ -269,6 +269,7 @@
   <h1>📈 股票損益追蹤</h1>
   <div class="header-right">
     <span class="last-refresh" id="globalRefreshTime"></span>
+    <button class="btn btn-ghost" onclick="toggleAddForm()">＋ 新增持股</button>
     <button class="btn btn-primary" id="refreshAllBtn" onclick="refreshAll()">重新整理全部</button>
   </div>
 </header>
@@ -276,7 +277,7 @@
 <div class="container">
 
   <!-- Add form -->
-  <div class="card">
+  <div class="card" id="addFormCard" style="display:none">
     <div class="card-title">新增持股</div>
     <div class="form-row">
       <div class="form-group fg-symbol">
@@ -362,14 +363,17 @@ function toYahooSymbol(symbol) {
 
 async function fetchPrice(symbol) {
   const ys = toYahooSymbol(symbol);
-  const hosts = ['query1', 'query2'];
+  const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${ys}?interval=1d&range=1d`;
+  const urls = [
+    direct,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${ys}?interval=1d&range=1d`,
+    `https://corsproxy.io/?url=${encodeURIComponent(direct)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`,
+  ];
   let lastErr;
-  for (const host of hosts) {
+  for (const url of urls) {
     try {
-      const res = await fetch(
-        `https://${host}.finance.yahoo.com/v8/finance/chart/${ys}?interval=1d&range=1d`,
-        { signal: AbortSignal.timeout(8000) }
-      );
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       const result = json?.chart?.result?.[0];
@@ -578,6 +582,7 @@ function addStock() {
   document.getElementById('inp-buy').value = '';
   document.getElementById('inp-qty').value = '';
   document.getElementById('inp-note').value = '';
+  toggleAddForm(false);
 
   render();
   fetchAndUpdate(entry.id);
@@ -708,6 +713,17 @@ async function refreshAll() {
   const pad = n => String(n).padStart(2, '0');
   document.getElementById('globalRefreshTime').textContent =
     `上次整批更新：${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+// ─── Add form toggle ──────────────────────────────────────────────────────────
+
+function toggleAddForm(forceOpen) {
+  const card = document.getElementById('addFormCard');
+  const isHidden = card.style.display === 'none';
+  card.style.display = (forceOpen ?? isHidden) ? 'block' : 'none';
+  if (card.style.display !== 'none') {
+    document.getElementById('inp-symbol').focus();
+  }
 }
 
 // ─── Keyboard shortcut ────────────────────────────────────────────────────────
