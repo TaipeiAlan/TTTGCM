@@ -335,6 +335,76 @@
     .actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
     .actions .btn { white-space: nowrap; }
 
+    /* ── Batch edit modal ─────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 580px;
+      max-height: 85dvh;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    }
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 18px;
+    }
+    .modal-footer {
+      padding: 12px 18px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    /* Each editable row */
+    .batch-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid #f5f5f5;
+      transition: opacity 0.15s;
+    }
+    .batch-row:last-child { border-bottom: none; }
+    .batch-row input {
+      padding: 6px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .batch-row input:focus { border-color: #2563eb; }
+    .b-sym  { width: 74px; flex-shrink: 0; text-transform: uppercase; }
+    .b-buy  { width: 82px; flex-shrink: 0; }
+    .b-qty  { width: 68px; flex-shrink: 0; }
+    .b-note { flex: 1; min-width: 60px; }
+    /* Pending-delete style */
+    .batch-row.pending-delete { opacity: 0.35; }
+    .batch-row.pending-delete input { text-decoration: line-through; }
+
     .empty-state {
       text-align: center;
       padding: 48px 20px;
@@ -371,6 +441,7 @@
       <div class="menu-dropdown" id="menuDropdown">
         <div class="menu-item" onclick="forceRefreshAll()">更新全部</div>
         <div class="menu-item" id="pnlMenuItem" onclick="togglePnlCol()">顯示損益金額</div>
+        <div class="menu-item" onclick="openBatchEdit()">批次編輯清單</div>
       </div>
     </div>
   </div>
@@ -417,10 +488,27 @@
 
 </div>
 
+<!-- Batch edit modal -->
+<div id="batchModal" class="modal-overlay" style="display:none" onclick="handleModalOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span style="font-weight:700;font-size:15px">批次編輯清單</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeBatchEdit()">✕</button>
+    </div>
+    <div class="modal-body" id="batchBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="addBatchRow()">＋ 新增一筆</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="closeBatchEdit()">取消</button>
+      <button class="btn btn-primary" onclick="saveBatchEdit()">儲存全部</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.15';
+const VERSION = '1.0.16';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -832,6 +920,94 @@ function closeMenu() {
 document.addEventListener('click', e => {
   if (!e.target.closest('.menu-wrapper')) closeMenu();
 });
+
+// ─── Batch edit ───────────────────────────────────────────────────────────────
+
+let _batchNewCounter = 0; // temp IDs for newly added rows
+
+function openBatchEdit() {
+  closeMenu();
+  _batchNewCounter = 0;
+  const body = document.getElementById('batchBody');
+  body.innerHTML = portfolio.map(s => batchRowHtml(s.id, s.symbol, s.buyPrice, s.qty, s.note)).join('');
+  document.getElementById('batchModal').style.display = 'flex';
+}
+
+function batchRowHtml(id, symbol, buyPrice, qty, note) {
+  return `<div class="batch-row" data-id="${escHtml(String(id))}">
+    <input class="b-sym"  value="${escHtml(symbol)}"                     placeholder="代號"  autocapitalize="characters">
+    <input class="b-buy"  value="${buyPrice != null ? buyPrice : ''}"     placeholder="買入價" type="number" step="0.01" min="0">
+    <input class="b-qty"  value="${qty > 0 ? qty : ''}"                   placeholder="股數"  type="number" step="1"    min="0">
+    <input class="b-note" value="${escHtml(note || '')}"                   placeholder="備註">
+    <button class="btn btn-ghost btn-sm" style="flex-shrink:0;color:#aaa"
+            onclick="toggleBatchDelete(this)" title="標記刪除">✕</button>
+  </div>`;
+}
+
+function addBatchRow() {
+  const id = 'new_' + (++_batchNewCounter);
+  const row = document.createElement('div');
+  row.innerHTML = batchRowHtml(id, '', '', 0, '');
+  const newRow = row.firstElementChild;
+  document.getElementById('batchBody').appendChild(newRow);
+  newRow.querySelector('.b-sym').focus();
+}
+
+function toggleBatchDelete(btn) {
+  btn.closest('.batch-row').classList.toggle('pending-delete');
+}
+
+function saveBatchEdit() {
+  const rows = document.querySelectorAll('#batchBody .batch-row:not(.pending-delete)');
+  const newPortfolio = [];
+  const toFetch = [];
+
+  rows.forEach(row => {
+    const id      = row.dataset.id;
+    const symbol  = row.querySelector('.b-sym').value.trim();
+    const buyPrice = parseFloat(row.querySelector('.b-buy').value);
+    const qty     = parseFloat(row.querySelector('.b-qty').value) || 0;
+    const note    = row.querySelector('.b-note').value.trim();
+    if (!symbol || isNaN(buyPrice) || buyPrice <= 0) return;
+
+    if (id.startsWith('new_')) {
+      // Brand-new entry
+      const entry = { id: uid(), symbol, buyPrice, qty, note,
+                      currentPrice: null, fetchedName: '', currency: '',
+                      lastUpdated: null, fetchError: null };
+      newPortfolio.push(entry);
+      toFetch.push(entry.id);
+    } else {
+      const existing = portfolio.find(p => p.id === id);
+      if (!existing) return;
+      const symChanged = existing.symbol.toUpperCase() !== symbol.toUpperCase();
+      existing.symbol   = symbol;
+      existing.buyPrice = buyPrice;
+      existing.qty      = qty;
+      existing.note     = note;
+      if (symChanged) {
+        existing.currentPrice = null; existing.fetchedName = '';
+        existing.lastUpdated  = null; existing.fetchError  = null;
+        toFetch.push(existing.id);
+      }
+      newPortfolio.push(existing);
+    }
+  });
+
+  portfolio = newPortfolio;
+  save(portfolio);
+  closeBatchEdit();
+  render();
+  toFetch.forEach(id => fetchAndUpdate(id));
+}
+
+function closeBatchEdit() {
+  document.getElementById('batchModal').style.display = 'none';
+}
+
+function handleModalOverlayClick(e) {
+  if (e.target === e.currentTarget) closeBatchEdit();
+}
 
 // ─── Add form toggle ──────────────────────────────────────────────────────────
 
