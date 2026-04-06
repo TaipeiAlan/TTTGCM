@@ -156,7 +156,7 @@
 
     /* Holdings table — fills remaining vertical space */
     .holdings-card {
-      background: #fff;
+      background: #f3f4f6;
       border-radius: 12px;
       border: 1px solid #e4e4e4;
       flex: 1;
@@ -201,8 +201,8 @@
       font-size: 12px;
       font-weight: 600;
       color: #888;
-      background: #fafafa;
-      border-bottom: 1px solid #f0f0f0;
+      background: #e8eaed;
+      border-bottom: 1px solid #dde0e5;
       white-space: nowrap;
       /* Stick to top of .table-wrapper (the scroll container) */
       position: sticky;
@@ -227,14 +227,14 @@
     .col-buy { position: sticky; left: 0;   width: 80px; min-width: 80px; }
     .col-cur { position: sticky; left: 80px; width: 80px; min-width: 80px; border-right: 1px solid #e8e8e8; }
 
-    thead .col-buy, thead .col-cur { background: #fafafa; z-index: 7; } /* sticky on both axes */
-    tbody td.col-buy, tbody td.col-cur { background: #fff; z-index: 1; }
+    thead .col-buy, thead .col-cur { background: #e8eaed; z-index: 7; } /* sticky on both axes */
+    tbody td.col-buy, tbody td.col-cur { background: #f3f4f6; z-index: 1; }
 
     /* Per-stock group: hover lights up both rows, border separates groups */
-    tbody.stock-group { border-top: 1px solid #f0f0f0; }
+    tbody.stock-group { border-top: 1px solid #e4e6ea; }
     tbody.stock-group:first-of-type { border-top: none; }
     tbody.stock-group:hover td.col-buy,
-    tbody.stock-group:hover td.col-cur { background: #fafafe !important; }
+    tbody.stock-group:hover td.col-cur { background: #eaecf0 !important; }
     .edit-row td { background: #eff6ff !important; }
 
     /* P&L column — hidden by default */
@@ -242,7 +242,7 @@
 
     /* Name row — td provides full-row background; inner div handles sticky */
     .stock-name-row > td {
-      background: #fff;
+      background: #f3f4f6;
       padding: 0;
       text-align: left;
     }
@@ -433,7 +433,8 @@
       text-transform: uppercase;
       letter-spacing: 0.6px;
     }
-    .sort-item.active { color: #2563eb; font-weight: 600; }
+    .sort-item.active,
+    .region-item.active { color: #2563eb; font-weight: 600; }
 
     @media (max-width: 600px) {
       .header-right { gap: 6px; }
@@ -464,6 +465,12 @@
         <div class="menu-item sort-item" data-sort="gain_desc" onclick="setSort('gain_desc')">漲跌幅（高→低）</div>
         <div class="menu-item sort-item" data-sort="gain_asc" onclick="setSort('gain_asc')">漲跌幅（低→高）</div>
         <div class="menu-item sort-item" data-sort="alpha" onclick="setSort('alpha')">名稱 A→Z</div>
+        <div class="menu-item sort-item" data-sort="alpha_rev" onclick="setSort('alpha_rev')">名稱 Z→A</div>
+        <div class="menu-divider"></div>
+        <div class="menu-section-label">市場分組</div>
+        <div class="menu-item region-item active" data-region="none" onclick="setRegion('none')">不區分</div>
+        <div class="menu-item region-item" data-region="us_first" onclick="setRegion('us_first')">先美股</div>
+        <div class="menu-item region-item" data-region="tw_first" onclick="setRegion('tw_first')">先台股</div>
       </div>
     </div>
   </div>
@@ -540,7 +547,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.20';
+const VERSION = '1.0.21';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -784,7 +791,7 @@ function addStock() {
   // If batch edit is open, refresh its list to include the new entry
   if (_batchEditOpen) {
     document.getElementById('batchBody').innerHTML =
-      portfolio.map(s => batchRowHtml(s.id, s.symbol, s.buyPrice, s.qty, s.note)).join('');
+      getSortedPortfolio().map(s => batchRowHtml(s.id, s.symbol, s.buyPrice, s.qty, s.note)).join('');
   }
 }
 
@@ -967,7 +974,7 @@ function openBatchEdit() {
   _batchEditOpen = true;
   _batchNewCounter = 0;
   const body = document.getElementById('batchBody');
-  body.innerHTML = portfolio.map(s => batchRowHtml(s.id, s.symbol, s.buyPrice, s.qty, s.note)).join('');
+  body.innerHTML = getSortedPortfolio().map(s => batchRowHtml(s.id, s.symbol, s.buyPrice, s.qty, s.note)).join('');
   document.getElementById('batchModal').style.display = 'flex';
 }
 
@@ -1046,37 +1053,63 @@ function handleModalOverlayClick(e) {
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 
-let sortMode = 'newest';
+let sortMode   = 'newest';
+let regionMode = 'none';  // 'none' | 'us_first' | 'tw_first'
+
+function isTaiwanStock(s) {
+  return /^\d+$/.test(s.symbol.trim());
+}
 
 function getSortedPortfolio() {
-  const arr = [...portfolio];
+  let arr = [...portfolio];
+
+  // Primary sort
   switch (sortMode) {
-    case 'oldest':
-      return arr;
+    case 'oldest': break;
     case 'gain_desc':
-      return arr.sort((a, b) => {
+      arr.sort((a, b) => {
         const ga = a.currentPrice != null ? (a.currentPrice - a.buyPrice) / a.buyPrice : -Infinity;
         const gb = b.currentPrice != null ? (b.currentPrice - b.buyPrice) / b.buyPrice : -Infinity;
         return gb - ga;
-      });
+      }); break;
     case 'gain_asc':
-      return arr.sort((a, b) => {
+      arr.sort((a, b) => {
         const ga = a.currentPrice != null ? (a.currentPrice - a.buyPrice) / a.buyPrice : Infinity;
         const gb = b.currentPrice != null ? (b.currentPrice - b.buyPrice) / b.buyPrice : Infinity;
         return ga - gb;
-      });
+      }); break;
     case 'alpha':
-      return arr.sort((a, b) => a.symbol.toUpperCase().localeCompare(b.symbol.toUpperCase()));
+      arr.sort((a, b) => a.symbol.toUpperCase().localeCompare(b.symbol.toUpperCase())); break;
+    case 'alpha_rev':
+      arr.sort((a, b) => b.symbol.toUpperCase().localeCompare(a.symbol.toUpperCase())); break;
     case 'newest':
     default:
-      return arr.reverse();
+      arr.reverse(); break;
   }
+
+  // Region grouping (stable: preserves internal sort order)
+  if (regionMode !== 'none') {
+    const tw = arr.filter(s =>  isTaiwanStock(s));
+    const us = arr.filter(s => !isTaiwanStock(s));
+    arr = regionMode === 'tw_first' ? [...tw, ...us] : [...us, ...tw];
+  }
+
+  return arr;
 }
 
 function setSort(mode) {
   sortMode = mode;
   document.querySelectorAll('.sort-item').forEach(el => {
     el.classList.toggle('active', el.dataset.sort === mode);
+  });
+  closeMenu();
+  render();
+}
+
+function setRegion(mode) {
+  regionMode = mode;
+  document.querySelectorAll('.region-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.region === mode);
   });
   closeMenu();
   render();
