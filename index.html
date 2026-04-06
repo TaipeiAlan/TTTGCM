@@ -7,11 +7,18 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* Prevent the page itself from scrolling horizontally on mobile.
+       overflow-x: clip (unlike hidden) does not create a new stacking
+       context, so position:sticky on child elements keeps working. */
+    html { overflow-x: clip; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
       background: #f0f2f5;
       color: #1a1a1a;
       min-height: 100vh;
+      overflow-x: hidden; /* belt-and-suspenders for older Safari */
+      width: 100%;
     }
 
     header {
@@ -138,6 +145,8 @@
     .table-wrapper {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+      width: 100%;       /* must not exceed parent width */
+      max-width: 100%;
     }
 
     table {
@@ -364,7 +373,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.11';
+const VERSION = '1.0.12';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
