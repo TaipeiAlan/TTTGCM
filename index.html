@@ -7,18 +7,18 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* Prevent the page itself from scrolling horizontally on mobile.
-       overflow-x: clip (unlike hidden) does not create a new stacking
-       context, so position:sticky on child elements keeps working. */
-    html { overflow-x: clip; }
+    /* Full-viewport layout: only tbody scrolls, nothing else */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
       background: #f0f2f5;
       color: #1a1a1a;
-      min-height: 100vh;
-      overflow-x: hidden; /* belt-and-suspenders for older Safari */
-      width: 100%;
+      display: flex;
+      flex-direction: column;
     }
 
     header {
@@ -28,8 +28,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      position: sticky;
-      top: 0;
+      flex-shrink: 0;
       z-index: 10;
     }
 
@@ -68,7 +67,16 @@
     .btn-danger { background: #fee2e2; color: #dc2626; }
     .btn-sm { padding: 5px 10px; font-size: 12px; }
 
-    .container { max-width: 960px; margin: 0 auto; padding: 16px 10px; }
+    .container {
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 12px 10px 0;
+      flex: 1;
+      min-height: 0;        /* allow flex child to shrink below content size */
+      display: flex;
+      flex-direction: column;
+    }
 
     /* Hamburger menu */
     .menu-wrapper { position: relative; }
@@ -149,20 +157,28 @@
     .fg-qty    { min-width: 100px; }
     .fg-note   { min-width: 140px; flex: 1; }
 
-    /* Holdings table */
+    /* Add form card — fixed height, doesn't grow */
+    .card { flex-shrink: 0; }
+
+    /* Holdings table — fills remaining vertical space */
     .holdings-card {
       background: #fff;
       border-radius: 12px;
       border: 1px solid #e4e4e4;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
+      margin-bottom: 12px;
     }
 
-    /* Horizontal scroll wrapper — allows table to scroll on mobile */
+    /* Scroll container: both axes, only this scrolls */
     .table-wrapper {
-      overflow-x: auto;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
       -webkit-overflow-scrolling: touch;
-      width: 100%;       /* must not exceed parent width */
-      max-width: 100%;
     }
 
     table {
@@ -180,6 +196,10 @@
       background: #fafafa;
       border-bottom: 1px solid #f0f0f0;
       white-space: nowrap;
+      /* Stick to top of .table-wrapper (the scroll container) */
+      position: sticky;
+      top: 0;
+      z-index: 5;
     }
     thead th:first-child { text-align: left; }
 
@@ -199,7 +219,7 @@
     .col-buy { position: sticky; left: 0;   width: 80px; min-width: 80px; }
     .col-cur { position: sticky; left: 80px; width: 80px; min-width: 80px; border-right: 1px solid #e8e8e8; }
 
-    thead .col-buy, thead .col-cur { background: #fafafa; z-index: 2; }
+    thead .col-buy, thead .col-cur { background: #fafafa; z-index: 7; } /* sticky on both axes */
     tbody td.col-buy, tbody td.col-cur { background: #fff; z-index: 1; }
 
     /* Per-stock group: hover lights up both rows, border separates groups */
@@ -391,7 +411,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.13';
+const VERSION = '1.0.14';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
