@@ -15,15 +15,15 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      background: #f0f2f5;
+      background: #111827;
       color: #1a1a1a;
       display: flex;
       flex-direction: column;
     }
 
     header {
-      background: #fff;
-      border-bottom: 1px solid #e4e4e4;
+      background: #1f2937;
+      border-bottom: 1px solid #374151;
       padding: 16px 24px;
       display: flex;
       align-items: center;
@@ -35,7 +35,7 @@
     header h1 {
       font-size: 18px;
       font-weight: 700;
-      color: #1a1a1a;
+      color: #f9fafb;
     }
 
     .header-right {
@@ -46,8 +46,10 @@
 
     .last-refresh {
       font-size: 12px;
-      color: #999;
+      color: #9ca3af;
     }
+
+    #versionBadge { color: #6b7280 !important; }
 
     .btn {
       padding: 8px 16px;
@@ -178,9 +180,14 @@
     .table-wrapper {
       flex: 1;
       min-height: 0;
-      overflow: auto;
+      overflow-y: scroll;   /* always-visible scrollbar hints remaining content */
+      overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
+    .table-wrapper::-webkit-scrollbar { width: 3px; height: 3px; }
+    .table-wrapper::-webkit-scrollbar-track { background: transparent; }
+    .table-wrapper::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+    .table-wrapper::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
     table {
       width: 100%;
@@ -391,7 +398,7 @@
       padding: 6px 8px;
       border: 1px solid #d1d5db;
       border-radius: 7px;
-      font-size: 13px;
+      font-size: 16px; /* ≥16px prevents iOS Safari auto-zoom */
       outline: none;
       transition: border-color 0.15s;
     }
@@ -417,6 +424,17 @@
       padding: 10px 14px;
     }
 
+    .menu-divider { height: 1px; background: #f0f0f0; margin: 4px 0; }
+    .menu-section-label {
+      padding: 6px 16px 2px;
+      font-size: 10px;
+      color: #bbb;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .sort-item.active { color: #2563eb; font-weight: 600; }
+
     @media (max-width: 600px) {
       .header-right { gap: 6px; }
       .header-right .btn { padding: 6px 10px; font-size: 13px; }
@@ -439,6 +457,13 @@
         <div class="menu-item" onclick="forceRefreshAll()">更新全部</div>
         <div class="menu-item" id="pnlMenuItem" onclick="togglePnlCol()">顯示損益金額</div>
         <div class="menu-item" onclick="openBatchEdit()">批次編輯清單</div>
+        <div class="menu-divider"></div>
+        <div class="menu-section-label">排序方式</div>
+        <div class="menu-item sort-item active" data-sort="newest" onclick="setSort('newest')">加入時間（新→舊）</div>
+        <div class="menu-item sort-item" data-sort="oldest" onclick="setSort('oldest')">加入時間（舊→新）</div>
+        <div class="menu-item sort-item" data-sort="gain_desc" onclick="setSort('gain_desc')">漲跌幅（高→低）</div>
+        <div class="menu-item sort-item" data-sort="gain_asc" onclick="setSort('gain_asc')">漲跌幅（低→高）</div>
+        <div class="menu-item sort-item" data-sort="alpha" onclick="setSort('alpha')">名稱 A→Z</div>
       </div>
     </div>
   </div>
@@ -504,7 +529,7 @@
     </div>
     <div class="modal-body" id="batchBody"></div>
     <div class="modal-footer">
-      <button class="btn btn-ghost btn-sm" onclick="addBatchRow()">＋ 新增一筆</button>
+      <button class="btn btn-ghost btn-sm" onclick="addFromBatchEdit()">＋ 新增一筆</button>
       <div style="flex:1"></div>
       <button class="btn btn-ghost" onclick="closeBatchEdit()">取消</button>
       <button class="btn btn-primary" onclick="saveBatchEdit()">儲存全部</button>
@@ -515,7 +540,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.19';
+const VERSION = '1.0.20';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -645,7 +670,7 @@ function render() {
   // Table
   const pnlHidden = !pnlShowing;
 
-  const groups = portfolio.map(s => {
+  const groups = getSortedPortfolio().map(s => {
     const diff    = s.currentPrice != null ? s.currentPrice - s.buyPrice : null;
     const diffPct = diff != null ? (diff / s.buyPrice) * 100 : null;
 
@@ -755,6 +780,12 @@ function addStock() {
 
   render();
   fetchAndUpdate(entry.id);
+
+  // If batch edit is open, refresh its list to include the new entry
+  if (_batchEditOpen) {
+    document.getElementById('batchBody').innerHTML =
+      portfolio.map(s => batchRowHtml(s.id, s.symbol, s.buyPrice, s.qty, s.note)).join('');
+  }
 }
 
 function showErr(el, msg) {
@@ -928,14 +959,21 @@ document.addEventListener('click', e => {
 
 // ─── Batch edit ───────────────────────────────────────────────────────────────
 
-let _batchNewCounter = 0; // temp IDs for newly added rows
+let _batchNewCounter = 0;
+let _batchEditOpen = false;
 
 function openBatchEdit() {
   closeMenu();
+  _batchEditOpen = true;
   _batchNewCounter = 0;
   const body = document.getElementById('batchBody');
   body.innerHTML = portfolio.map(s => batchRowHtml(s.id, s.symbol, s.buyPrice, s.qty, s.note)).join('');
   document.getElementById('batchModal').style.display = 'flex';
+}
+
+function addFromBatchEdit() {
+  openAddModal();
+  // addStock() will refresh batchBody when _batchEditOpen is true
 }
 
 function batchRowHtml(id, symbol, buyPrice, qty, note) {
@@ -947,15 +985,6 @@ function batchRowHtml(id, symbol, buyPrice, qty, note) {
     <button class="btn btn-ghost btn-sm" style="flex-shrink:0;color:#aaa"
             onclick="toggleBatchDelete(this)" title="標記刪除">✕</button>
   </div>`;
-}
-
-function addBatchRow() {
-  const id = 'new_' + (++_batchNewCounter);
-  const row = document.createElement('div');
-  row.innerHTML = batchRowHtml(id, '', '', 0, '');
-  const newRow = row.firstElementChild;
-  document.getElementById('batchBody').appendChild(newRow);
-  newRow.querySelector('.b-sym').focus();
 }
 
 function toggleBatchDelete(btn) {
@@ -1007,11 +1036,50 @@ function saveBatchEdit() {
 }
 
 function closeBatchEdit() {
+  _batchEditOpen = false;
   document.getElementById('batchModal').style.display = 'none';
 }
 
 function handleModalOverlayClick(e) {
   if (e.target === e.currentTarget) closeBatchEdit();
+}
+
+// ─── Sort ─────────────────────────────────────────────────────────────────────
+
+let sortMode = 'newest';
+
+function getSortedPortfolio() {
+  const arr = [...portfolio];
+  switch (sortMode) {
+    case 'oldest':
+      return arr;
+    case 'gain_desc':
+      return arr.sort((a, b) => {
+        const ga = a.currentPrice != null ? (a.currentPrice - a.buyPrice) / a.buyPrice : -Infinity;
+        const gb = b.currentPrice != null ? (b.currentPrice - b.buyPrice) / b.buyPrice : -Infinity;
+        return gb - ga;
+      });
+    case 'gain_asc':
+      return arr.sort((a, b) => {
+        const ga = a.currentPrice != null ? (a.currentPrice - a.buyPrice) / a.buyPrice : Infinity;
+        const gb = b.currentPrice != null ? (b.currentPrice - b.buyPrice) / b.buyPrice : Infinity;
+        return ga - gb;
+      });
+    case 'alpha':
+      return arr.sort((a, b) => a.symbol.toUpperCase().localeCompare(b.symbol.toUpperCase()));
+    case 'newest':
+    default:
+      return arr.reverse();
+  }
+}
+
+function setSort(mode) {
+  sortMode = mode;
+  document.querySelectorAll('.sort-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.sort === mode);
+  });
+  closeMenu();
+  render();
 }
 
 // ─── Add stock modal ──────────────────────────────────────────────────────────
