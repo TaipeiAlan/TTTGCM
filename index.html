@@ -203,11 +203,16 @@
     /* P&L column — hidden by default */
     table.hide-pnl .col-pnl { display: none; }
 
-    /* Name row (spans full width) */
+    /* Name row (spans full width) — sticky on horizontal scroll */
     .stock-name-row > td {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      background: #fff;
       padding: 10px 14px 3px;
       text-align: left;
     }
+    tbody.stock-group:first-of-type .stock-name-row > td { border-top: none; }
     .name-line {
       display: flex;
       align-items: center;
@@ -394,7 +399,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.9';
+const VERSION = '1.0.10';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -586,15 +591,12 @@ function render() {
       pnlAmtStr = `<span class="${pnlClass(pnlAmt)}">${psign}${fmtNum(pnlAmt)}</span>`;
     }
 
-    const qtyStr = s.qty > 0 ? `${fmtNum(s.qty, 0)} 股` : '—';
-
     const dataRow = `<tr class="stock-data-row">
       <td class="col-buy price-cell">${fmtNum(s.buyPrice)}</td>
       <td class="col-cur price-cell">${curPriceStr}</td>
       <td class="price-cell">${chgAmtStr}</td>
       <td class="price-cell">${chgPctStr}</td>
       <td class="col-pnl">${pnlAmtStr}</td>
-      <td style="font-size:13px;color:#999;white-space:nowrap">${qtyStr}</td>
       <td>
         <div class="actions">
           <button class="btn btn-ghost btn-sm" onclick="fetchAndUpdate('${s.id}')">更新</button>
@@ -618,7 +620,6 @@ function render() {
             <th>漲跌</th>
             <th></th>
             <th class="col-pnl">損益金額</th>
-            <th>股數</th>
             <th></th>
           </tr>
         </thead>
