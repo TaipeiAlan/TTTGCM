@@ -116,22 +116,6 @@
     .fg-qty    { min-width: 100px; }
     .fg-note   { min-width: 140px; flex: 1; }
 
-    /* Summary bar */
-    .summary-bar {
-      background: #fff;
-      border-radius: 12px;
-      border: 1px solid #e4e4e4;
-      padding: 16px 20px;
-      margin-bottom: 20px;
-      display: flex;
-      gap: 32px;
-      flex-wrap: wrap;
-    }
-
-    .summary-item { display: flex; flex-direction: column; gap: 3px; }
-    .summary-label { font-size: 12px; color: #888; }
-    .summary-value { font-size: 18px; font-weight: 700; }
-
     /* Holdings table */
     .holdings-card {
       background: #fff;
@@ -313,8 +297,7 @@
     @media (max-width: 600px) {
       .form-row { flex-direction: column; }
       .fg-symbol, .fg-price, .fg-qty, .fg-note { min-width: unset; width: 100%; }
-      .summary-bar { gap: 20px; }
-      .header-right { gap: 6px; }
+.header-right { gap: 6px; }
       .header-right .btn { padding: 6px 10px; font-size: 13px; }
     }
   </style>
@@ -363,25 +346,7 @@
     </div>
   </div>
 
-  <!-- Summary bar -->
-  <div class="summary-bar" id="summaryBar" style="display:none">
-    <div class="summary-item">
-      <span class="summary-label">持股數</span>
-      <span class="summary-value" id="sum-count">—</span>
-    </div>
-    <div class="summary-item">
-      <span class="summary-label">總投入成本</span>
-      <span class="summary-value" id="sum-cost">—</span>
-    </div>
-    <div class="summary-item">
-      <span class="summary-label">目前市值</span>
-      <span class="summary-value" id="sum-value">—</span>
-    </div>
-    <div class="summary-item">
-      <span class="summary-label">未實現損益</span>
-      <span class="summary-value" id="sum-pnl">—</span>
-    </div>
-  </div>
+  <!-- Summary bar removed -->
 
   <!-- Holdings -->
   <div class="holdings-card">
@@ -399,7 +364,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.10';
+const VERSION = '1.0.11';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -520,32 +485,11 @@ function pnlClass(v) {
 
 function render() {
   const container = document.getElementById('holdingsContainer');
-  const summaryBar = document.getElementById('summaryBar');
 
   if (portfolio.length === 0) {
     container.innerHTML = '<div class="empty-state">尚未新增任何持股</div>';
-    summaryBar.style.display = 'none';
     return;
   }
-
-  // Summary
-  let totalCost = 0, totalValue = 0, hasQty = false;
-  portfolio.forEach(s => {
-    if (s.qty && s.qty > 0) {
-      hasQty = true;
-      totalCost  += s.buyPrice * s.qty;
-      if (s.currentPrice != null) totalValue += s.currentPrice * s.qty;
-    }
-  });
-  const totalPnl = totalValue - totalCost;
-
-  summaryBar.style.display = 'flex';
-  document.getElementById('sum-count').textContent = portfolio.length;
-  document.getElementById('sum-cost').textContent  = hasQty ? fmtNum(totalCost) : '—';
-  document.getElementById('sum-value').textContent = hasQty ? fmtNum(totalValue) : '—';
-  const pnlEl = document.getElementById('sum-pnl');
-  pnlEl.textContent = hasQty ? (totalPnl >= 0 ? '+' : '') + fmtNum(totalPnl) : '—';
-  pnlEl.className = 'summary-value ' + (hasQty ? pnlClass(totalPnl) : 'zero');
 
   // Table
   const pnlHidden = !(document.getElementById('pnlToggleBtn')?.dataset.show === '1');
