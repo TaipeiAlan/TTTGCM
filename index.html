@@ -173,6 +173,15 @@
       margin-bottom: 12px;
     }
 
+    /* Bridge the flex chain through the JS-injected container */
+    #holdingsContainer {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
     /* Scroll container: both axes, only this scrolls */
     .table-wrapper {
       flex: 1;
@@ -411,7 +420,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.14';
+const VERSION = '1.0.15';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
