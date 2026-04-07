@@ -631,12 +631,13 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.25';
+const VERSION = '1.0.26';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'stock_portfolio_v1';
+const PREFS_KEY   = 'stock_portfolio_prefs';
 
 function load() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -645,6 +646,15 @@ function load() {
 
 function save(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function savePrefs() {
+  localStorage.setItem(PREFS_KEY, JSON.stringify({ sortMode, regionMode }));
 }
 
 let portfolio = load();
@@ -1175,8 +1185,9 @@ function handleModalOverlayClick(e) {
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 
-let sortMode   = 'newest';
-let regionMode = 'none';  // 'none' | 'us_first' | 'tw_first'
+const _prefs   = loadPrefs();
+let sortMode   = _prefs.sortMode   || 'newest';
+let regionMode = _prefs.regionMode || 'none';
 
 function isTaiwanStock(s) {
   return /^\d+$/.test(s.symbol.trim());
@@ -1221,6 +1232,7 @@ function getSortedPortfolio() {
 
 function setSort(mode) {
   sortMode = mode;
+  savePrefs();
   document.querySelectorAll('.sort-item').forEach(el => {
     el.classList.toggle('active', el.dataset.sort === mode);
   });
@@ -1230,6 +1242,7 @@ function setSort(mode) {
 
 function setRegion(mode) {
   regionMode = mode;
+  savePrefs();
   document.querySelectorAll('.region-item').forEach(el => {
     el.classList.toggle('active', el.dataset.region === mode);
   });
@@ -1346,6 +1359,14 @@ document.getElementById('inp-note').addEventListener('keydown', e => {
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
+
+// Apply saved prefs to menu active states
+document.querySelectorAll('.sort-item').forEach(el => {
+  el.classList.toggle('active', el.dataset.sort === sortMode);
+});
+document.querySelectorAll('.region-item').forEach(el => {
+  el.classList.toggle('active', el.dataset.region === regionMode);
+});
 
 render();
 
