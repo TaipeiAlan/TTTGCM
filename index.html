@@ -547,7 +547,7 @@
 <script>
 // ─── Version ──────────────────────────────────────────────────────────────────
 
-const VERSION = '1.0.22';
+const VERSION = '1.0.23';
 document.getElementById('versionBadge').textContent = 'v' + VERSION;
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
@@ -591,10 +591,21 @@ async function fetchPrice(symbol) {
       const json = await res.json();
       const result = json?.chart?.result?.[0];
       if (!result) throw new Error('無資料');
+      const m = result.meta;
       return {
-        price:    result.meta.regularMarketPrice,
-        currency: result.meta.currency || '',
-        name:     result.meta.longName || result.meta.shortName || symbol,
+        price:        m.regularMarketPrice,
+        currency:     m.currency        || '',
+        name:         m.longName        || m.shortName || symbol,
+        marketState:  m.marketState     || 'CLOSED',
+        dayHigh:      m.regularMarketDayHigh  ?? null,
+        dayLow:       m.regularMarketDayLow   ?? null,
+        prevClose:    m.chartPreviousClose    ?? m.previousClose ?? null,
+        dayOpen:      m.regularMarketOpen     ?? null,
+        volume:       m.regularMarketVolume   ?? null,
+        week52High:   m.fiftyTwoWeekHigh      ?? null,
+        week52Low:    m.fiftyTwoWeekLow       ?? null,
+        exchangeName: m.exchangeName          ?? '',
+        marketTime:   m.regularMarketTime     ?? null, // Unix seconds
       };
     } catch (e) { lastErr = e; }
   }
@@ -882,15 +893,27 @@ async function fetchAndUpdate(id) {
   render();
 
   try {
-    const { price, currency, name } = await fetchPrice(s.symbol);
-    s.currentPrice = price;
-    s.currency     = currency;
-    s.fetchedName  = name;
-    s.lastUpdated  = new Date().toISOString();
-    s.fetchError   = null;
+    const { price, currency, name, marketState,
+            dayHigh, dayLow, prevClose, dayOpen,
+            volume, week52High, week52Low, exchangeName, marketTime } = await fetchPrice(s.symbol);
+    s.currentPrice  = price;
+    s.currency      = currency;
+    s.fetchedName   = name;
+    s.marketState   = marketState;
+    s.dayHigh       = dayHigh;
+    s.dayLow        = dayLow;
+    s.prevClose     = prevClose;
+    s.dayOpen       = dayOpen;
+    s.volume        = volume;
+    s.week52High    = week52High;
+    s.week52Low     = week52Low;
+    s.exchangeName  = exchangeName;
+    s.marketTime    = marketTime ? new Date(marketTime * 1000).toISOString() : null;
+    s.lastUpdated   = new Date().toISOString();
+    s.fetchError    = null;
   } catch (e) {
     s.fetchError  = e.message || '抓取失敗';
-    s.lastUpdated = new Date().toISOString(); // Still record the attempt time
+    s.lastUpdated = new Date().toISOString();
   } finally {
     s.loading = false;
     save(portfolio);
@@ -898,11 +921,21 @@ async function fetchAndUpdate(id) {
   }
 }
 
-const FRESH_MS = 5 * 60 * 1000; // 5 minutes
+// Staleness thresholds by market state
+const STALE_DURATION = {
+  REGULAR: 5  * 60 * 1000,  //  5 min — market open, prices moving
+  PRE:     15 * 60 * 1000,  // 15 min — pre-market
+  POST:    15 * 60 * 1000,  // 15 min — post-market
+};
+const STALE_CLOSED_MS = 60 * 60 * 1000; // 1 hour — closed / unknown
+
+function staleDuration(s) {
+  return STALE_DURATION[s.marketState] ?? STALE_CLOSED_MS;
+}
 
 function isStale(s) {
   if (!s.lastUpdated || s.fetchError) return true;
-  return (Date.now() - new Date(s.lastUpdated)) > FRESH_MS;
+  return (Date.now() - new Date(s.lastUpdated)) > staleDuration(s);
 }
 
 async function refreshAll() {
