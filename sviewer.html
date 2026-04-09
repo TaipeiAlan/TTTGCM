@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SVG Viewer</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,6 +19,11 @@
 
     /* ── Top bar ── */
     #topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -55,6 +60,11 @@
 
     /* ── Record tabs ── */
     #tabs-wrap {
+      position: fixed;
+      top: 41px; /* height of topbar */
+      left: 0;
+      right: 0;
+      z-index: 50;
       background: #16213e;
       border-bottom: 1px solid #0f3460;
       overflow-x: auto;
@@ -118,7 +128,11 @@
 
     /* ── Main area ── */
     #main {
-      flex: 1;
+      position: fixed;
+      top: 82px; /* topbar ~41px + tabs-wrap ~41px */
+      left: 0;
+      right: 0;
+      bottom: 0;
       display: flex;
       overflow: hidden;
     }
@@ -718,6 +732,24 @@
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); openModal(); }
   });
+
+  /* ── Block browser-level zoom so UI never disappears ── */
+  // Ctrl+Wheel anywhere outside the canvas
+  document.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) e.preventDefault();
+  }, { passive: false });
+
+  // Ctrl++ / Ctrl+- / Ctrl+0
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+      e.preventDefault();
+    }
+  }, true);
+
+  // Pinch-to-zoom (touch devices)
+  document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+  document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+  document.addEventListener('gestureend', e => e.preventDefault(), { passive: false });
 
   /* ── Init ── */
   renderTabs();
