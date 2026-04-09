@@ -3,74 +3,90 @@
 <head>
 <meta charset="UTF-8">
 <title>Floor Plan Editor</title>
+
 <style>
 body {
   margin: 0;
   display: flex;
+  flex-direction: column;
+  height: 100vh;
   font-family: Arial;
 }
-#toolbar {
-  width: 220px;
-  padding: 10px;
-  background: #f5f5f5;
-  border-right: 1px solid #ccc;
-}
+
 #canvas {
-  flex: 1;
-  position: relative;
+  width: 1000px;
+  height: 600px;
+  margin: 10px auto;
   background: #fff;
-  overflow: hidden;
+  border: 1px solid #ccc;
+  position: relative;
 }
+
 .element {
   position: absolute;
   box-sizing: border-box;
+  cursor: move;
 }
-.room {
-  border: 2px solid #000;
-  background: rgba(0,0,0,0.05);
+
+.room { border: 2px solid #000; background: rgba(0,0,0,0.05); }
+.wall { background: #000; }
+.reserve { border: 2px dashed #666; background: rgba(100,100,100,0.1); }
+
+.selected { outline: 2px solid red; }
+
+footer {
+  border-top: 1px solid #ccc;
+  padding: 10px;
+  background: #f5f5f5;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-.wall {
-  background: #000;
+
+button { padding: 5px 10px; }
+input { width: 80px; }
+
+textarea {
+  width: 100%;
+  height: 120px;
 }
-.reserve {
-  border: 2px dashed #666;
-  background: rgba(100,100,100,0.1);
-}
-.selected {
-  outline: 2px solid red;
-}
-button { margin: 4px 0; width: 100%; }
-input { width: 100%; margin-bottom: 5px; }
-textarea { width: 100%; height: 150px; }
 </style>
 </head>
 
 <body>
 
-<div id="toolbar">
-  <h3>工具</h3>
-  <button onclick="setMode('room')">房</button>
-  <button onclick="setMode('wall')">牆</button>
-  <button onclick="setMode('reserve')">保留</button>
+<div id="canvas"></div>
 
-  <h3>尺寸</h3>
-  寬 <input id="w" type="number" value="100">
-  高 <input id="h" type="number" value="100">
+<footer>
+  <div>
+    <b>類型</b><br>
+    <button onclick="setMode('room')">房</button>
+    <button onclick="setMode('wall')">牆</button>
+    <button onclick="setMode('reserve')">保留</button>
+  </div>
 
-  <h3>操作</h3>
-  <button onclick="exportSVG()">匯出 SVG</button>
-  <button onclick="showSVG()">檢視 SVG</button>
-  <button onclick="clearAll()">清空</button>
+  <div>
+    <b>尺寸</b><br>
+    寬 <input id="w" type="number" value="100">
+    高 <input id="h" type="number" value="100">
+  </div>
+
+  <div>
+    <b>操作</b><br>
+    <button onclick="deleteSelected()">刪除</button>
+    <button onclick="exportSVG()">匯出SVG</button>
+    <button onclick="showSVG()">檢視SVG</button>
+    <button onclick="clearAll()">清空</button>
+  </div>
 
   <textarea id="svgOutput"></textarea>
-</div>
-
-<div id="canvas"></div>
+</footer>
 
 <script>
 const canvas = document.getElementById('canvas');
 const grid = 20;
-let mode = 'room';
+
+let mode = null;
 let elements = [];
 let selected = null;
 
@@ -83,6 +99,7 @@ function setMode(m) {
 }
 
 canvas.addEventListener('click', (e) => {
+  if (!mode) return;
   if (e.target !== canvas) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -107,10 +124,13 @@ canvas.addEventListener('click', (e) => {
   el.style.top = y + 'px';
 
   canvas.appendChild(el);
-
   makeDraggable(el);
 
   elements.push(el);
+
+  select(el);
+
+  mode = null; // 新增後回到拖曳模式
   save();
 });
 
@@ -118,9 +138,8 @@ function makeDraggable(el) {
   let offsetX, offsetY;
 
   el.addEventListener('mousedown', (e) => {
-    selected = el;
-    document.querySelectorAll('.element').forEach(e=>e.classList.remove('selected'));
-    el.classList.add('selected');
+    e.stopPropagation();
+    select(el);
 
     offsetX = e.offsetX;
     offsetY = e.offsetY;
@@ -141,6 +160,24 @@ function makeDraggable(el) {
     document.addEventListener('mouseup', up);
   });
 }
+
+function select(el) {
+  selected = el;
+  document.querySelectorAll('.element').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function deleteSelected() {
+  if (!selected) return;
+  selected.remove();
+  elements = elements.filter(e => e !== selected);
+  selected = null;
+  save();
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Delete') deleteSelected();
+});
 
 function exportSVG() {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg">\n`;
@@ -177,7 +214,6 @@ function showSVG() {
   });
 
   svg += `</svg>`;
-
   document.getElementById('svgOutput').value = svg;
 }
 
