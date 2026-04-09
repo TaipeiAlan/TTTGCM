@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVG Viewer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      flex-shrink: 0;
+    }
+
+    #topbar h1 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e94560;
+      margin-right: 8px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      padding: 5px 12px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: filter 0.15s;
+    }
+    .btn:hover { filter: brightness(1.2); }
+
+    .btn-primary { background: #e94560; color: #fff; }
+    .btn-secondary { background: #0f3460; color: #c8d6e5; }
+    .btn-danger { background: #7f1d1d; color: #fca5a5; }
+
+    #file-input { display: none; }
+
+    /* ── Record tabs ── */
+    #tabs-wrap {
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      overflow-x: auto;
+      flex-shrink: 0;
+      scrollbar-width: thin;
+      scrollbar-color: #0f3460 transparent;
+    }
+
+    #tabs {
+      display: flex;
+      gap: 2px;
+      padding: 4px 8px;
+      min-width: max-content;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: #0f3460;
+      border-radius: 5px 5px 0 0;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      border: 1px solid transparent;
+      border-bottom: none;
+      max-width: 180px;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .tab:hover { background: #1e4080; color: #e0e0e0; }
+    .tab.active {
+      background: #1a1a2e;
+      color: #e94560;
+      border-color: #0f3460;
+    }
+
+    .tab-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 130px;
+    }
+
+    .tab-close {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .tab-close:hover { background: #e94560; color: #fff; }
+
+    /* ── Main area ── */
+    #main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── SVG canvas ── */
+    #canvas {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      position: relative;
+      background:
+        linear-gradient(45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1e293b 75%),
+        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      background-color: #0f172a;
+    }
+
+    #svg-container {
+      position: relative;
+      transform-origin: center center;
+      cursor: grab;
+      user-select: none;
+    }
+    #svg-container.grabbing { cursor: grabbing; }
+    #svg-container svg {
+      display: block;
+      max-width: none;
+    }
+
+    #empty-hint {
+      text-align: center;
+      color: #475569;
+      pointer-events: none;
+    }
+    #empty-hint .icon { font-size: 4rem; margin-bottom: 12px; }
+    #empty-hint p { font-size: 0.9rem; line-height: 1.8; }
+
+    /* ── Zoom controls ── */
+    #zoom-controls {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .zoom-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: #16213e;
+      border: 1px solid #0f3460;
+      color: #e0e0e0;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .zoom-btn:hover { background: #0f3460; }
+
+    #zoom-label {
+      font-size: 0.7rem;
+      color: #64748b;
+      text-align: center;
+    }
+
+    /* ── Modal overlay ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+
+    #modal {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 10px;
+      padding: 24px;
+      width: min(600px, 95vw);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    #modal h2 { font-size: 1rem; color: #e94560; }
+
+    #modal-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid #0f3460;
+      padding-bottom: 8px;
+    }
+    .modal-tab-btn {
+      padding: 4px 14px;
+      border-radius: 4px;
+      border: none;
+      background: #0f3460;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .modal-tab-btn.active { background: #e94560; color: #fff; }
+
+    .modal-panel { display: none; flex-direction: column; gap: 10px; }
+    .modal-panel.active { display: flex; }
+
+    #name-input {
+      padding: 6px 10px;
+      border-radius: 5px;
+      border: 1px solid #0f3460;
+      background: #0f172a;
+      color: #e0e0e0;
+      font-size: 0.85rem;
+    }
+
+    #svg-textarea {
+      flex: 1;
+      min-height: 200px;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #0f3460;
+      background: #0f172a;
+      color: #a0c4ff;
+      font-family: monospace;
+      font-size: 0.78rem;
+      resize: vertical;
+    }
+
+    #drop-zone {
+      border: 2px dashed #0f3460;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      color: #475569;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      font-size: 0.85rem;
+    }
+    #drop-zone:hover, #drop-zone.dragover {
+      border-color: #e94560;
+      color: #e0e0e0;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* ── Confirm dialog ── */
+    #confirm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    #confirm-overlay.open { display: flex; }
+    #confirm-box {
+      background: #16213e;
+      border: 1px solid #7f1d1d;
+      border-radius: 10px;
+      padding: 24px;
+      width: min(360px, 90vw);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #confirm-box p { font-size: 0.9rem; color: #e0e0e0; line-height: 1.5; }
+    #confirm-box .modal-footer { margin-top: 4px; }
+
+    /* ── Error toast ── */
+    #toast {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #7f1d1d;
+      color: #fca5a5;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      z-index: 300;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div id="topbar">
+  <h1>SVG Viewer</h1>
+  <button class="btn btn-primary" id="btn-add">+ 新增</button>
+  <input type="file" id="file-input" accept=".svg,image/svg+xml">
+</div>
+
+<!-- Tabs -->
+<div id="tabs-wrap">
+  <div id="tabs"></div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="canvas">
+    <div id="empty-hint">
+      <div class="icon">🖼️</div>
+      <p>尚無 SVG 紀錄<br>點擊「新增」貼入 XML 或開啟 SVG 檔案</p>
+    </div>
+    <div id="svg-container"></div>
+    <div id="zoom-controls">
+      <button class="zoom-btn" id="btn-zoom-in" title="放大">+</button>
+      <div id="zoom-label">100%</div>
+      <button class="zoom-btn" id="btn-zoom-out" title="縮小">−</button>
+      <button class="zoom-btn" id="btn-zoom-fit" title="適合視窗" style="font-size:0.65rem">FIT</button>
+      <button class="zoom-btn" id="btn-zoom-reset" title="重置" style="font-size:0.65rem">1:1</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add modal -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2>新增 SVG</h2>
+    <input id="name-input" type="text" placeholder="名稱（選填，留空自動命名）">
+    <div id="modal-tabs">
+      <button class="modal-tab-btn active" data-panel="paste">貼入 XML</button>
+      <button class="modal-tab-btn" data-panel="file">開啟檔案</button>
+    </div>
+
+    <!-- Paste panel -->
+    <div class="modal-panel active" id="panel-paste">
+      <textarea id="svg-textarea" placeholder="在此貼入 SVG XML…&#10;&#10;例如：&#10;&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;100&quot; height=&quot;100&quot;&gt;…&lt;/svg&gt;"></textarea>
+    </div>
+
+    <!-- File panel -->
+    <div class="modal-panel" id="panel-file">
+      <div id="drop-zone">
+        <div>拖曳 SVG 檔案到此，或點擊選擇</div>
+        <div style="margin-top:8px;font-size:0.75rem;color:#334155">支援 .svg 格式</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-modal-cancel">取消</button>
+      <button class="btn btn-primary" id="btn-modal-save">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <p id="confirm-msg"></p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-confirm-no">取消</button>
+      <button class="btn btn-danger" id="btn-confirm-yes">刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  /* ── Storage helpers ── */
+  const STORAGE_KEY = 'svg_viewer_records';
+
+  function loadRecords() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveRecords(records) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  /* ── State ── */
+  let records = loadRecords();       // [{id, name, svg, createdAt}]
+  let activeId = records.length ? records[records.length - 1].id : null;
+  let scale = 1;
+  let panX = 0, panY = 0;
+  let isPanning = false, startX = 0, startY = 0;
+  let pendingFileContent = null;     // svg string from file drop/select
+  let activeModalPanel = 'paste';
+  let confirmCallback = null;
+
+  /* ── DOM refs ── */
+  const tabsEl        = document.getElementById('tabs');
+  const canvasEl      = document.getElementById('canvas');
+  const svgContainer  = document.getElementById('svg-container');
+  const emptyHint     = document.getElementById('empty-hint');
+  const zoomLabel     = document.getElementById('zoom-label');
+  const modalOverlay  = document.getElementById('modal-overlay');
+  const confirmOverlay= document.getElementById('confirm-overlay');
+  const nameInput     = document.getElementById('name-input');
+  const svgTextarea   = document.getElementById('svg-textarea');
+  const dropZone      = document.getElementById('drop-zone');
+  const confirmMsg    = document.getElementById('confirm-msg');
+  const fileInput     = document.getElementById('file-input');
+
+  /* ── Render tabs ── */
+  function renderTabs() {
+    tabsEl.innerHTML = '';
+    records.forEach(rec => {
+      const tab = document.createElement('div');
+      tab.className = 'tab' + (rec.id === activeId ? ' active' : '');
+      tab.dataset.id = rec.id;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'tab-name';
+      nameSpan.textContent = rec.name;
+      nameSpan.title = rec.name;
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'tab-close';
+      closeBtn.innerHTML = '✕';
+      closeBtn.title = '刪除';
+      closeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        askDelete(rec.id, rec.name);
+      });
+
+      tab.appendChild(nameSpan);
+      tab.appendChild(closeBtn);
+      tab.addEventListener('click', () => switchTo(rec.id));
+      tabsEl.appendChild(tab);
+    });
+
+    // scroll active tab into view
+    const activeTab = tabsEl.querySelector('.tab.active');
+    if (activeTab) activeTab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }
+
+  /* ── Render SVG ── */
+  function renderSvg() {
+    const rec = records.find(r => r.id === activeId);
+    if (!rec) {
+      svgContainer.innerHTML = '';
+      emptyHint.style.display = 'block';
+      return;
+    }
+    emptyHint.style.display = 'none';
+    svgContainer.innerHTML = rec.svg;
+    // ensure svg fills container naturally
+    const svgEl = svgContainer.querySelector('svg');
+    if (svgEl) {
+      svgEl.removeAttribute('style');
+    }
+    resetTransform();
+  }
+
+  function switchTo(id) {
+    activeId = id;
+    renderTabs();
+    renderSvg();
+  }
+
+  /* ── Transform (zoom/pan) ── */
+  function applyTransform() {
+    svgContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    zoomLabel.textContent = Math.round(scale * 100) + '%';
+  }
+
+  function resetTransform() {
+    scale = 1; panX = 0; panY = 0;
+    applyTransform();
+  }
+
+  function fitTransform() {
+    const svgEl = svgContainer.querySelector('svg');
+    if (!svgEl) return;
+    const cw = canvasEl.clientWidth - 40;
+    const ch = canvasEl.clientHeight - 40;
+    const sw = svgEl.getBoundingClientRect().width / scale;
+    const sh = svgEl.getBoundingClientRect().height / scale;
+    if (sw === 0 || sh === 0) return;
+    const s = Math.min(cw / sw, ch / sh, 3);
+    scale = s; panX = 0; panY = 0;
+    applyTransform();
+  }
+
+  document.getElementById('btn-zoom-in').addEventListener('click', () => {
+    scale = Math.min(scale * 1.25, 20); applyTransform();
+  });
+  document.getElementById('btn-zoom-out').addEventListener('click', () => {
+    scale = Math.max(scale / 1.25, 0.05); applyTransform();
+  });
+  document.getElementById('btn-zoom-fit').addEventListener('click', fitTransform);
+  document.getElementById('btn-zoom-reset').addEventListener('click', resetTransform);
+
+  // Wheel zoom
+  canvasEl.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    const rect = canvasEl.getBoundingClientRect();
+    const ox = e.clientX - rect.left - canvasEl.clientWidth / 2;
+    const oy = e.clientY - rect.top - canvasEl.clientHeight / 2;
+    panX = ox + (panX - ox) * factor;
+    panY = oy + (panY - oy) * factor;
+    scale = Math.min(Math.max(scale * factor, 0.05), 20);
+    applyTransform();
+  }, { passive: false });
+
+  // Pan
+  svgContainer.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    isPanning = true;
+    startX = e.clientX - panX;
+    startY = e.clientY - panY;
+    svgContainer.classList.add('grabbing');
+  });
+  window.addEventListener('mousemove', e => {
+    if (!isPanning) return;
+    panX = e.clientX - startX;
+    panY = e.clientY - startY;
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => {
+    isPanning = false;
+    svgContainer.classList.remove('grabbing');
+  });
+
+  /* ── Add modal ── */
+  document.getElementById('btn-add').addEventListener('click', openModal);
+
+  function openModal() {
+    nameInput.value = '';
+    svgTextarea.value = '';
+    pendingFileContent = null;
+    switchModalPanel('paste');
+    modalOverlay.classList.add('open');
+    svgTextarea.focus();
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('open');
+    pendingFileContent = null;
+  }
+
+  document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+
+  // Modal panel switching
+  document.querySelectorAll('.modal-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchModalPanel(btn.dataset.panel));
+  });
+
+  function switchModalPanel(panel) {
+    activeModalPanel = panel;
+    document.querySelectorAll('.modal-tab-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.panel === panel));
+    document.querySelectorAll('.modal-panel').forEach(p =>
+      p.classList.toggle('active', p.id === 'panel-' + panel));
+  }
+
+  // Save
+  document.getElementById('btn-modal-save').addEventListener('click', saveNew);
+
+  function saveNew() {
+    let svgStr = '';
+    if (activeModalPanel === 'paste') {
+      svgStr = svgTextarea.value.trim();
+    } else {
+      svgStr = pendingFileContent ? pendingFileContent.trim() : '';
+    }
+
+    if (!svgStr) { showToast('請貼入 SVG XML 或選擇檔案'); return; }
+    if (!svgStr.includes('<svg') && !svgStr.includes('<SVG')) {
+      showToast('內容似乎不是有效的 SVG'); return;
+    }
+
+    const id = Date.now().toString();
+    const name = nameInput.value.trim() || autoName();
+    records.push({ id, name, svg: svgStr, createdAt: Date.now() });
+    saveRecords(records);
+    activeId = id;
+    renderTabs();
+    renderSvg();
+    closeModal();
+  }
+
+  let autoCounter = 0;
+  function autoName() {
+    autoCounter++;
+    return `SVG #${records.length + 1}`;
+  }
+
+  /* ── File open (drop zone) ── */
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (file) readFile(file);
+    fileInput.value = '';
+  });
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) readFile(file);
+  });
+
+  function readFile(file) {
+    if (!file.name.toLowerCase().endsWith('.svg') && file.type !== 'image/svg+xml') {
+      showToast('請選擇 .svg 格式的檔案'); return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      pendingFileContent = ev.target.result;
+      if (!nameInput.value.trim()) {
+        nameInput.value = file.name.replace(/\.svg$/i, '');
+      }
+      dropZone.innerHTML = `<div style="color:#4ade80">✔ 已載入：${file.name}</div>`;
+    };
+    reader.readAsText(file);
+  }
+
+  /* ── Delete ── */
+  function askDelete(id, name) {
+    confirmMsg.textContent = `確定要刪除「${name}」嗎？此操作無法復原。`;
+    confirmCallback = () => deleteRecord(id);
+    confirmOverlay.classList.add('open');
+  }
+
+  document.getElementById('btn-confirm-yes').addEventListener('click', () => {
+    confirmOverlay.classList.remove('open');
+    if (confirmCallback) { confirmCallback(); confirmCallback = null; }
+  });
+  document.getElementById('btn-confirm-no').addEventListener('click', () => {
+    confirmOverlay.classList.remove('open');
+    confirmCallback = null;
+  });
+  confirmOverlay.addEventListener('click', e => {
+    if (e.target === confirmOverlay) {
+      confirmOverlay.classList.remove('open');
+      confirmCallback = null;
+    }
+  });
+
+  function deleteRecord(id) {
+    const idx = records.findIndex(r => r.id === id);
+    if (idx === -1) return;
+    records.splice(idx, 1);
+    saveRecords(records);
+    if (activeId === id) {
+      activeId = records.length ? records[Math.max(0, idx - 1)].id : null;
+    }
+    renderTabs();
+    renderSvg();
+  }
+
+  /* ── Toast ── */
+  let toastTimer;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
+  /* ── Keyboard shortcuts ── */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (confirmOverlay.classList.contains('open')) {
+        confirmOverlay.classList.remove('open'); confirmCallback = null;
+      } else {
+        closeModal();
+      }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); openModal(); }
+  });
+
+  /* ── Init ── */
+  renderTabs();
+  renderSvg();
+</script>
+</body>
+</html>
