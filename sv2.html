@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Floor Plan Editor</title>
+<style>
+body {
+  margin: 0;
+  display: flex;
+  font-family: Arial;
+}
+#toolbar {
+  width: 220px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-right: 1px solid #ccc;
+}
+#canvas {
+  flex: 1;
+  position: relative;
+  background: #fff;
+  overflow: hidden;
+}
+.element {
+  position: absolute;
+  box-sizing: border-box;
+}
+.room {
+  border: 2px solid #000;
+  background: rgba(0,0,0,0.05);
+}
+.wall {
+  background: #000;
+}
+.reserve {
+  border: 2px dashed #666;
+  background: rgba(100,100,100,0.1);
+}
+.selected {
+  outline: 2px solid red;
+}
+button { margin: 4px 0; width: 100%; }
+input { width: 100%; margin-bottom: 5px; }
+textarea { width: 100%; height: 150px; }
+</style>
+</head>
+
+<body>
+
+<div id="toolbar">
+  <h3>工具</h3>
+  <button onclick="setMode('room')">房</button>
+  <button onclick="setMode('wall')">牆</button>
+  <button onclick="setMode('reserve')">保留</button>
+
+  <h3>尺寸</h3>
+  寬 <input id="w" type="number" value="100">
+  高 <input id="h" type="number" value="100">
+
+  <h3>操作</h3>
+  <button onclick="exportSVG()">匯出 SVG</button>
+  <button onclick="showSVG()">檢視 SVG</button>
+  <button onclick="clearAll()">清空</button>
+
+  <textarea id="svgOutput"></textarea>
+</div>
+
+<div id="canvas"></div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const grid = 20;
+let mode = 'room';
+let elements = [];
+let selected = null;
+
+function snap(v) {
+  return Math.round(v / grid) * grid;
+}
+
+function setMode(m) {
+  mode = m;
+}
+
+canvas.addEventListener('click', (e) => {
+  if (e.target !== canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = snap(e.clientX - rect.left);
+  const y = snap(e.clientY - rect.top);
+
+  const w = snap(parseInt(document.getElementById('w').value));
+  const h = snap(parseInt(document.getElementById('h').value));
+
+  let el = document.createElement('div');
+  el.classList.add('element', mode);
+
+  if (mode === 'wall') {
+    el.style.width = w + 'px';
+    el.style.height = '4px';
+  } else {
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+  }
+
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+
+  canvas.appendChild(el);
+
+  makeDraggable(el);
+
+  elements.push(el);
+  save();
+});
+
+function makeDraggable(el) {
+  let offsetX, offsetY;
+
+  el.addEventListener('mousedown', (e) => {
+    selected = el;
+    document.querySelectorAll('.element').forEach(e=>e.classList.remove('selected'));
+    el.classList.add('selected');
+
+    offsetX = e.offsetX;
+    offsetY = e.offsetY;
+
+    function move(ev) {
+      const rect = canvas.getBoundingClientRect();
+      el.style.left = snap(ev.clientX - rect.left - offsetX) + 'px';
+      el.style.top = snap(ev.clientY - rect.top - offsetY) + 'px';
+    }
+
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      save();
+    }
+
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+function exportSVG() {
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg">\n`;
+
+  elements.forEach(el => {
+    const x = parseInt(el.style.left);
+    const y = parseInt(el.style.top);
+    const w = parseInt(el.style.width);
+    const h = parseInt(el.style.height);
+
+    if (el.classList.contains('wall')) {
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black"/>\n`;
+    } else if (el.classList.contains('reserve')) {
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="gray" stroke-dasharray="4"/>\n`;
+    } else {
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="black"/>\n`;
+    }
+  });
+
+  svg += `</svg>`;
+  download(svg);
+}
+
+function showSVG() {
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg">\n`;
+
+  elements.forEach(el => {
+    const x = parseInt(el.style.left);
+    const y = parseInt(el.style.top);
+    const w = parseInt(el.style.width);
+    const h = parseInt(el.style.height);
+
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" stroke="black" fill="none"/>\n`;
+  });
+
+  svg += `</svg>`;
+
+  document.getElementById('svgOutput').value = svg;
+}
+
+function download(text) {
+  const blob = new Blob([text], {type: 'image/svg+xml'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'plan.svg';
+  a.click();
+}
+
+function save() {
+  const data = elements.map(el => ({
+    type: [...el.classList].find(c => c !== 'element'),
+    x: el.style.left,
+    y: el.style.top,
+    w: el.style.width,
+    h: el.style.height
+  }));
+  localStorage.setItem('floorplan', JSON.stringify(data));
+}
+
+function load() {
+  const data = JSON.parse(localStorage.getItem('floorplan') || '[]');
+  data.forEach(d => {
+    let el = document.createElement('div');
+    el.classList.add('element', d.type);
+    el.style.left = d.x;
+    el.style.top = d.y;
+    el.style.width = d.w;
+    el.style.height = d.h;
+    canvas.appendChild(el);
+    makeDraggable(el);
+    elements.push(el);
+  });
+}
+
+function clearAll() {
+  localStorage.removeItem('floorplan');
+  location.reload();
+}
+
+load();
+</script>
+
+</body>
+</html>
