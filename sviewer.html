@@ -346,6 +346,22 @@
 
     #btn-edit-mode.active { background: #f59e0b; color: #1a1a2e; }
 
+    /* viewer background toggle */
+    .bg-btn {
+      padding: 3px 9px;
+      border-radius: 4px;
+      border: 1px solid #1e3a5f;
+      background: transparent;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.12s;
+    }
+    .bg-btn:hover { color: #e0e0e0; border-color: #3b82f6; }
+    .bg-btn.active { background: #0f3460; color: #e0e0e0; border-color: #3b82f6; }
+    #canvas.bg-dark  { background: #0f172a !important; }
+    #canvas.bg-light { background: #e8ecf0 !important; }
+
     /* sidebar */
     #edit-sidebar {
       display: none;
@@ -470,6 +486,10 @@
   <h1>SVG Viewer</h1>
   <button class="btn btn-primary" id="btn-add">+ 新增</button>
   <button class="btn btn-secondary" id="btn-edit-mode">✎ 編修模式</button>
+  <span style="color:#334155;font-size:0.72rem;margin-left:6px;white-space:nowrap">背景</span>
+  <button class="bg-btn active" data-bg="">無</button>
+  <button class="bg-btn" data-bg="bg-dark">深色</button>
+  <button class="bg-btn" data-bg="bg-light">淺色</button>
   <input type="file" id="file-input" accept=".svg,image/svg+xml">
 </div>
 
@@ -559,7 +579,7 @@
             <line x1="0" y1="0" x2="0" y2="12" stroke="#888" stroke-width="4"/>
           </pattern>
         </defs>
-        <rect width="1300" height="1300" fill="white"/>
+        <rect width="1600" height="1300" fill="white"/>
         <g id="ep-grid"></g>
         <g id="ep-elements"></g>
         <g id="ep-preview"></g>
@@ -1015,7 +1035,7 @@
   function fitEditCanvas() {
     const ww = editCanvasWrap.clientWidth  - 40;
     const wh = editCanvasWrap.clientHeight - 40;
-    eScale = Math.min(ww / 1300, wh / 1300, 1);
+    eScale = Math.min(ww / 1600, wh / 1300, 1);
     ePanX = 0; ePanY = 0;
     applyEditTransform();
   }
@@ -1073,7 +1093,7 @@
   function renderEditGrid() {
     const ns = 'http://www.w3.org/2000/svg';
     epGrid.innerHTML = '';
-    for (let x = 0; x <= 1300; x += 50) {
+    for (let x = 0; x <= 1600; x += 50) {
       const l = document.createElementNS(ns, 'line');
       l.setAttribute('x1', x); l.setAttribute('y1', 0);
       l.setAttribute('x2', x); l.setAttribute('y2', 1300);
@@ -1084,7 +1104,7 @@
     for (let y = 0; y <= 1300; y += 50) {
       const l = document.createElementNS(ns, 'line');
       l.setAttribute('x1', 0); l.setAttribute('y1', y);
-      l.setAttribute('x2', 1300); l.setAttribute('y2', y);
+      l.setAttribute('x2', 1600); l.setAttribute('y2', y);
       l.setAttribute('stroke', y % 100 === 0 ? '#aab4be' : '#d4dae0');
       l.setAttribute('stroke-width', '0.5');
       epGrid.appendChild(l);
@@ -1092,10 +1112,10 @@
     // border
     const bdr = document.createElementNS(ns, 'rect');
     ['x','y','width','height','fill','stroke','stroke-width'].forEach((a,i) =>
-      bdr.setAttribute(a, ['0','0','1300','1300','none','#666','1'][i]));
+      bdr.setAttribute(a, ['0','0','1600','1300','none','#666','1'][i]));
     epGrid.appendChild(bdr);
     // axis labels every 100cm
-    for (let x = 100; x <= 1300; x += 100) {
+    for (let x = 100; x <= 1600; x += 100) {
       const t = document.createElementNS(ns, 'text');
       t.setAttribute('x', x); t.setAttribute('y', '-3');
       t.setAttribute('text-anchor', 'middle');
@@ -1239,7 +1259,7 @@
   function svgCoord(e) {
     const r = editSvgEl.getBoundingClientRect();
     return {
-      x: (e.clientX - r.left) * (1300 / r.width),
+      x: (e.clientX - r.left) * (1600 / r.width),
       y: (e.clientY - r.top)  * (1300 / r.height)
     };
   }
@@ -1289,7 +1309,7 @@
 
     // clamp to canvas
     return {
-      x: Math.max(0, Math.min(1300 - w, sx)),
+      x: Math.max(0, Math.min(1600 - w, sx)),
       y: Math.max(0, Math.min(1300 - h, sy))
     };
   }
@@ -1522,6 +1542,16 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && vsvgOverlay.style.display !== 'none')
       vsvgOverlay.style.display = 'none';
+  });
+
+  /* ── Viewer background toggle ── */
+  document.querySelectorAll('.bg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      canvasEl.classList.remove('bg-dark', 'bg-light');
+      if (btn.dataset.bg) canvasEl.classList.add(btn.dataset.bg);
+    });
   });
 
   /* ── Init ── */
