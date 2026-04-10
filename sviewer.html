@@ -339,6 +339,128 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    /* ════════════════════════════════
+       EDIT MODE
+       ════════════════════════════════ */
+
+    #btn-edit-mode.active { background: #f59e0b; color: #1a1a2e; }
+
+    /* sidebar */
+    #edit-sidebar {
+      display: none;
+      width: 210px;
+      min-width: 210px;
+      flex-direction: column;
+      background: #16213e;
+      border-right: 1px solid #0f3460;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #0f3460 transparent;
+    }
+    body.edit-mode #canvas          { display: none; }
+    body.edit-mode #edit-sidebar    { display: flex; }
+    body.edit-mode #edit-canvas-wrap{ display: flex; }
+
+    /* edit canvas wrap */
+    #edit-canvas-wrap {
+      display: none;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      background: #b8c4cc;
+      align-items: center;
+      justify-content: center;
+    }
+    #edit-svg-container {
+      transform-origin: center center;
+      user-select: none;
+      line-height: 0;
+    }
+
+    /* sidebar sections */
+    .esec {
+      padding: 10px 12px;
+      border-bottom: 1px solid #0f3460;
+      flex-shrink: 0;
+    }
+    .esec h3 {
+      font-size: 0.68rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 8px;
+    }
+
+    /* tool buttons */
+    .tool-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 6px 9px;
+      margin-bottom: 3px;
+      border: 1px solid #1e3a5f;
+      border-radius: 5px;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.82rem;
+      text-align: left;
+      transition: background 0.12s, color 0.12s;
+    }
+    .tool-btn:last-child { margin-bottom: 0; }
+    .tool-btn:hover  { background: #1e3a5f; color: #e0e0e0; }
+    .tool-btn.active { background: #e94560; color: #fff; border-color: #e94560; }
+    .tool-icon {
+      display: inline-block;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+      font-size: 0.95rem;
+      font-style: normal;
+    }
+
+    /* dimension inputs */
+    .dim-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+    .dim-row:last-child { margin-bottom: 0; }
+    .dim-row label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #94a3b8;
+      width: 14px;
+      flex-shrink: 0;
+    }
+    .dim-input {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid #0f3460;
+      background: #0f172a;
+      color: #e0e0e0;
+      font-size: 0.8rem;
+    }
+    .dim-unit { font-size: 0.7rem; color: #475569; }
+
+    /* selected info */
+    #selected-info { font-size: 0.77rem; color: #94a3b8; line-height: 1.9; }
+
+    /* edit zoom */
+    #edit-zoom-controls {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #edit-zoom-label { font-size: 0.7rem; color: #64748b; text-align: center; }
   </style>
 </head>
 <body>
@@ -347,6 +469,7 @@
 <div id="topbar">
   <h1>SVG Viewer</h1>
   <button class="btn btn-primary" id="btn-add">+ 新增</button>
+  <button class="btn btn-secondary" id="btn-edit-mode">✎ 編修模式</button>
   <input type="file" id="file-input" accept=".svg,image/svg+xml">
 </div>
 
@@ -371,6 +494,86 @@
       <button class="zoom-btn" id="btn-zoom-reset" title="重置" style="font-size:0.65rem">1:1</button>
     </div>
   </div>
+
+  <!-- ── Edit Sidebar ── -->
+  <div id="edit-sidebar">
+
+    <div class="esec">
+      <h3>工具</h3>
+      <button class="tool-btn active" data-tool="select"><i class="tool-icon">▶</i>選取</button>
+      <button class="tool-btn" data-tool="room"><i class="tool-icon">□</i>房</button>
+      <button class="tool-btn" data-tool="vwall"><i class="tool-icon">│</i>垂直牆</button>
+      <button class="tool-btn" data-tool="hwall"><i class="tool-icon">─</i>橫向牆</button>
+      <button class="tool-btn" data-tool="reserved"><i class="tool-icon">▨</i>保留</button>
+    </div>
+
+    <div class="esec" id="dim-section">
+      <h3>尺寸 <span style="color:#475569;font-size:0.66rem;text-transform:none;letter-spacing:0">（公分）</span></h3>
+      <div class="dim-row" id="dim-w-row">
+        <label>W</label>
+        <input type="number" class="dim-input" id="dim-w" value="300" min="10" step="10">
+        <span class="dim-unit">cm</span>
+      </div>
+      <div class="dim-row" id="dim-h-row">
+        <label>H</label>
+        <input type="number" class="dim-input" id="dim-h" value="300" min="10" step="10">
+        <span class="dim-unit">cm</span>
+      </div>
+      <div class="dim-row" id="dim-len-row">
+        <label>L</label>
+        <input type="number" class="dim-input" id="dim-len" value="200" min="10" step="10">
+        <span class="dim-unit">cm</span>
+      </div>
+    </div>
+
+    <div class="esec" id="selected-section" style="display:none">
+      <h3>選取元素</h3>
+      <div id="selected-info"></div>
+      <button class="btn btn-danger" id="btn-delete-selected"
+              style="width:100%;margin-top:8px;font-size:0.8rem;padding:5px">刪除</button>
+    </div>
+
+    <div class="esec" style="margin-top:auto">
+      <h3>輸出</h3>
+      <button class="btn btn-primary" id="btn-save-new"
+              style="width:100%;margin-bottom:5px;font-size:0.8rem;padding:5px">另存新圖</button>
+      <button class="btn btn-secondary" id="btn-view-svg"
+              style="width:100%;font-size:0.8rem;padding:5px">檢視 SVG</button>
+    </div>
+
+    <div class="esec">
+      <button class="btn btn-secondary" id="btn-clear-canvas"
+              style="width:100%;font-size:0.8rem;padding:5px">清空畫布</button>
+    </div>
+
+  </div><!-- /edit-sidebar -->
+
+  <!-- ── Edit Canvas ── -->
+  <div id="edit-canvas-wrap">
+    <div id="edit-svg-container">
+      <svg id="edit-svg" viewBox="0 0 1000 900" width="1000" height="900"
+           xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="ep-hatch" patternUnits="userSpaceOnUse" width="12" height="12"
+                   patternTransform="rotate(45 0 0)">
+            <line x1="0" y1="0" x2="0" y2="12" stroke="#888" stroke-width="4"/>
+          </pattern>
+        </defs>
+        <rect width="1000" height="900" fill="white"/>
+        <g id="ep-grid"></g>
+        <g id="ep-elements"></g>
+        <g id="ep-preview"></g>
+        <g id="ep-snap"></g>
+      </svg>
+    </div>
+    <div id="edit-zoom-controls">
+      <button class="zoom-btn" id="btn-edit-zoom-in">+</button>
+      <div id="edit-zoom-label">100%</div>
+      <button class="zoom-btn" id="btn-edit-zoom-out">−</button>
+      <button class="zoom-btn" id="btn-edit-zoom-fit" style="font-size:0.65rem">FIT</button>
+    </div>
+  </div><!-- /edit-canvas-wrap -->
+
 </div>
 
 <!-- Add modal -->
@@ -750,6 +953,210 @@
   document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
   document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
   document.addEventListener('gestureend', e => e.preventDefault(), { passive: false });
+
+  /* ════════════════════════════════════════
+     EDIT MODE  —  Phase 1: skeleton
+     ════════════════════════════════════════ */
+
+  const btnEditMode      = document.getElementById('btn-edit-mode');
+  const editCanvasWrap   = document.getElementById('edit-canvas-wrap');
+  const editSvgContainer = document.getElementById('edit-svg-container');
+  const epGrid           = document.getElementById('ep-grid');
+  const epElements       = document.getElementById('ep-elements');
+  const epPreview        = document.getElementById('ep-preview');
+  const epSnap           = document.getElementById('ep-snap');
+
+  let isEditMode  = false;
+  let activeTool  = 'select';   // 'select'|'room'|'vwall'|'hwall'|'reserved'
+  let editElems   = [];          // placed elements data
+  let selectedId  = null;
+  let eScale      = 1, ePanX = 0, ePanY = 0;
+  let ePanning    = false, ePanSX = 0, ePanSY = 0;
+
+  /* ── Toggle edit mode ── */
+  btnEditMode.addEventListener('click', () => {
+    isEditMode = !isEditMode;
+    document.body.classList.toggle('edit-mode', isEditMode);
+    btnEditMode.classList.toggle('active', isEditMode);
+    btnEditMode.textContent = isEditMode ? '✕ 離開編修' : '✎ 編修模式';
+    if (isEditMode) {
+      renderEditGrid();
+      requestAnimationFrame(fitEditCanvas);
+      updateDimSection();
+    } else {
+      epPreview.innerHTML = '';
+      epSnap.innerHTML    = '';
+    }
+  });
+
+  /* ── Fit / transform ── */
+  function fitEditCanvas() {
+    const ww = editCanvasWrap.clientWidth  - 40;
+    const wh = editCanvasWrap.clientHeight - 40;
+    eScale = Math.min(ww / 1000, wh / 900, 1);
+    ePanX = 0; ePanY = 0;
+    applyEditTransform();
+  }
+
+  function applyEditTransform() {
+    editSvgContainer.style.transform =
+      `translate(${ePanX}px,${ePanY}px) scale(${eScale})`;
+    document.getElementById('edit-zoom-label').textContent =
+      Math.round(eScale * 100) + '%';
+  }
+
+  /* ── Zoom buttons ── */
+  document.getElementById('btn-edit-zoom-in').addEventListener('click', () => {
+    eScale = Math.min(eScale * 1.25, 10); applyEditTransform();
+  });
+  document.getElementById('btn-edit-zoom-out').addEventListener('click', () => {
+    eScale = Math.max(eScale / 1.25, 0.1); applyEditTransform();
+  });
+  document.getElementById('btn-edit-zoom-fit').addEventListener('click', fitEditCanvas);
+
+  /* ── Wheel zoom on edit canvas ── */
+  editCanvasWrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    const f = e.deltaY < 0 ? 1.1 : 0.9;
+    const r = editCanvasWrap.getBoundingClientRect();
+    const ox = e.clientX - r.left  - editCanvasWrap.clientWidth  / 2;
+    const oy = e.clientY - r.top   - editCanvasWrap.clientHeight / 2;
+    ePanX  = ox + (ePanX - ox) * f;
+    ePanY  = oy + (ePanY - oy) * f;
+    eScale = Math.min(Math.max(eScale * f, 0.1), 10);
+    applyEditTransform();
+  }, { passive: false });
+
+  /* ── Pan: Ctrl+drag or middle-mouse ── */
+  editCanvasWrap.addEventListener('mousedown', e => {
+    if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+      e.preventDefault();
+      ePanning = true;
+      ePanSX   = e.clientX - ePanX;
+      ePanSY   = e.clientY - ePanY;
+      editCanvasWrap.style.cursor = 'grabbing';
+    }
+  });
+  window.addEventListener('mousemove', e => {
+    if (!ePanning) return;
+    ePanX = e.clientX - ePanSX;
+    ePanY = e.clientY - ePanSY;
+    applyEditTransform();
+  });
+  window.addEventListener('mouseup', () => {
+    if (ePanning) { ePanning = false; editCanvasWrap.style.cursor = ''; }
+  });
+
+  /* ── Grid ── */
+  function renderEditGrid() {
+    const ns = 'http://www.w3.org/2000/svg';
+    epGrid.innerHTML = '';
+    for (let x = 0; x <= 1000; x += 50) {
+      const l = document.createElementNS(ns, 'line');
+      l.setAttribute('x1', x); l.setAttribute('y1', 0);
+      l.setAttribute('x2', x); l.setAttribute('y2', 900);
+      l.setAttribute('stroke', x % 100 === 0 ? '#aab4be' : '#d4dae0');
+      l.setAttribute('stroke-width', '0.5');
+      epGrid.appendChild(l);
+    }
+    for (let y = 0; y <= 900; y += 50) {
+      const l = document.createElementNS(ns, 'line');
+      l.setAttribute('x1', 0); l.setAttribute('y1', y);
+      l.setAttribute('x2', 1000); l.setAttribute('y2', y);
+      l.setAttribute('stroke', y % 100 === 0 ? '#aab4be' : '#d4dae0');
+      l.setAttribute('stroke-width', '0.5');
+      epGrid.appendChild(l);
+    }
+    // border
+    const bdr = document.createElementNS(ns, 'rect');
+    ['x','y','width','height','fill','stroke','stroke-width'].forEach((a,i) =>
+      bdr.setAttribute(a, ['0','0','1000','900','none','#666','1'][i]));
+    epGrid.appendChild(bdr);
+    // axis labels every 100cm
+    for (let x = 100; x <= 1000; x += 100) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', '-3');
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', '9'); t.setAttribute('fill', '#999');
+      t.textContent = x; epGrid.appendChild(t);
+    }
+    for (let y = 100; y <= 900; y += 100) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', '-4'); t.setAttribute('y', y + 3);
+      t.setAttribute('text-anchor', 'end');
+      t.setAttribute('font-size', '9'); t.setAttribute('fill', '#999');
+      t.textContent = y; epGrid.appendChild(t);
+    }
+  }
+
+  /* ── Tool switching ── */
+  document.querySelectorAll('.tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTool = btn.dataset.tool;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedId = null;
+      updateSelectedSection();
+      updateDimSection();
+      epPreview.innerHTML = '';
+      epSnap.innerHTML    = '';
+    });
+  });
+
+  function updateDimSection() {
+    const sec  = document.getElementById('dim-section');
+    const wRow = document.getElementById('dim-w-row');
+    const hRow = document.getElementById('dim-h-row');
+    const lRow = document.getElementById('dim-len-row');
+    if (activeTool === 'select') { sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    const isRect = activeTool === 'room' || activeTool === 'reserved';
+    wRow.style.display = isRect ? '' : 'none';
+    hRow.style.display = isRect ? '' : 'none';
+    lRow.style.display = isRect ? 'none' : '';
+  }
+
+  function updateSelectedSection() {
+    const sec  = document.getElementById('selected-section');
+    const info = document.getElementById('selected-info');
+    if (!selectedId) { sec.style.display = 'none'; return; }
+    const el = editElems.find(e => e.id === selectedId);
+    if (!el) { sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    const label = { room:'房', vwall:'垂直牆', hwall:'橫向牆', reserved:'保留' }[el.type];
+    info.innerHTML = (el.type === 'vwall' || el.type === 'hwall')
+      ? `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>長度：${el.type==='vwall'?el.h:el.w} cm`
+      : `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>尺寸：${el.w} × ${el.h} cm`;
+  }
+
+  /* ── Delete selected ── */
+  document.getElementById('btn-delete-selected').addEventListener('click', () => {
+    if (!selectedId) return;
+    editElems = editElems.filter(e => e.id !== selectedId);
+    selectedId = null;
+    renderEditElements();
+    updateSelectedSection();
+  });
+
+  /* ── Clear canvas ── */
+  document.getElementById('btn-clear-canvas').addEventListener('click', () => {
+    if (!editElems.length) return;
+    if (!confirm('確定清空畫布？此操作無法復原。')) return;
+    editElems = []; selectedId = null;
+    renderEditElements(); updateSelectedSection();
+  });
+
+  /* ── Render elements (stub — full implementation in Phase 2) ── */
+  function renderEditElements() {
+    epElements.innerHTML = '';
+    // Phase 2 will implement this
+  }
+
+  /* ── Output stubs (Phase 3) ── */
+  document.getElementById('btn-save-new').addEventListener('click', () =>
+    showToast('另存功能將在 Phase 3 完成'));
+  document.getElementById('btn-view-svg').addEventListener('click', () =>
+    showToast('檢視 SVG 將在 Phase 3 完成'));
 
   /* ── Init ── */
   renderTabs();
