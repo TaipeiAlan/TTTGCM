@@ -15,133 +15,62 @@ body {
   font-family: Arial;
 }
 
-#container {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background: #fafafa;
-}
-
-/* 尺規 */
-.rulerX, .rulerY {
-  position: absolute;
-  background: #eee;
-  z-index: 2;
-  font-size: 10px;
-}
-
-.rulerX {
-  top: 0;
-  left: 20px;
-  height: 20px;
-  right: 0;
-}
-
-.rulerY {
-  top: 20px;
-  left: 0;
-  width: 20px;
-  bottom: 0;
-}
-
-/* 畫布 */
-#canvasWrapper {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  transform-origin: top left;
-}
-
 #canvas {
-  width: 2000px;
-  height: 1200px;
+  flex: 1;
   background: #fff;
   position: relative;
 }
 
-/* 元素 */
 .element {
   position: absolute;
   box-sizing: border-box;
 }
 
-.room {
-  border: 10px solid black;
-}
+.room { border: 10px solid black; }
+.wall { background: black; }
+.reserve { border: 10px dashed gray; }
 
-.wall {
-  background: black;
-  height: 10px;
-}
-
-.reserve {
-  border: 10px dashed gray;
-  position: relative;
-}
-
-/* 叉叉 */
-.reserve svg {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.selected {
-  outline: 3px solid red;
-}
+.selected { outline: 3px solid red; }
 
 footer {
-  border-top: 1px solid #ccc;
   padding: 6px;
+  background: #f5f5f5;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  background: #f5f5f5;
 }
 
 button {
   padding: 10px;
 }
 
+button:disabled {
+  opacity: 0.3;
+}
+
 .active {
-  background: #333;
-  color: #fff;
+  background: black;
+  color: white;
 }
 
 input {
-  width: 70px;
-}
-
-textarea {
-  width: 100%;
-  height: 80px;
+  width: 80px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="container">
-  <div class="rulerX" id="rulerX"></div>
-  <div class="rulerY" id="rulerY"></div>
-
-  <div id="canvasWrapper">
-    <div id="canvas"></div>
-  </div>
-</div>
+<div id="canvas"></div>
 
 <footer>
-  <button onclick="setMode('room', this)">房</button>
-  <button onclick="setMode('wall', this)">牆</button>
-  <button onclick="setMode('reserve', this)">保留</button>
+  寬 <input id="w">
+  高 <input id="h">
 
-  寬 <input id="w" value="100">
-  高 <input id="h" value="100">
-  <button onclick="applySize()" id="sizeBtn" disabled>套用尺寸</button>
-
-  <button onclick="zoom(1.2)">＋</button>
-  <button onclick="zoom(0.8)">－</button>
+  <button id="btnRoom" disabled onclick="setMode('room', this)">房</button>
+  <button id="btnReserve" disabled onclick="setMode('reserve', this)">保留</button>
+  <button id="btnWallH" disabled onclick="setMode('wallH', this)">橫牆</button>
+  <button id="btnWallV" disabled onclick="setMode('wallV', this)">直牆</button>
 
   <button onclick="deleteSelected()">刪除</button>
   <button onclick="clearAll()">清空</button>
@@ -149,208 +78,168 @@ textarea {
 
 <script>
 const canvas = document.getElementById('canvas');
-const wrapper = document.getElementById('canvasWrapper');
 
-let scale = 1;
 let mode = null;
 let elements = [];
 let selected = null;
 
-const grid = 20;
+const SNAP_DIST = 10;
 
-/* ===== 尺規 ===== */
-function drawRuler() {
-  const rx = document.getElementById('rulerX');
-  const ry = document.getElementById('rulerY');
+/* ===== 輸入控制 ===== */
+wInput.oninput = hInput.oninput = updateButtons;
 
-  rx.innerHTML = '';
-  ry.innerHTML = '';
+function updateButtons() {
+  const w = wInput.value;
+  const h = hInput.value;
 
-  for (let i=0;i<2000;i+=100){
-    let d=document.createElement('div');
-    d.style.position='absolute';
-    d.style.left=i+'px';
-    d.innerText=i;
-    rx.appendChild(d);
-  }
+  btnRoom.disabled = !(w && h);
+  btnReserve.disabled = !(w && h);
 
-  for (let i=0;i<1200;i+=100){
-    let d=document.createElement('div');
-    d.style.position='absolute';
-    d.style.top=i+'px';
-    d.innerText=i;
-    ry.appendChild(d);
-  }
+  btnWallH.disabled = !(w && !h);
+  btnWallV.disabled = !(h && !w);
 }
-drawRuler();
-
-/* ===== zoom ===== */
-function zoom(f) {
-  scale *= f;
-  wrapper.style.transform = `scale(${scale})`;
-}
-
-/* 滾輪 */
-document.getElementById('container').addEventListener('wheel', e=>{
-  e.preventDefault();
-  zoom(e.deltaY<0?1.1:0.9);
-});
-
-/* 手機 pinch */
-let lastDist=null;
-container.addEventListener('touchmove', e=>{
-  if(e.touches.length===2){
-    let dx=e.touches[0].clientX-e.touches[1].clientX;
-    let dy=e.touches[0].clientY-e.touches[1].clientY;
-    let dist=Math.sqrt(dx*dx+dy*dy);
-
-    if(lastDist){
-      zoom(dist>lastDist?1.02:0.98);
-    }
-    lastDist=dist;
-  }
-});
-container.addEventListener('touchend',()=>lastDist=null);
 
 /* ===== 模式 ===== */
-function setMode(m,btn){
-  mode=m;
-  document.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+function setMode(m, btn) {
+  if (btn.disabled) return;
+
+  mode = m;
+  document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
 
 /* ===== 新增 ===== */
-canvas.addEventListener('click',e=>{
-  if(!mode) return;
+canvas.addEventListener('click', e => {
+  if (!mode) return;
 
-  const rect=canvas.getBoundingClientRect();
-  const x=(e.clientX-rect.left)/scale;
-  const y=(e.clientY-rect.top)/scale;
+  const rect = canvas.getBoundingClientRect();
+  let x = e.clientX - rect.left;
+  let y = e.clientY - rect.top;
 
-  const w=parseInt(wInput.value);
-  const h=parseInt(hInput.value);
+  let w = parseInt(wInput.value || 0);
+  let h = parseInt(hInput.value || 0);
 
-  let el=document.createElement('div');
-  el.classList.add('element',mode);
+  let el = document.createElement('div');
 
-  el.style.left=x+'px';
-  el.style.top=y+'px';
-  el.style.width=w+'px';
-  el.style.height=mode==='wall'?'10px':h+'px';
-
-  /* 保留區叉叉 */
-  if(mode==='reserve'){
-    el.innerHTML=`<svg>
-      <line x1="0" y1="0" x2="100%" y2="100%" stroke="gray"/>
-      <line x1="100%" y1="0" x2="0" y2="100%" stroke="gray"/>
-    </svg>`;
+  if (mode === 'room' || mode === 'reserve') {
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    el.classList.add('element', mode);
   }
+
+  if (mode === 'wallH') {
+    el.style.width = w + 'px';
+    el.style.height = '10px';
+    el.classList.add('element', 'wall');
+  }
+
+  if (mode === 'wallV') {
+    el.style.width = '10px';
+    el.style.height = h + 'px';
+    el.classList.add('element', 'wall');
+  }
+
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
 
   canvas.appendChild(el);
   elements.push(el);
+
+  snapToOthers(el);
+
   makeDraggable(el);
   select(el);
 
-  mode=null;
-  save();
+  /* 清空輸入 */
+  wInput.value = '';
+  hInput.value = '';
+  updateButtons();
+
+  mode = null;
 });
 
+/* ===== 吸附 ===== */
+function snapToOthers(el) {
+  let x = parseInt(el.style.left);
+  let y = parseInt(el.style.top);
+  let w = parseInt(el.style.width);
+  let h = parseInt(el.style.height);
+
+  elements.forEach(o => {
+    if (o === el) return;
+
+    let ox = parseInt(o.style.left);
+    let oy = parseInt(o.style.top);
+    let ow = parseInt(o.style.width);
+    let oh = parseInt(o.style.height);
+
+    /* 左貼右 */
+    if (Math.abs(x - (ox + ow)) < SNAP_DIST) x = ox + ow;
+
+    /* 右貼左 */
+    if (Math.abs(x + w - ox) < SNAP_DIST) x = ox - w;
+
+    /* 上貼下 */
+    if (Math.abs(y - (oy + oh)) < SNAP_DIST) y = oy + oh;
+
+    /* 下貼上 */
+    if (Math.abs(y + h - oy) < SNAP_DIST) y = oy - h;
+  });
+
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+}
+
 /* ===== 拖曳 ===== */
-function makeDraggable(el){
-  let offsetX,offsetY;
+function makeDraggable(el) {
+  let offsetX, offsetY;
 
-  el.addEventListener('mousedown',e=>{
+  el.addEventListener('mousedown', e => {
     select(el);
-    offsetX=e.offsetX;
-    offsetY=e.offsetY;
 
-    function move(ev){
-      const rect=canvas.getBoundingClientRect();
-      el.style.left=(ev.clientX-rect.left-offsetX)/scale+'px';
-      el.style.top=(ev.clientY-rect.top-offsetY)/scale+'px';
+    offsetX = e.offsetX;
+    offsetY = e.offsetY;
+
+    function move(ev) {
+      let x = ev.clientX - canvas.getBoundingClientRect().left - offsetX;
+      let y = ev.clientY - canvas.getBoundingClientRect().top - offsetY;
+
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+
+      snapToOthers(el);
     }
 
-    function up(){
-      document.removeEventListener('mousemove',move);
-      document.removeEventListener('mouseup',up);
-      save();
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
     }
 
-    document.addEventListener('mousemove',move);
-    document.addEventListener('mouseup',up);
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
   });
 }
 
 /* ===== 選取 ===== */
-function select(el){
-  selected=el;
-  document.querySelectorAll('.element').forEach(e=>e.classList.remove('selected'));
+function select(el) {
+  selected = el;
+  document.querySelectorAll('.element').forEach(e => e.classList.remove('selected'));
   el.classList.add('selected');
-
-  sizeBtn.disabled=false;
-  wInput.value=parseInt(el.style.width);
-  hInput.value=parseInt(el.style.height);
-}
-
-function applySize(){
-  if(!selected) return;
-  selected.style.width=wInput.value+'px';
-  selected.style.height=hInput.value+'px';
-  save();
 }
 
 /* ===== 刪除 ===== */
-function deleteSelected(){
-  if(!selected) return;
+function deleteSelected() {
+  if (!selected) return;
   selected.remove();
-  elements=elements.filter(e=>e!==selected);
-  selected=null;
-  sizeBtn.disabled=true;
-  save();
+  elements = elements.filter(e => e !== selected);
+  selected = null;
 }
 
 /* ===== 清空 ===== */
-function clearAll(){
-  if(!confirm('確定清空？')) return;
-  localStorage.clear();
+function clearAll() {
+  if (!confirm('確定清空？')) return;
   location.reload();
 }
-
-/* ===== 儲存 ===== */
-function save(){
-  const data=elements.map(el=>({
-    type:[...el.classList][1],
-    x:el.style.left,
-    y:el.style.top,
-    w:el.style.width,
-    h:el.style.height
-  }));
-  localStorage.setItem('plan',JSON.stringify(data));
-}
-
-function load(){
-  const data=JSON.parse(localStorage.getItem('plan')||'[]');
-  data.forEach(d=>{
-    let el=document.createElement('div');
-    el.classList.add('element',d.type);
-    el.style.left=d.x;
-    el.style.top=d.y;
-    el.style.width=d.w;
-    el.style.height=d.h;
-
-    if(d.type==='reserve'){
-      el.innerHTML=`<svg>
-        <line x1="0" y1="0" x2="100%" y2="100%" stroke="gray"/>
-        <line x1="100%" y1="0" x2="0" y2="100%" stroke="gray"/>
-      </svg>`;
-    }
-
-    canvas.appendChild(el);
-    makeDraggable(el);
-    elements.push(el);
-  });
-}
-load();
 </script>
 
 </body>
