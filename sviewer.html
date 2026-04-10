@@ -551,7 +551,7 @@
   <!-- ── Edit Canvas ── -->
   <div id="edit-canvas-wrap">
     <div id="edit-svg-container">
-      <svg id="edit-svg" viewBox="0 0 1000 900" width="1000" height="900"
+      <svg id="edit-svg" viewBox="0 0 1300 1300" width="1300" height="1300"
            xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="ep-hatch" patternUnits="userSpaceOnUse" width="12" height="12"
@@ -559,7 +559,7 @@
             <line x1="0" y1="0" x2="0" y2="12" stroke="#888" stroke-width="4"/>
           </pattern>
         </defs>
-        <rect width="1000" height="900" fill="white"/>
+        <rect width="1300" height="1300" fill="white"/>
         <g id="ep-grid"></g>
         <g id="ep-elements"></g>
         <g id="ep-preview"></g>
@@ -993,7 +993,7 @@
   function fitEditCanvas() {
     const ww = editCanvasWrap.clientWidth  - 40;
     const wh = editCanvasWrap.clientHeight - 40;
-    eScale = Math.min(ww / 1000, wh / 900, 1);
+    eScale = Math.min(ww / 1300, wh / 1300, 1);
     ePanX = 0; ePanY = 0;
     applyEditTransform();
   }
@@ -1051,18 +1051,18 @@
   function renderEditGrid() {
     const ns = 'http://www.w3.org/2000/svg';
     epGrid.innerHTML = '';
-    for (let x = 0; x <= 1000; x += 50) {
+    for (let x = 0; x <= 1300; x += 50) {
       const l = document.createElementNS(ns, 'line');
       l.setAttribute('x1', x); l.setAttribute('y1', 0);
-      l.setAttribute('x2', x); l.setAttribute('y2', 900);
+      l.setAttribute('x2', x); l.setAttribute('y2', 1300);
       l.setAttribute('stroke', x % 100 === 0 ? '#aab4be' : '#d4dae0');
       l.setAttribute('stroke-width', '0.5');
       epGrid.appendChild(l);
     }
-    for (let y = 0; y <= 900; y += 50) {
+    for (let y = 0; y <= 1300; y += 50) {
       const l = document.createElementNS(ns, 'line');
       l.setAttribute('x1', 0); l.setAttribute('y1', y);
-      l.setAttribute('x2', 1000); l.setAttribute('y2', y);
+      l.setAttribute('x2', 1300); l.setAttribute('y2', y);
       l.setAttribute('stroke', y % 100 === 0 ? '#aab4be' : '#d4dae0');
       l.setAttribute('stroke-width', '0.5');
       epGrid.appendChild(l);
@@ -1070,17 +1070,17 @@
     // border
     const bdr = document.createElementNS(ns, 'rect');
     ['x','y','width','height','fill','stroke','stroke-width'].forEach((a,i) =>
-      bdr.setAttribute(a, ['0','0','1000','900','none','#666','1'][i]));
+      bdr.setAttribute(a, ['0','0','1300','1300','none','#666','1'][i]));
     epGrid.appendChild(bdr);
     // axis labels every 100cm
-    for (let x = 100; x <= 1000; x += 100) {
+    for (let x = 100; x <= 1300; x += 100) {
       const t = document.createElementNS(ns, 'text');
       t.setAttribute('x', x); t.setAttribute('y', '-3');
       t.setAttribute('text-anchor', 'middle');
       t.setAttribute('font-size', '9'); t.setAttribute('fill', '#999');
       t.textContent = x; epGrid.appendChild(t);
     }
-    for (let y = 100; y <= 900; y += 100) {
+    for (let y = 100; y <= 1300; y += 100) {
       const t = document.createElementNS(ns, 'text');
       t.setAttribute('x', '-4'); t.setAttribute('y', y + 3);
       t.setAttribute('text-anchor', 'end');
@@ -1217,8 +1217,8 @@
   function svgCoord(e) {
     const r = editSvgEl.getBoundingClientRect();
     return {
-      x: (e.clientX - r.left) * (1000 / r.width),
-      y: (e.clientY - r.top)  * (900  / r.height)
+      x: (e.clientX - r.left) * (1300 / r.width),
+      y: (e.clientY - r.top)  * (1300 / r.height)
     };
   }
 
@@ -1267,8 +1267,8 @@
 
     // clamp to canvas
     return {
-      x: Math.max(0, Math.min(1000 - w, sx)),
-      y: Math.max(0, Math.min(900  - h, sy))
+      x: Math.max(0, Math.min(1300 - w, sx)),
+      y: Math.max(0, Math.min(1300 - h, sy))
     };
   }
 
@@ -1410,15 +1410,115 @@
     }
   });
 
-  /* ── Output stubs (Phase 3) ── */
-  document.getElementById('btn-save-new').addEventListener('click', () =>
-    showToast('另存功能將在 Phase 3 完成'));
-  document.getElementById('btn-view-svg').addEventListener('click', () =>
-    showToast('檢視 SVG 將在 Phase 3 完成'));
+  /* ════════════════════════════════════════
+     PHASE 3: Save as new · View SVG
+     ════════════════════════════════════════ */
+
+  /* ── Generate clean SVG XML (tight bounding box) ── */
+  function generateSvgXml() {
+    if (!editElems.length) { showToast('畫布上沒有元素'); return null; }
+
+    const hasReserved = editElems.some(e => e.type === 'reserved');
+    const defs = hasReserved
+      ? `\n  <defs>\n    <pattern id="hatch" patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(45 0 0)">\n      <line x1="0" y1="0" x2="0" y2="12" stroke="#888" stroke-width="4"/>\n    </pattern>\n  </defs>` : '';
+
+    // tight bounding box with 20 cm padding
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of editElems) {
+      minX = Math.min(minX, el.x);     minY = Math.min(minY, el.y);
+      maxX = Math.max(maxX, el.x + el.w); maxY = Math.max(maxY, el.y + el.h);
+    }
+    const pad = 20;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+    const vw = maxX - minX, vh = maxY - minY;
+
+    const shapes = editElems.map(el => {
+      if (el.type === 'room')
+        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
+      if (el.type === 'vwall' || el.type === 'hwall')
+        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      // reserved
+      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="#222" stroke-width="10"/>`;
+    }).join('\n');
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${vw} ${vh}" width="${vw}" height="${vh}">${defs}\n${shapes}\n</svg>`;
+  }
+
+  /* ── 另存新圖 ── */
+  document.getElementById('btn-save-new').addEventListener('click', () => {
+    const xml = generateSvgXml();
+    if (!xml) return;
+    const input = prompt('儲存名稱（留空自動命名）:', '');
+    if (input === null) return; // cancelled
+    const id   = Date.now().toString();
+    const name = input.trim() || `平面圖 #${records.length + 1}`;
+    records.push({ id, name, svg: xml, createdAt: Date.now() });
+    saveRecords(records);
+    activeId = id;
+    renderTabs();
+    renderSvg();
+    showToast(`已儲存為「${name}」`);
+  });
+
+  /* ── 檢視 SVG ── */
+  const vsvgOverlay = document.getElementById('vsvg-overlay');
+  const vsvgCode    = document.getElementById('vsvg-code');
+
+  document.getElementById('btn-view-svg').addEventListener('click', () => {
+    const xml = generateSvgXml();
+    if (!xml) return;
+    vsvgCode.value = xml;
+    vsvgOverlay.style.display = 'flex';
+  });
+
+  document.getElementById('btn-close-vsvg').addEventListener('click', () => {
+    vsvgOverlay.style.display = 'none';
+  });
+  vsvgOverlay.addEventListener('click', e => {
+    if (e.target === vsvgOverlay) vsvgOverlay.style.display = 'none';
+  });
+
+  /* ── 複製 SVG ── */
+  document.getElementById('btn-copy-svg').addEventListener('click', () => {
+    navigator.clipboard.writeText(vsvgCode.value)
+      .then(() => showToast('已複製到剪貼簿'))
+      .catch(() => {
+        vsvgCode.select();
+        document.execCommand('copy');
+        showToast('已複製到剪貼簿');
+      });
+  });
+
+  /* Escape closes view-svg modal */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && vsvgOverlay.style.display !== 'none')
+      vsvgOverlay.style.display = 'none';
+  });
 
   /* ── Init ── */
   renderTabs();
   renderSvg();
 </script>
+
+<!-- ── View SVG Modal ── -->
+<div id="vsvg-overlay"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#16213e;border:1px solid #0f3460;border-radius:10px;padding:20px;
+              width:min(700px,95vw);max-height:88vh;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="font-size:1rem;color:#e94560;">SVG 原始碼</h2>
+      <button class="btn btn-secondary" id="btn-copy-svg"
+              style="font-size:0.8rem;padding:4px 14px;">複製</button>
+    </div>
+    <textarea id="vsvg-code" readonly
+              style="flex:1;min-height:340px;padding:10px;border-radius:5px;
+                     border:1px solid #0f3460;background:#0f172a;color:#a0c4ff;
+                     font-family:monospace;font-size:0.75rem;resize:vertical;"></textarea>
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-secondary" id="btn-close-vsvg"
+              style="font-size:0.8rem;">關閉</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
