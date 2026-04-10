@@ -663,15 +663,27 @@
 
 <script>
   /* ── Storage helpers ── */
-  const STORAGE_KEY = 'svg_viewer_records';
+  const STORAGE_KEY      = 'svg_viewer_records';
+  const BG_KEY           = 'svg_viewer_bg';
+  const MODE_KEY         = 'svg_viewer_mode';
+  const EDIT_ELEMS_KEY   = 'svg_viewer_edit_elems';
 
   function loadRecords() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
     catch { return []; }
   }
+  function saveRecords(r) { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); }
 
-  function saveRecords(records) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  function saveBg(bg)    { localStorage.setItem(BG_KEY, bg); }
+  function loadBg()      { return localStorage.getItem(BG_KEY) ?? ''; }
+
+  function saveMode(on)  { localStorage.setItem(MODE_KEY, on ? '1' : '0'); }
+  function loadMode()    { return localStorage.getItem(MODE_KEY) === '1'; }
+
+  function saveEditElems(arr) { localStorage.setItem(EDIT_ELEMS_KEY, JSON.stringify(arr)); }
+  function loadEditElems() {
+    try { return JSON.parse(localStorage.getItem(EDIT_ELEMS_KEY)) || []; }
+    catch { return []; }
   }
 
   /* ── State ── */
@@ -1009,7 +1021,7 @@
 
   let isEditMode  = false;
   let activeTool  = 'select';   // 'select'|'room'|'vwall'|'hwall'|'reserved'
-  let editElems   = [];          // placed elements data
+  let editElems   = loadEditElems();  // placed elements data (persisted)
   let selectedId  = null;
   let eScale      = 1, ePanX = 0, ePanY = 0;
   let ePanning    = false, ePanSX = 0, ePanSY = 0;
@@ -1017,6 +1029,7 @@
   /* ── Toggle edit mode ── */
   btnEditMode.addEventListener('click', () => {
     isEditMode = !isEditMode;
+    saveMode(isEditMode);
     document.body.classList.toggle('edit-mode', isEditMode);
     btnEditMode.classList.toggle('active', isEditMode);
     btnEditMode.textContent = isEditMode ? '✕ 離開編修' : '✎ 編修模式';
@@ -1175,6 +1188,7 @@
   document.getElementById('btn-delete-selected').addEventListener('click', () => {
     if (!selectedId) return;
     editElems = editElems.filter(e => e.id !== selectedId);
+    saveEditElems(editElems);
     selectedId = null;
     renderEditElements();
     updateSelectedSection();
@@ -1185,6 +1199,7 @@
     if (!editElems.length) return;
     if (!confirm('確定清空畫布？此操作無法復原。')) return;
     editElems = []; selectedId = null;
+    saveEditElems(editElems);
     renderEditElements(); updateSelectedSection();
   });
 
@@ -1341,6 +1356,7 @@
   /* ── Commit a new element ── */
   function placeElement(x, y, w, h, type) {
     editElems.push({ id: Date.now().toString(), type, x, y, w, h });
+    saveEditElems(editElems);
     renderEditElements();
     epPreview.innerHTML = '';
     // auto-switch back to select tool
@@ -1435,7 +1451,7 @@
 
   /* ── window mouseup — end drag ── */
   window.addEventListener('mouseup', () => {
-    if (isDragging) { isDragging = false; dragId = null; }
+    if (isDragging) { isDragging = false; dragId = null; saveEditElems(editElems); }
     mouseDownPos = null;
   });
 
@@ -1453,6 +1469,7 @@
     if ((e.key === 'Delete' || e.key === 'Backspace') &&
         !e.target.matches('input, textarea, select')) {
       editElems = editElems.filter(el => el.id !== selectedId);
+      saveEditElems(editElems);
       selectedId = null;
       renderEditElements();
       updateSelectedSection();
@@ -1551,10 +1568,37 @@
       btn.classList.add('active');
       canvasEl.classList.remove('bg-dark', 'bg-light');
       if (btn.dataset.bg) canvasEl.classList.add(btn.dataset.bg);
+      saveBg(btn.dataset.bg ?? '');
     });
   });
 
   /* ── Init ── */
+
+  // Restore background selection
+  (function() {
+    const savedBg = loadBg();
+    document.querySelectorAll('.bg-btn').forEach(b => {
+      b.classList.toggle('active', (b.dataset.bg ?? '') === savedBg);
+    });
+    canvasEl.classList.remove('bg-dark', 'bg-light');
+    if (savedBg) canvasEl.classList.add(savedBg);
+  })();
+
+  // Restore edit elements rendering (grid not ready yet; rendered again when entering mode)
+  if (editElems.length) renderEditElements();
+
+  // Restore edit mode
+  if (loadMode()) {
+    isEditMode = true;
+    saveMode(true);
+    document.body.classList.add('edit-mode');
+    btnEditMode.classList.add('active');
+    btnEditMode.textContent = '✕ 離開編修';
+    renderEditGrid();
+    requestAnimationFrame(fitEditCanvas);
+    updateDimSection();
+  }
+
   renderTabs();
   renderSvg();
 </script>
