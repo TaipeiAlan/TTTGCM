@@ -1515,6 +1515,90 @@
     mouseDownPos = null;
   });
 
+  /* ── Touch support (mobile drag / tap) ── */
+  function touchPt(e) {
+    const t = e.touches[0] || e.changedTouches[0];
+    return { clientX: t.clientX, clientY: t.clientY,
+             target: document.elementFromPoint(t.clientX, t.clientY) || e.target };
+  }
+
+  editSvgEl.addEventListener('touchstart', e => {
+    if (!isEditMode) return;
+    e.preventDefault();
+    const te = touchPt(e);
+    mouseDownPos = { x: te.clientX, y: te.clientY };
+    pointerMoved = false;
+
+    if (activeTool === 'select') {
+      const g = te.target && te.target.closest('[data-id]');
+      if (g) {
+        selectedId = g.dataset.id;
+        renderEditElements();
+        updateSelectedSection();
+        const sp = svgCoord(te);
+        const el = editElems.find(ee => ee.id === selectedId);
+        if (el) {
+          isDragging = true; dragId = selectedId;
+          dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
+        }
+      } else {
+        selectedId = null;
+        renderEditElements();
+        updateSelectedSection();
+        ePanning = true;
+        ePanSX = te.clientX; ePanSY = te.clientY;
+      }
+    }
+  }, { passive: false });
+
+  window.addEventListener('touchmove', e => {
+    if (!isEditMode) return;
+    e.preventDefault();
+    const te = touchPt(e);
+
+    if (mouseDownPos &&
+        (Math.abs(te.clientX - mouseDownPos.x) > 4 ||
+         Math.abs(te.clientY - mouseDownPos.y) > 4)) {
+      pointerMoved = true;
+    }
+
+    if (ePanning && pointerMoved) {
+      ePanX += te.clientX - ePanSX;
+      ePanY += te.clientY - ePanSY;
+      ePanSX = te.clientX; ePanSY = te.clientY;
+      applyEditTransform();
+      return;
+    }
+
+    if (isDragging && pointerMoved && dragId) {
+      const sp = svgCoord(te);
+      const el = editElems.find(ee => ee.id === dragId);
+      if (el) {
+        const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
+        el.x = s.x; el.y = s.y;
+        renderEditElements();
+        updateSelectedSection();
+      }
+    }
+  }, { passive: false });
+
+  window.addEventListener('touchend', e => {
+    if (!isEditMode) return;
+    const te = touchPt(e);
+    if (isDragging) { isDragging = false; dragId = null; saveEditElems(editElems); }
+    if (ePanning)   { ePanning = false; }
+
+    // Tap to place (non-select tool, no movement)
+    if (!pointerMoved && activeTool !== 'select') {
+      const sp = svgCoord(te);
+      const { w, h } = getDims();
+      const s = snapElement(sp.x - w / 2, sp.y - h / 2, w, h);
+      placeElement(s.x, s.y, w, h, activeTool);
+    }
+
+    mouseDownPos = null;
+  });
+
   /* ── SVG cursor by tool ── */
   document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', () => {
