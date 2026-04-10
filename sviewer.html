@@ -477,6 +477,66 @@
       gap: 4px;
     }
     #edit-zoom-label { font-size: 0.7rem; color: #64748b; text-align: center; }
+
+    /* ── Mobile layout ── */
+    @media (max-width: 600px) {
+      /* Topbar: tighten to stay single row */
+      #topbar { padding: 6px 8px; gap: 5px; }
+      #topbar h1 { font-size: 0.88rem; margin-right: 4px; }
+      .btn { padding: 4px 8px; font-size: 0.76rem; }
+      .bg-btn { padding: 2px 6px; font-size: 0.72rem; }
+      #bg-label { display: none; } /* "背景" text hidden to save space */
+
+      /* Edit mode: hide tabs, canvas fills from just below topbar */
+      body.edit-mode #tabs-wrap { display: none; }
+      body.edit-mode #main      { top: 41px; flex-direction: column; }
+
+      /* Canvas on top */
+      body.edit-mode #edit-canvas-wrap {
+        order: 1;
+        flex: 1;
+        min-height: 0;
+      }
+
+      /* Sidebar becomes a horizontal scrollable strip at bottom */
+      body.edit-mode #edit-sidebar {
+        order: 2;
+        width: 100%;
+        min-width: unset;
+        height: 130px;
+        min-height: 130px;
+        flex-shrink: 0;
+        flex-direction: row;
+        border-right: none;
+        border-top: 1px solid #0f3460;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+      }
+      body.edit-mode #edit-sidebar::-webkit-scrollbar { display: none; }
+
+      /* Each sidebar section becomes a vertical column in the strip */
+      body.edit-mode .esec {
+        flex-shrink: 0;
+        border-bottom: none;
+        border-right: 1px solid #0f3460;
+        padding: 8px 10px;
+        min-width: 110px;
+      }
+
+      /* Output section: cancel margin-top:auto (no effect in row layout) */
+      body.edit-mode #output-section { margin-top: 0; margin-left: auto; }
+
+      /* Tool buttons: slightly compact */
+      body.edit-mode .tool-btn {
+        padding: 5px 7px;
+        font-size: 0.78rem;
+        margin-bottom: 2px;
+      }
+
+      /* Dim inputs */
+      body.edit-mode .dim-input { padding: 3px 5px; font-size: 0.78rem; }
+    }
   </style>
 </head>
 <body>
@@ -486,7 +546,7 @@
   <h1>SVG Viewer</h1>
   <button class="btn btn-primary" id="btn-add">+ 新增</button>
   <button class="btn btn-secondary" id="btn-edit-mode">✎ 編修模式</button>
-  <span style="color:#334155;font-size:0.72rem;margin-left:6px;white-space:nowrap">背景</span>
+  <span id="bg-label" style="color:#334155;font-size:0.72rem;margin-left:6px;white-space:nowrap">背景</span>
   <button class="bg-btn active" data-bg="">無</button>
   <button class="bg-btn" data-bg="bg-dark">深色</button>
   <button class="bg-btn" data-bg="bg-light">淺色</button>
@@ -553,7 +613,7 @@
               style="width:100%;margin-top:8px;font-size:0.8rem;padding:5px">刪除</button>
     </div>
 
-    <div class="esec" style="margin-top:auto">
+    <div class="esec" id="output-section" style="margin-top:auto">
       <h3>輸出</h3>
       <button class="btn btn-primary" id="btn-save-new"
               style="width:100%;margin-bottom:5px;font-size:0.8rem;padding:5px">另存新圖</button>
