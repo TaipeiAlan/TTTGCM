@@ -620,6 +620,27 @@
 <!-- Toast -->
 <div id="toast"></div>
 
+<!-- ── View SVG Modal ── -->
+<div id="vsvg-overlay"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#16213e;border:1px solid #0f3460;border-radius:10px;padding:20px;
+              width:min(700px,95vw);max-height:88vh;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="font-size:1rem;color:#e94560;">SVG 原始碼</h2>
+      <button class="btn btn-secondary" id="btn-copy-svg"
+              style="font-size:0.8rem;padding:4px 14px;">複製</button>
+    </div>
+    <textarea id="vsvg-code" readonly
+              style="flex:1;min-height:340px;padding:10px;border-radius:5px;
+                     border:1px solid #0f3460;background:#0f172a;color:#a0c4ff;
+                     font-family:monospace;font-size:0.75rem;resize:vertical;"></textarea>
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-secondary" id="btn-close-vsvg"
+              style="font-size:0.8rem;">關閉</button>
+    </div>
+  </div>
+</div>
+
 <script>
   /* ── Storage helpers ── */
   const STORAGE_KEY = 'svg_viewer_records';
@@ -986,6 +1007,7 @@
     } else {
       epPreview.innerHTML = '';
       epSnap.innerHTML    = '';
+      renderSvg();        // restore viewer on exit
     }
   });
 
@@ -1301,6 +1323,13 @@
     editElems.push({ id: Date.now().toString(), type, x, y, w, h });
     renderEditElements();
     epPreview.innerHTML = '';
+    // auto-switch back to select tool
+    activeTool = 'select';
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    const selBtn = document.querySelector('.tool-btn[data-tool="select"]');
+    if (selBtn) selBtn.classList.add('active');
+    editSvgEl.style.cursor = 'default';
+    updateDimSection();
   }
 
   /* ── SVG: mousedown — select / start drag ── */
@@ -1499,26 +1528,5 @@
   renderTabs();
   renderSvg();
 </script>
-
-<!-- ── View SVG Modal ── -->
-<div id="vsvg-overlay"
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:#16213e;border:1px solid #0f3460;border-radius:10px;padding:20px;
-              width:min(700px,95vw);max-height:88vh;display:flex;flex-direction:column;gap:12px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h2 style="font-size:1rem;color:#e94560;">SVG 原始碼</h2>
-      <button class="btn btn-secondary" id="btn-copy-svg"
-              style="font-size:0.8rem;padding:4px 14px;">複製</button>
-    </div>
-    <textarea id="vsvg-code" readonly
-              style="flex:1;min-height:340px;padding:10px;border-radius:5px;
-                     border:1px solid #0f3460;background:#0f172a;color:#a0c4ff;
-                     font-family:monospace;font-size:0.75rem;resize:vertical;"></textarea>
-    <div style="display:flex;justify-content:flex-end;">
-      <button class="btn btn-secondary" id="btn-close-vsvg"
-              style="font-size:0.8rem;">關閉</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
