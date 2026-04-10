@@ -28,11 +28,40 @@ body {
   box-sizing: border-box;
 }
 
-.room { border: 2px solid #000; background: rgba(0,0,0,0.05); }
-.wall { background: #000; }
-.reserve { border: 2px dashed #666; background: rgba(100,100,100,0.1); }
+.room {
+  border: 10px solid #000;
+  background: rgba(0,0,0,0.05);
+}
 
-.selected { outline: 3px solid red; }
+.wall {
+  background: #000;
+  height: 10px;
+}
+
+.reserve {
+  border: 10px dashed #666;
+  position: relative;
+}
+
+/* 保留區叉叉 */
+.reserve::before,
+.reserve::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-top: 2px solid #666;
+  transform-origin: center;
+}
+
+.reserve::before { transform: rotate(45deg); }
+.reserve::after { transform: rotate(-45deg); }
+
+.selected {
+  outline: 3px solid red;
+}
 
 footer {
   border-top: 1px solid #ccc;
@@ -41,12 +70,17 @@ footer {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  font-size: 14px;
 }
 
 button {
   padding: 10px;
   font-size: 16px;
+}
+
+/* 高亮 */
+.active {
+  background: #333;
+  color: #fff;
 }
 
 input {
@@ -56,7 +90,7 @@ input {
 
 textarea {
   width: 100%;
-  height: 100px;
+  height: 80px;
 }
 </style>
 </head>
@@ -66,16 +100,20 @@ textarea {
 <div id="canvas"></div>
 
 <footer>
+
   <div>
-    <button onclick="setMode('room')">房</button>
-    <button onclick="setMode('wall')">牆</button>
-    <button onclick="setMode('reserve')">保留</button>
+    <button id="btnRoom" onclick="setMode('room', this)">房</button>
+    <button id="btnWall" onclick="setMode('wall', this)">牆</button>
+    <button id="btnReserve" onclick="setMode('reserve', this)">保留</button>
   </div>
 
   <div>
     寬 <input id="w" type="number" value="100">
     高 <input id="h" type="number" value="100">
+    <button id="applySizeBtn" onclick="applySize()" disabled>套用尺寸</button>
   </div>
+
+  <div id="info">未選取</div>
 
   <div>
     <button onclick="deleteSelected()">刪除</button>
@@ -85,6 +123,7 @@ textarea {
   </div>
 
   <textarea id="svgOutput"></textarea>
+
 </footer>
 
 <script>
@@ -99,10 +138,15 @@ function snap(v) {
   return Math.round(v / grid) * grid;
 }
 
-function setMode(m) {
+/* ===== 工具選取 ===== */
+function setMode(m, btn) {
   mode = m;
+
+  document.querySelectorAll('footer button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 }
 
+/* ===== 新增 ===== */
 canvas.addEventListener('click', (e) => {
   if (!mode) {
     clearSelection();
@@ -123,7 +167,7 @@ canvas.addEventListener('click', (e) => {
 
   if (mode === 'wall') {
     el.style.width = w + 'px';
-    el.style.height = '4px';
+    el.style.height = '10px';
   } else {
     el.style.width = w + 'px';
     el.style.height = h + 'px';
@@ -139,9 +183,12 @@ canvas.addEventListener('click', (e) => {
   select(el);
 
   mode = null;
+  document.querySelectorAll('footer button').forEach(b => b.classList.remove('active'));
+
   save();
 });
 
+/* ===== 拖曳 + 手機 ===== */
 function makeDraggable(el) {
   let offsetX, offsetY;
   let pressTimer;
@@ -151,26 +198,22 @@ function makeDraggable(el) {
     select(el);
   });
 
-  // 滑鼠
   el.addEventListener('mousedown', (e) => {
     e.stopPropagation();
     startDrag(e.clientX, e.clientY);
   });
 
-  // 手機
   el.addEventListener('touchstart', (e) => {
     e.stopPropagation();
     select(el);
 
-    const touch = e.touches[0];
+    const t = e.touches[0];
 
     pressTimer = setTimeout(() => {
-      if (confirm('刪除這個元素？')) {
-        deleteElement(el);
-      }
+      if (confirm('刪除這個元素？')) deleteElement(el);
     }, 600);
 
-    startDrag(touch.clientX, touch.clientY);
+    startDrag(t.clientX, t.clientY);
 
     function move(ev) {
       clearTimeout(pressTimer);
@@ -215,17 +258,43 @@ function makeDraggable(el) {
   }
 }
 
+/* ===== 選取 ===== */
 function select(el) {
   selected = el;
   document.querySelectorAll('.element').forEach(e=>e.classList.remove('selected'));
   el.classList.add('selected');
+
+  document.getElementById('applySizeBtn').disabled = false;
+
+  const w = parseInt(el.style.width);
+  const h = parseInt(el.style.height);
+  document.getElementById('info').innerText = `尺寸: ${w} x ${h}`;
 }
 
 function clearSelection() {
   selected = null;
   document.querySelectorAll('.element').forEach(e=>e.classList.remove('selected'));
+  document.getElementById('applySizeBtn').disabled = true;
+  document.getElementById('info').innerText = '未選取';
 }
 
+/* ===== 尺寸修改 ===== */
+function applySize() {
+  if (!selected) return;
+
+  const w = snap(parseInt(document.getElementById('w').value));
+  const h = snap(parseInt(document.getElementById('h').value));
+
+  selected.style.width = w + 'px';
+  if (!selected.classList.contains('wall')) {
+    selected.style.height = h + 'px';
+  }
+
+  select(selected);
+  save();
+}
+
+/* ===== 刪除 ===== */
 function deleteSelected() {
   if (!selected) return;
   deleteElement(selected);
@@ -234,10 +303,18 @@ function deleteSelected() {
 function deleteElement(el) {
   el.remove();
   elements = elements.filter(e => e !== el);
-  selected = null;
+  clearSelection();
   save();
 }
 
+/* ===== 清空 ===== */
+function clearAll() {
+  if (!confirm('確定清空？')) return;
+  localStorage.removeItem('floorplan');
+  location.reload();
+}
+
+/* ===== SVG ===== */
 function exportSVG() {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg">\n`;
 
@@ -248,11 +325,13 @@ function exportSVG() {
     const h = parseInt(el.style.height);
 
     if (el.classList.contains('wall')) {
-      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black"/>\n`;
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="10" fill="black"/>\n`;
     } else if (el.classList.contains('reserve')) {
-      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="gray" stroke-dasharray="4"/>\n`;
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="gray" stroke-width="10"/>\n`;
+      svg += `<line x1="${x}" y1="${y}" x2="${x+w}" y2="${y+h}" stroke="gray"/>\n`;
+      svg += `<line x1="${x+w}" y1="${y}" x2="${x}" y2="${y+h}" stroke="gray"/>\n`;
     } else {
-      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="black"/>\n`;
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="black" stroke-width="10"/>\n`;
     }
   });
 
@@ -261,29 +340,10 @@ function exportSVG() {
 }
 
 function showSVG() {
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg">\n`;
-
-  elements.forEach(el => {
-    const x = parseInt(el.style.left);
-    const y = parseInt(el.style.top);
-    const w = parseInt(el.style.width);
-    const h = parseInt(el.style.height);
-
-    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" stroke="black" fill="none"/>\n`;
-  });
-
-  svg += `</svg>`;
-  document.getElementById('svgOutput').value = svg;
+  exportSVG();
 }
 
-function download(text) {
-  const blob = new Blob([text], {type: 'image/svg+xml'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'plan.svg';
-  a.click();
-}
-
+/* ===== 儲存 ===== */
 function save() {
   const data = elements.map(el => ({
     type: [...el.classList].find(c => c !== 'element'),
@@ -310,9 +370,12 @@ function load() {
   });
 }
 
-function clearAll() {
-  localStorage.removeItem('floorplan');
-  location.reload();
+function download(text) {
+  const blob = new Blob([text], {type: 'image/svg+xml'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'plan.svg';
+  a.click();
 }
 
 load();
