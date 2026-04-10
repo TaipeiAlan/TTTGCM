@@ -1146,11 +1146,269 @@
     renderEditElements(); updateSelectedSection();
   });
 
-  /* ── Render elements (stub — full implementation in Phase 2) ── */
+  /* ── Render elements ── */
   function renderEditElements() {
+    const ns = 'http://www.w3.org/2000/svg';
     epElements.innerHTML = '';
-    // Phase 2 will implement this
+    for (const el of editElems) {
+      const g = document.createElementNS(ns, 'g');
+      g.dataset.id = el.id;
+
+      if (el.type === 'room' || el.type === 'reserved') {
+        const r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', el.x);   r.setAttribute('y', el.y);
+        r.setAttribute('width', el.w); r.setAttribute('height', el.h);
+        r.setAttribute('fill', el.type === 'room' ? 'white' : 'url(#ep-hatch)');
+        r.setAttribute('stroke', '#222');
+        r.setAttribute('stroke-width', '10');
+        g.appendChild(r);
+        // dimension label
+        const t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', el.x + el.w / 2);
+        t.setAttribute('y', el.y + el.h / 2 + 5);
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('font-size', '14');
+        t.setAttribute('fill', el.type === 'room' ? '#666' : '#444');
+        t.setAttribute('pointer-events', 'none');
+        t.textContent = `${el.w}×${el.h}`;
+        g.appendChild(t);
+      } else {
+        // vwall / hwall — solid filled rectangle
+        const r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', el.x);   r.setAttribute('y', el.y);
+        r.setAttribute('width', el.w); r.setAttribute('height', el.h);
+        r.setAttribute('fill', '#222');
+        g.appendChild(r);
+      }
+
+      // selection ring
+      if (el.id === selectedId) {
+        const ring = document.createElementNS(ns, 'rect');
+        const pad = 4;
+        ring.setAttribute('x', el.x - pad);   ring.setAttribute('y', el.y - pad);
+        ring.setAttribute('width',  el.w + pad * 2);
+        ring.setAttribute('height', el.h + pad * 2);
+        ring.setAttribute('fill', 'none');
+        ring.setAttribute('stroke', '#3b82f6');
+        ring.setAttribute('stroke-width', '2.5');
+        ring.setAttribute('stroke-dasharray', '10,4');
+        ring.setAttribute('pointer-events', 'none');
+        g.appendChild(ring);
+      }
+
+      epElements.appendChild(g);
+    }
   }
+
+  /* ════════════════════════════════════════
+     PHASE 2: Placement · Snap · Drag
+     ════════════════════════════════════════ */
+
+  const editSvgEl  = document.getElementById('edit-svg');
+  const SNAP_DIST  = 15;   // cm — edge-snap threshold
+
+  let isDragging   = false;
+  let dragId       = null;
+  let dragOffX     = 0, dragOffY = 0;
+  let mouseDownPos = null;
+  let pointerMoved = false;
+
+  /* ── Mouse → SVG coordinate ── */
+  function svgCoord(e) {
+    const r = editSvgEl.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * (1000 / r.width),
+      y: (e.clientY - r.top)  * (900  / r.height)
+    };
+  }
+
+  /* ── Read dimension inputs ── */
+  function getDims() {
+    const w = Math.max(10, parseInt(document.getElementById('dim-w').value)   || 300);
+    const h = Math.max(10, parseInt(document.getElementById('dim-h').value)   || 300);
+    const l = Math.max(10, parseInt(document.getElementById('dim-len').value) || 200);
+    if (activeTool === 'vwall') return { w: 10, h: l };
+    if (activeTool === 'hwall') return { w: l,  h: 10 };
+    return { w, h };
+  }
+
+  /* ── Snap: grid (10 cm) then edge ── */
+  function snapElement(x, y, w, h, excludeId) {
+    let sx = Math.round(x / 10) * 10;
+    let sy = Math.round(y / 10) * 10;
+
+    let bestDX = SNAP_DIST, bestDY = SNAP_DIST;
+    let snapX  = null,      snapY  = null;
+
+    for (const el of editElems) {
+      if (el.id === excludeId) continue;
+      const er = el.x + el.w,  eb = el.y + el.h;
+      const nr = sx  + w,      nb = sy  + h;
+
+      // x candidates: align left/right edges of new vs existing
+      for (const c of [
+        { d: Math.abs(sx - er),   v: er       },   // new.left  = ex.right
+        { d: Math.abs(nr - el.x), v: el.x - w },   // new.right = ex.left
+        { d: Math.abs(sx - el.x), v: el.x     },   // new.left  = ex.left
+        { d: Math.abs(nr - er),   v: er - w   },   // new.right = ex.right
+      ]) { if (c.d < bestDX) { bestDX = c.d; snapX = c.v; } }
+
+      // y candidates
+      for (const c of [
+        { d: Math.abs(sy - eb),   v: eb       },
+        { d: Math.abs(nb - el.y), v: el.y - h },
+        { d: Math.abs(sy - el.y), v: el.y     },
+        { d: Math.abs(nb - eb),   v: eb - h   },
+      ]) { if (c.d < bestDY) { bestDY = c.d; snapY = c.v; } }
+    }
+
+    if (snapX !== null) sx = snapX;
+    if (snapY !== null) sy = snapY;
+
+    // clamp to canvas
+    return {
+      x: Math.max(0, Math.min(1000 - w, sx)),
+      y: Math.max(0, Math.min(900  - h, sy))
+    };
+  }
+
+  /* ── Ghost preview element ── */
+  function drawPreview(x, y, w, h, type) {
+    const ns = 'http://www.w3.org/2000/svg';
+    epPreview.innerHTML = '';
+    const r = document.createElementNS(ns, 'rect');
+    r.setAttribute('x', x); r.setAttribute('y', y);
+    r.setAttribute('width', w); r.setAttribute('height', h);
+    r.setAttribute('pointer-events', 'none');
+    if (type === 'vwall' || type === 'hwall') {
+      r.setAttribute('fill', 'rgba(30,30,30,0.45)');
+    } else if (type === 'room') {
+      r.setAttribute('fill', 'rgba(255,255,255,0.55)');
+      r.setAttribute('stroke', '#e94560');
+      r.setAttribute('stroke-width', '10');
+      r.setAttribute('stroke-dasharray', '20,8');
+    } else {   // reserved
+      r.setAttribute('fill', 'rgba(90,90,90,0.3)');
+      r.setAttribute('stroke', '#e94560');
+      r.setAttribute('stroke-width', '10');
+      r.setAttribute('stroke-dasharray', '20,8');
+    }
+    epPreview.appendChild(r);
+  }
+
+  /* ── Commit a new element ── */
+  function placeElement(x, y, w, h, type) {
+    editElems.push({ id: Date.now().toString(), type, x, y, w, h });
+    renderEditElements();
+    epPreview.innerHTML = '';
+  }
+
+  /* ── SVG: mousedown — select / start drag ── */
+  editSvgEl.addEventListener('mousedown', e => {
+    if (e.button !== 0 || e.ctrlKey || !isEditMode) return;
+    mouseDownPos = { x: e.clientX, y: e.clientY };
+    pointerMoved = false;
+
+    if (activeTool === 'select') {
+      const g = e.target.closest('[data-id]');
+      if (g) {
+        selectedId = g.dataset.id;
+        renderEditElements();
+        updateSelectedSection();
+        // prepare drag
+        const sp = svgCoord(e);
+        const el = editElems.find(ee => ee.id === selectedId);
+        if (el) {
+          isDragging = true; dragId = selectedId;
+          dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
+        }
+      } else {
+        // click on empty → deselect
+        selectedId = null;
+        renderEditElements();
+        updateSelectedSection();
+      }
+    }
+  });
+
+  /* ── SVG: click — place element ── */
+  editSvgEl.addEventListener('click', e => {
+    if (pointerMoved || activeTool === 'select' || !isEditMode) return;
+    const sp = svgCoord(e);
+    const { w, h } = getDims();
+    const s = snapElement(sp.x, sp.y, w, h);
+    placeElement(s.x, s.y, w, h, activeTool);
+  });
+
+  /* ── SVG: mouse leaves — clear preview ── */
+  editSvgEl.addEventListener('mouseleave', () => {
+    if (!isDragging) epPreview.innerHTML = '';
+  });
+
+  /* ── window mousemove — preview & drag ── */
+  window.addEventListener('mousemove', e => {
+    if (!isEditMode) return;
+
+    // track movement
+    if (mouseDownPos &&
+        (Math.abs(e.clientX - mouseDownPos.x) > 4 ||
+         Math.abs(e.clientY - mouseDownPos.y) > 4)) {
+      pointerMoved = true;
+    }
+
+    // drag selected element
+    if (isDragging && pointerMoved && dragId) {
+      const sp = svgCoord(e);
+      const el = editElems.find(ee => ee.id === dragId);
+      if (el) {
+        const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
+        el.x = s.x; el.y = s.y;
+        renderEditElements();
+        updateSelectedSection();
+      }
+      return;
+    }
+
+    // placement preview
+    if (!isDragging && !ePanning && activeTool !== 'select') {
+      const svgRect = editSvgEl.getBoundingClientRect();
+      if (e.clientX >= svgRect.left && e.clientX <= svgRect.right &&
+          e.clientY >= svgRect.top  && e.clientY <= svgRect.bottom) {
+        const sp = svgCoord(e);
+        const { w, h } = getDims();
+        const s = snapElement(sp.x, sp.y, w, h);
+        drawPreview(s.x, s.y, w, h, activeTool);
+      } else {
+        epPreview.innerHTML = '';
+      }
+    }
+  });
+
+  /* ── window mouseup — end drag ── */
+  window.addEventListener('mouseup', () => {
+    if (isDragging) { isDragging = false; dragId = null; }
+    mouseDownPos = null;
+  });
+
+  /* ── SVG cursor by tool ── */
+  document.querySelectorAll('.tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editSvgEl.style.cursor = btn.dataset.tool === 'select' ? 'default' : 'crosshair';
+    });
+  });
+  editSvgEl.style.cursor = 'default';
+
+  /* ── Delete key removes selected element ── */
+  document.addEventListener('keydown', e => {
+    if (!isEditMode || !selectedId) return;
+    if ((e.key === 'Delete' || e.key === 'Backspace') &&
+        !e.target.matches('input, textarea, select')) {
+      editElems = editElems.filter(el => el.id !== selectedId);
+      selectedId = null;
+      renderEditElements();
+      updateSelectedSection();
+    }
+  });
 
   /* ── Output stubs (Phase 3) ── */
   document.getElementById('btn-save-new').addEventListener('click', () =>
