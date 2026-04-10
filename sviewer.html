@@ -1547,63 +1547,62 @@
     mouseDownPos = null;
   });
 
-  /* ── Touch support (mobile drag / tap) ── */
-  function touchPt(e) {
-    const t = e.touches[0] || e.changedTouches[0];
-    return { clientX: t.clientX, clientY: t.clientY };
-  }
-
-  editSvgEl.addEventListener('touchstart', e => {
-    if (!isEditMode) return;
+  /* ── Touch / Pen drag via Pointer Events ──
+     setPointerCapture ensures pointermove keeps firing even when the
+     finger leaves the SVG element bounds — the key advantage over
+     window.touchmove which can be suppressed by iOS.               */
+  editSvgEl.addEventListener('pointerdown', e => {
+    if (!isEditMode || e.pointerType === 'mouse') return;
     e.preventDefault();
-    const te = touchPt(e);
-    mouseDownPos = { x: te.clientX, y: te.clientY };
-    pointerMoved = false;
+    mouseDownPos = { x: e.clientX, y: e.clientY };
+    pointerMoved  = false;
 
     if (activeTool === 'select') {
-      // Use e.target directly — more reliable than elementFromPoint in SVG on iOS
       const g = e.target.closest('[data-id]');
       if (g) {
         selectedId = g.dataset.id;
         renderEditElements();
         updateSelectedSection();
-        const sp = svgCoord(te);
+        const sp = svgCoord(e);
         const el = editElems.find(ee => ee.id === selectedId);
         if (el) {
           isDragging = true; dragId = selectedId;
           dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
+          editSvgEl.setPointerCapture(e.pointerId); // lock events to this element
         }
       } else {
         selectedId = null;
         renderEditElements();
         updateSelectedSection();
         ePanning = true;
-        ePanSX = te.clientX; ePanSY = te.clientY;
+        ePanSX = e.clientX; ePanSY = e.clientY;
+        editSvgEl.setPointerCapture(e.pointerId);
       }
+    } else {
+      editSvgEl.setPointerCapture(e.pointerId); // capture for tap-to-place
     }
   }, { passive: false });
 
-  window.addEventListener('touchmove', e => {
-    if (!isEditMode) return;
+  editSvgEl.addEventListener('pointermove', e => {
+    if (!isEditMode || e.pointerType === 'mouse') return;
     e.preventDefault();
-    const te = touchPt(e);
 
     if (mouseDownPos &&
-        (Math.abs(te.clientX - mouseDownPos.x) > 4 ||
-         Math.abs(te.clientY - mouseDownPos.y) > 4)) {
+        (Math.abs(e.clientX - mouseDownPos.x) > 3 ||
+         Math.abs(e.clientY - mouseDownPos.y) > 3)) {
       pointerMoved = true;
     }
 
     if (ePanning && pointerMoved) {
-      ePanX += te.clientX - ePanSX;
-      ePanY += te.clientY - ePanSY;
-      ePanSX = te.clientX; ePanSY = te.clientY;
+      ePanX += e.clientX - ePanSX;
+      ePanY += e.clientY - ePanSY;
+      ePanSX = e.clientX; ePanSY = e.clientY;
       applyEditTransform();
       return;
     }
 
     if (isDragging && pointerMoved && dragId) {
-      const sp = svgCoord(te);
+      const sp = svgCoord(e);
       const el = editElems.find(ee => ee.id === dragId);
       if (el) {
         const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
@@ -1612,23 +1611,26 @@
         updateSelectedSection();
       }
     }
-  }, { passive: false });
+  });
 
-  window.addEventListener('touchend', e => {
-    if (!isEditMode) return;
-    const te = touchPt(e);
+  editSvgEl.addEventListener('pointerup', e => {
+    if (!isEditMode || e.pointerType === 'mouse') return;
     if (isDragging) { isDragging = false; dragId = null; saveEditElems(editElems); }
     if (ePanning)   { ePanning = false; }
 
     // Tap to place (non-select tool, no movement)
     if (!pointerMoved && activeTool !== 'select') {
-      const sp = svgCoord(te);
+      const sp = svgCoord(e);
       const { w, h } = getDims();
       const s = snapElement(sp.x - w / 2, sp.y - h / 2, w, h);
       placeElement(s.x, s.y, w, h, activeTool);
     }
-
     mouseDownPos = null;
+  });
+
+  editSvgEl.addEventListener('pointercancel', e => {
+    if (e.pointerType === 'mouse') return;
+    isDragging = false; dragId = null; ePanning = false; mouseDownPos = null;
   });
 
   /* ── SVG cursor by tool ── */
