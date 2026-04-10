@@ -7,6 +7,9 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* Prevent double-tap zoom & pinch-zoom on entire UI */
+    html { touch-action: manipulation; }
+
     body {
       font-family: 'Segoe UI', system-ui, sans-serif;
       background: #1a1a2e;
@@ -363,6 +366,9 @@
     #canvas.bg-light { background: #e8ecf0 !important; }
 
     /* sidebar */
+    /* Canvas handles its own touch — disable browser pan/zoom there */
+    #edit-canvas-wrap { touch-action: none; }
+
     #edit-sidebar {
       display: none;
       width: 210px;
@@ -611,6 +617,11 @@
       <div id="selected-info"></div>
       <button class="btn btn-danger" id="btn-delete-selected"
               style="width:100%;margin-top:8px;font-size:0.8rem;padding:5px">刪除</button>
+    </div>
+
+    <div class="esec" id="undo-section" style="display:none">
+      <button class="btn btn-secondary" id="btn-undo-delete"
+              style="width:100%;font-size:0.8rem;padding:5px">↩ 復原刪除</button>
     </div>
 
     <div class="esec" id="output-section" style="margin-top:auto">
@@ -1244,23 +1255,44 @@
       : `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>尺寸：${el.w} × ${el.h} cm`;
   }
 
-  /* ── Delete selected ── */
-  document.getElementById('btn-delete-selected').addEventListener('click', () => {
-    if (!selectedId) return;
-    editElems = editElems.filter(e => e.id !== selectedId);
+  /* ── Delete (with one-shot undo) ── */
+  let lastDeleted = null;
+  const undoSection = document.getElementById('undo-section');
+
+  function deleteElement(id) {
+    const el = editElems.find(e => e.id === id);
+    if (!el) return;
+    lastDeleted = { ...el };
+    editElems = editElems.filter(e => e.id !== id);
     saveEditElems(editElems);
     selectedId = null;
     renderEditElements();
     updateSelectedSection();
+    undoSection.style.display = '';
+  }
+
+  document.getElementById('btn-delete-selected').addEventListener('click', () => {
+    if (!selectedId) return;
+    deleteElement(selectedId);
+  });
+
+  document.getElementById('btn-undo-delete').addEventListener('click', () => {
+    if (!lastDeleted) return;
+    editElems.push(lastDeleted);
+    saveEditElems(editElems);
+    lastDeleted = null;
+    renderEditElements();
+    undoSection.style.display = 'none';
   });
 
   /* ── Clear canvas ── */
   document.getElementById('btn-clear-canvas').addEventListener('click', () => {
     if (!editElems.length) return;
     if (!confirm('確定清空畫布？此操作無法復原。')) return;
-    editElems = []; selectedId = null;
+    editElems = []; selectedId = null; lastDeleted = null;
     saveEditElems(editElems);
     renderEditElements(); updateSelectedSection();
+    undoSection.style.display = 'none';
   });
 
   /* ── Render elements ── */
@@ -1518,8 +1550,7 @@
   /* ── Touch support (mobile drag / tap) ── */
   function touchPt(e) {
     const t = e.touches[0] || e.changedTouches[0];
-    return { clientX: t.clientX, clientY: t.clientY,
-             target: document.elementFromPoint(t.clientX, t.clientY) || e.target };
+    return { clientX: t.clientX, clientY: t.clientY };
   }
 
   editSvgEl.addEventListener('touchstart', e => {
@@ -1530,7 +1561,8 @@
     pointerMoved = false;
 
     if (activeTool === 'select') {
-      const g = te.target && te.target.closest('[data-id]');
+      // Use e.target directly — more reliable than elementFromPoint in SVG on iOS
+      const g = e.target.closest('[data-id]');
       if (g) {
         selectedId = g.dataset.id;
         renderEditElements();
@@ -1612,11 +1644,7 @@
     if (!isEditMode || !selectedId) return;
     if ((e.key === 'Delete' || e.key === 'Backspace') &&
         !e.target.matches('input, textarea, select')) {
-      editElems = editElems.filter(el => el.id !== selectedId);
-      saveEditElems(editElems);
-      selectedId = null;
-      renderEditElements();
-      updateSelectedSection();
+      deleteElement(selectedId);
     }
   });
 
