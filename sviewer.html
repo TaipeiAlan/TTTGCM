@@ -371,8 +371,8 @@
 
     #edit-sidebar {
       display: none;
-      width: 210px;
-      min-width: 210px;
+      width: 170px;
+      min-width: 170px;
       flex-direction: column;
       background: #16213e;
       border-right: 1px solid #0f3460;
@@ -484,6 +484,28 @@
     }
     #edit-zoom-label { font-size: 0.7rem; color: #64748b; text-align: center; }
 
+    /* ── Ruler ── */
+    #ruler-corner, #ruler-h, #ruler-v {
+      display: none;
+      position: absolute;
+      background: #16213e;
+      pointer-events: none;
+      user-select: none;
+      z-index: 3;
+    }
+    body.edit-mode #ruler-corner {
+      display: block; top:0; left:0; width:28px; height:28px;
+      border-right:1px solid #0f3460; border-bottom:1px solid #0f3460; z-index:4;
+    }
+    body.edit-mode #ruler-h {
+      display: block; top:0; left:28px; right:0; height:28px;
+      border-bottom:1px solid #0f3460; overflow:hidden;
+    }
+    body.edit-mode #ruler-v {
+      display: block; top:28px; left:0; bottom:0; width:28px;
+      border-right:1px solid #0f3460; overflow:hidden;
+    }
+
     /* ── Mobile layout ── */
     @media (max-width: 600px) {
       /* Topbar: tighten to stay single row */
@@ -497,16 +519,16 @@
       body.edit-mode #tabs-wrap { display: none; }
       body.edit-mode #main      { top: 41px; flex-direction: column; }
 
-      /* Canvas on top */
+      /* Sidebar at TOP on mobile — keyboard appears at bottom, sidebar stays visible */
       body.edit-mode #edit-canvas-wrap {
-        order: 1;
+        order: 2;
         flex: 1;
         min-height: 0;
       }
 
-      /* Sidebar becomes a horizontal scrollable strip at bottom */
+      /* Sidebar strip at top (avoids virtual keyboard coverage) */
       body.edit-mode #edit-sidebar {
-        order: 2;
+        order: 1;
         width: 100%;
         min-width: unset;
         height: 130px;
@@ -542,6 +564,9 @@
 
       /* Dim inputs */
       body.edit-mode .dim-input { padding: 3px 5px; font-size: 0.78rem; }
+
+      /* Hide rulers on mobile (no space) */
+      #ruler-corner, #ruler-h, #ruler-v { display: none !important; }
     }
   </style>
 </head>
@@ -624,7 +649,7 @@
               style="width:100%;font-size:0.8rem;padding:5px">↩ 復原刪除</button>
     </div>
 
-    <div class="esec" id="output-section" style="margin-top:auto">
+    <div class="esec" id="output-section">
       <h3>輸出</h3>
       <button class="btn btn-primary" id="btn-save-new"
               style="width:100%;margin-bottom:5px;font-size:0.8rem;padding:5px">另存新圖</button>
@@ -641,6 +666,9 @@
 
   <!-- ── Edit Canvas ── -->
   <div id="edit-canvas-wrap">
+    <div id="ruler-corner"></div>
+    <div id="ruler-h"></div>
+    <div id="ruler-v"></div>
     <div id="edit-svg-container">
       <svg id="edit-svg" viewBox="0 0 1600 1300" width="1600" height="1300"
            xmlns="http://www.w3.org/2000/svg">
@@ -1129,6 +1157,59 @@
       `translate(${ePanX}px,${ePanY}px) scale(${eScale})`;
     document.getElementById('edit-zoom-label').textContent =
       Math.round(eScale * 100) + '%';
+    renderRulers();
+  }
+
+  /* ── Rulers ── */
+  function renderRulers() {
+    const rulerH = document.getElementById('ruler-h');
+    const rulerV = document.getElementById('ruler-v');
+    if (!rulerH || !rulerV || getComputedStyle(rulerH).display === 'none') return;
+
+    const cw = editCanvasWrap.clientWidth;
+    const ch = editCanvasWrap.clientHeight;
+    const R  = 28; // ruler band size in px (matches CSS width/height)
+
+    // Pixel-to-SVG: container px → SVG cm
+    // svgX = (containerPx - cw/2 - ePanX) / eScale + 800
+    // svgY = (containerPy - ch/2 - ePanY) / eScale + 650
+    // Ruler h sits at container x = [R, cw), ruler v at container y = [R, ch)
+    const svgXLeft  = (R       - cw / 2 - ePanX) / eScale + 800;
+    const svgXRight = (cw      - cw / 2 - ePanX) / eScale + 800;
+    const svgYTop   = (R       - ch / 2 - ePanY) / eScale + 650;
+    const svgYBot   = (ch      - ch / 2 - ePanY) / eScale + 650;
+
+    // Pick tick interval so ticks are ≥40px apart
+    const INTERVALS = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+    const tickCm = INTERVALS.find(i => i * eScale >= 40) || 1000;
+    const minorCm = tickCm;   // only one level for simplicity
+
+    const rw = cw - R;
+    const rh = ch - R;
+
+    // ── Horizontal ruler ──
+    let hs = `<svg xmlns="http://www.w3.org/2000/svg" width="${rw}" height="${R}" style="display:block;overflow:visible">`;
+    const startX = Math.ceil(svgXLeft / minorCm) * minorCm;
+    for (let cx = startX; cx <= svgXRight + minorCm; cx += minorCm) {
+      const px = (cx - 800) * eScale + cw / 2 + ePanX - R;
+      if (px < -1 || px > rw + 1) continue;
+      hs += `<line x1="${px.toFixed(1)}" y1="${R}" x2="${px.toFixed(1)}" y2="${R - 8}" stroke="#94a3b8" stroke-width="1"/>`;
+      hs += `<text x="${px.toFixed(1)}" y="${R - 11}" text-anchor="middle" font-size="8" fill="#64748b" font-family="system-ui,sans-serif">${cx}</text>`;
+    }
+    hs += '</svg>';
+    rulerH.innerHTML = hs;
+
+    // ── Vertical ruler ──
+    let vs = `<svg xmlns="http://www.w3.org/2000/svg" width="${R}" height="${rh}" style="display:block;overflow:visible">`;
+    const startY = Math.ceil(svgYTop / minorCm) * minorCm;
+    for (let cy = startY; cy <= svgYBot + minorCm; cy += minorCm) {
+      const py = (cy - 650) * eScale + ch / 2 + ePanY - R;
+      if (py < -1 || py > rh + 1) continue;
+      vs += `<line x1="${R}" y1="${py.toFixed(1)}" x2="${R - 8}" y2="${py.toFixed(1)}" stroke="#94a3b8" stroke-width="1"/>`;
+      vs += `<text x="${R - 10}" y="${py.toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="8" fill="#64748b" font-family="system-ui,sans-serif">${cy}</text>`;
+    }
+    vs += '</svg>';
+    rulerV.innerHTML = vs;
   }
 
   /* ── Zoom buttons ── */
@@ -1299,11 +1380,23 @@
   function renderEditElements() {
     const ns = 'http://www.w3.org/2000/svg';
     epElements.innerHTML = '';
-    for (const el of editElems) {
+    // Sort: non-reserved first, reserved last so reserved always renders on top
+    const sorted = [...editElems].sort((a, b) =>
+      (a.type === 'reserved' ? 1 : 0) - (b.type === 'reserved' ? 1 : 0));
+    for (const el of sorted) {
       const g = document.createElementNS(ns, 'g');
       g.dataset.id = el.id;
 
       if (el.type === 'room' || el.type === 'reserved') {
+        if (el.type === 'reserved') {
+          // Opaque background beneath the hatch
+          const bg = document.createElementNS(ns, 'rect');
+          bg.setAttribute('x', el.x);   bg.setAttribute('y', el.y);
+          bg.setAttribute('width', el.w); bg.setAttribute('height', el.h);
+          bg.setAttribute('fill', '#b8c8d4');
+          bg.setAttribute('pointer-events', 'none');
+          g.appendChild(bg);
+        }
         const r = document.createElementNS(ns, 'rect');
         r.setAttribute('x', el.x);   r.setAttribute('y', el.y);
         r.setAttribute('width', el.w); r.setAttribute('height', el.h);
@@ -1381,10 +1474,10 @@
     return { w, h };
   }
 
-  /* ── Snap: grid (10 cm) then edge ── */
+  /* ── Snap: grid (5 cm) then edge ── */
   function snapElement(x, y, w, h, excludeId) {
-    let sx = Math.round(x / 10) * 10;
-    let sy = Math.round(y / 10) * 10;
+    let sx = Math.round(x / 5) * 5;
+    let sy = Math.round(y / 5) * 5;
 
     let bestDX = SNAP_DIST, bestDY = SNAP_DIST;
     let snapX  = null,      snapY  = null;
@@ -1672,13 +1765,16 @@
     minX -= pad; minY -= pad; maxX += pad; maxY += pad;
     const vw = maxX - minX, vh = maxY - minY;
 
-    const shapes = editElems.map(el => {
+    // Sort: non-reserved first, reserved on top
+    const sorted = [...editElems].sort((a, b) =>
+      (a.type === 'reserved' ? 1 : 0) - (b.type === 'reserved' ? 1 : 0));
+    const shapes = sorted.map(el => {
       if (el.type === 'room')
         return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
       if (el.type === 'vwall' || el.type === 'hwall')
         return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
-      // reserved
-      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="#222" stroke-width="10"/>`;
+      // reserved — opaque background + hatch overlay
+      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${vw} ${vh}" width="${vw}" height="${vh}">${defs}\n${shapes}\n</svg>`;
