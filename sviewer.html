@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>SVG Viewer</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -562,8 +562,35 @@
         margin-bottom: 2px;
       }
 
+      /* 工具 section: 2-column grid so all 5 buttons fit in 130px sidebar height */
+      body.edit-mode #edit-sidebar > .esec:first-child {
+        display: flex;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        gap: 3px;
+        min-width: 132px;
+      }
+      body.edit-mode #edit-sidebar > .esec:first-child > h3 {
+        flex-basis: 100%;
+        margin-bottom: 0;
+      }
+      body.edit-mode #edit-sidebar > .esec:first-child > .tool-btn {
+        flex: 0 0 calc(50% - 2px);
+        min-width: 0;
+        margin-bottom: 0;
+        padding: 4px 3px;
+        font-size: 0.72rem;
+        gap: 3px;
+      }
+
       /* Dim inputs */
       body.edit-mode .dim-input { padding: 3px 5px; font-size: 0.78rem; }
+
+      /* iOS safe area: keep zoom controls above home indicator / browser chrome */
+      #edit-zoom-controls {
+        bottom: max(14px, calc(env(safe-area-inset-bottom) + 8px));
+        right: max(14px, calc(env(safe-area-inset-right) + 8px));
+      }
 
       /* Hide rulers on mobile (no space) */
       #ruler-corner, #ruler-h, #ruler-v { display: none !important; }
