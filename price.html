@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>實價登錄表</title>
+
+<style>
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f6f8;
+    margin: 0;
+    padding: 16px;
+    color: #333;
+}
+
+/* ===== Summary Card ===== */
+.summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.card {
+    background: white;
+    padding: 12px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.card .label {
+    font-size: 12px;
+    color: #888;
+}
+
+.card .value {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+/* ===== Table ===== */
+.table-wrapper {
+    background: white;
+    border-radius: 10px;
+    overflow-x: auto;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 700px;
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    background: #fafafa;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+tbody td {
+    padding: 10px;
+    font-size: 14px;
+    border-bottom: 1px solid #eee;
+}
+
+tbody tr:hover {
+    background: #f3f7ff;
+}
+
+/* ===== Price Highlight ===== */
+.price {
+    font-weight: bold;
+    color: #d94848;
+}
+
+.unit {
+    color: #666;
+    font-size: 13px;
+}
+
+/* ===== Mobile ===== */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<!-- Summary -->
+<div class="summary">
+    <div class="card">
+        <div class="label">近期均價</div>
+        <div class="value">52.3 萬/坪</div>
+    </div>
+    <div class="card">
+        <div class="label">成交筆數</div>
+        <div class="value">35 筆</div>
+    </div>
+    <div class="card">
+        <div class="label">屋齡</div>
+        <div class="value">12 年</div>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="table-wrapper">
+<table>
+    <thead>
+        <tr>
+            <th>成交日期</th>
+            <th>樓層</th>
+            <th>坪數</th>
+            <th>總價</th>
+            <th>單價</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>2025/12</td>
+            <td>10F</td>
+            <td>35.2坪</td>
+            <td class="price">1830萬</td>
+            <td class="unit">52.0萬/坪</td>
+        </tr>
+        <tr>
+            <td>2025/10</td>
+            <td>8F</td>
+            <td>33.5坪</td>
+            <td class="price">1700萬</td>
+            <td class="unit">50.7萬/坪</td>
+        </tr>
+        <tr>
+            <td>2025/08</td>
+            <td>12F</td>
+            <td>36.1坪</td>
+            <td class="price">1920萬</td>
+            <td class="unit">53.1萬/坪</td>
+        </tr>
+    </tbody>
+</table>
+</div>
+
+</body>
+</html>
