@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>實價登錄表</title>
+<title>實價登錄（卡片版）</title>
 
 <style>
 body {
@@ -11,143 +11,177 @@ body {
     background: #f5f6f8;
     margin: 0;
     padding: 16px;
-    color: #333;
 }
 
-/* ===== Summary Card ===== */
-.summary {
+/* 卡片容器 */
+.container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
 }
 
+/* 單筆卡片 */
 .card {
-    background: white;
-    padding: 12px;
-    border-radius: 10px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 }
 
-.card .label {
-    font-size: 12px;
-    color: #888;
+/* 標題列 */
+.header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
 }
 
-.card .value {
-    font-size: 18px;
-    font-weight: bold;
-    margin-top: 4px;
-}
-
-/* ===== Table ===== */
-.table-wrapper {
-    background: white;
-    border-radius: 10px;
-    overflow-x: auto;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 700px;
-}
-
-thead th {
-    position: sticky;
-    top: 0;
-    background: #fafafa;
-    font-weight: 600;
+.date {
     font-size: 13px;
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
+    color: #666;
 }
 
-tbody td {
-    padding: 10px;
-    font-size: 14px;
-    border-bottom: 1px solid #eee;
-}
-
-tbody tr:hover {
-    background: #f3f7ff;
-}
-
-/* ===== Price Highlight ===== */
 .price {
+    font-size: 18px;
     font-weight: bold;
     color: #d94848;
 }
 
-.unit {
-    color: #666;
-    font-size: 13px;
+/* 2x2 區塊 */
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
 }
 
-/* ===== Mobile ===== */
-@media (max-width: 600px) {
-    body {
-        padding: 10px;
-    }
+/* 每格 */
+.item {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 8px;
 }
+
+.label {
+    font-size: 11px;
+    color: #888;
+}
+
+.value {
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+/* 次要資訊 */
+.extra {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+}
+
 </style>
 </head>
 
 <body>
 
-<!-- Summary -->
-<div class="summary">
-    <div class="card">
-        <div class="label">近期均價</div>
-        <div class="value">52.3 萬/坪</div>
-    </div>
-    <div class="card">
-        <div class="label">成交筆數</div>
-        <div class="value">35 筆</div>
-    </div>
-    <div class="card">
-        <div class="label">屋齡</div>
-        <div class="value">12 年</div>
-    </div>
-</div>
+<div class="container">
 
-<!-- Table -->
-<div class="table-wrapper">
-<table>
-    <thead>
-        <tr>
-            <th>成交日期</th>
-            <th>樓層</th>
-            <th>坪數</th>
-            <th>總價</th>
-            <th>單價</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>2025/12</td>
-            <td>10F</td>
-            <td>35.2坪</td>
-            <td class="price">1830萬</td>
-            <td class="unit">52.0萬/坪</td>
-        </tr>
-        <tr>
-            <td>2025/10</td>
-            <td>8F</td>
-            <td>33.5坪</td>
-            <td class="price">1700萬</td>
-            <td class="unit">50.7萬/坪</td>
-        </tr>
-        <tr>
-            <td>2025/08</td>
-            <td>12F</td>
-            <td>36.1坪</td>
-            <td class="price">1920萬</td>
-            <td class="unit">53.1萬/坪</td>
-        </tr>
-    </tbody>
-</table>
+    <!-- 卡片 1 -->
+    <div class="card">
+        <div class="header">
+            <div class="date">2025/12</div>
+            <div class="price">1830萬</div>
+        </div>
+
+        <div class="grid">
+            <div class="item">
+                <div class="label">單價</div>
+                <div class="value">52.0萬/坪</div>
+            </div>
+            <div class="item">
+                <div class="label">坪數</div>
+                <div class="value">35.2坪</div>
+            </div>
+            <div class="item">
+                <div class="label">樓層</div>
+                <div class="value">10F / 15F</div>
+            </div>
+            <div class="item">
+                <div class="label">屋齡</div>
+                <div class="value">12年</div>
+            </div>
+        </div>
+
+        <div class="extra">
+            車位：坡道平面（含車位價）<br>
+            備註：標準三房，無特殊交易
+        </div>
+    </div>
+
+    <!-- 卡片 2 -->
+    <div class="card">
+        <div class="header">
+            <div class="date">2025/10</div>
+            <div class="price">1700萬</div>
+        </div>
+
+        <div class="grid">
+            <div class="item">
+                <div class="label">單價</div>
+                <div class="value">50.7萬/坪</div>
+            </div>
+            <div class="item">
+                <div class="label">坪數</div>
+                <div class="value">33.5坪</div>
+            </div>
+            <div class="item">
+                <div class="label">樓層</div>
+                <div class="value">8F / 15F</div>
+            </div>
+            <div class="item">
+                <div class="label">屋齡</div>
+                <div class="value">12年</div>
+            </div>
+        </div>
+
+        <div class="extra">
+            車位：機械車位<br>
+            備註：低樓層成交
+        </div>
+    </div>
+
+    <!-- 卡片 3 -->
+    <div class="card">
+        <div class="header">
+            <div class="date">2025/08</div>
+            <div class="price">1920萬</div>
+        </div>
+
+        <div class="grid">
+            <div class="item">
+                <div class="label">單價</div>
+                <div class="value">53.1萬/坪</div>
+            </div>
+            <div class="item">
+                <div class="label">坪數</div>
+                <div class="value">36.1坪</div>
+            </div>
+            <div class="item">
+                <div class="label">樓層</div>
+                <div class="value">12F / 15F</div>
+            </div>
+            <div class="item">
+                <div class="label">屋齡</div>
+                <div class="value">11年</div>
+            </div>
+        </div>
+
+        <div class="extra">
+            車位：坡道平面<br>
+            備註：高樓層景觀戶
+        </div>
+    </div>
+
 </div>
 
 </body>
