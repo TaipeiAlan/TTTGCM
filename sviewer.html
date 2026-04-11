@@ -1195,41 +1195,59 @@
   let doorSwing = 'in';  // 'in' | 'out'
 
   /* ── Door arc SVG path (quarter-circle) ──
-     Stored: { w = opening width, h = 3 (panel thickness), dir, hinge, swing }
-     Panel for 'h': width=w, height=3  |  for 'v': width=3, height=w
-     Arc sweep verification (SVG y-down, sweep-flag 1 = clockwise on screen):
-       h-door  L-in : free-end east → pivot north  CCW → sweep 0
-       h-door  L-out: free-end east → pivot south  CW  → sweep 1
-       h-door  R-in : free-end west → pivot north  CW  → sweep 1
-       h-door  R-out: free-end west → pivot south  CCW → sweep 0
-       v-door  L-in : free-end south → pivot west  CCW → sweep 0
-       v-door  L-out: free-end south → pivot east  CW  → sweep 1
-       v-door  R-in : free-end north → pivot west  CW  → sweep 1
-       v-door  R-out: free-end north → pivot east  CCW → sweep 0        */
+     Hinge corner is the CORNER of the panel, not center of edge.
+     Angles in SVG (y-down): 0°=east 90°=south 180°=west 270°=north
+     sweep=1 CW (increasing angle) / sweep=0 CCW (decreasing angle)
+       h-door L-in : east→north  CCW sweep=0
+       h-door L-out: east→south  CW  sweep=1
+       h-door R-in : west→north  CW  sweep=1
+       h-door R-out: west→south  CCW sweep=0
+       v-door L-in : south→west  CW  sweep=1
+       v-door L-out: south→east  CCW sweep=0
+       v-door R-in : north→west  CCW sweep=0
+       v-door R-out: north→east  CW  sweep=1                         */
   function doorArcPath(el) {
     const { x, y, w, dir, hinge, swing } = el;
     if (dir === 'h') {
-      const cy = y + 1.5;
       if (hinge === 'L') {
+        // hinge corner (x, y); free end (x+w, y)
         return swing === 'in'
-          ? `M ${x+w},${cy} A ${w},${w} 0 0,0 ${x},${cy-w}`
-          : `M ${x+w},${cy} A ${w},${w} 0 0,1 ${x},${cy+w}`;
+          ? `M ${x+w},${y} A ${w},${w} 0 0,0 ${x},${y-w}`
+          : `M ${x+w},${y} A ${w},${w} 0 0,1 ${x},${y+w}`;
       } else {
+        // hinge corner (x+w, y); free end (x, y)
         return swing === 'in'
-          ? `M ${x},${cy} A ${w},${w} 0 0,1 ${x+w},${cy-w}`
-          : `M ${x},${cy} A ${w},${w} 0 0,0 ${x+w},${cy+w}`;
+          ? `M ${x},${y} A ${w},${w} 0 0,1 ${x+w},${y-w}`
+          : `M ${x},${y} A ${w},${w} 0 0,0 ${x+w},${y+w}`;
       }
     } else {
-      const cx = x + 1.5;
       if (hinge === 'L') {
+        // hinge corner (x, y); free end (x, y+w)
         return swing === 'in'
-          ? `M ${cx},${y+w} A ${w},${w} 0 0,0 ${cx-w},${y}`
-          : `M ${cx},${y+w} A ${w},${w} 0 0,1 ${cx+w},${y}`;
+          ? `M ${x},${y+w} A ${w},${w} 0 0,1 ${x-w},${y}`
+          : `M ${x},${y+w} A ${w},${w} 0 0,0 ${x+w},${y}`;
       } else {
+        // hinge corner (x, y+w); free end (x, y)
         return swing === 'in'
-          ? `M ${cx},${y} A ${w},${w} 0 0,1 ${cx-w},${y+w}`
-          : `M ${cx},${y} A ${w},${w} 0 0,0 ${cx+w},${y+w}`;
+          ? `M ${x},${y} A ${w},${w} 0 0,0 ${x-w},${y+w}`
+          : `M ${x},${y} A ${w},${w} 0 0,1 ${x+w},${y+w}`;
       }
+    }
+  }
+
+  /* ── Door bounding square (w×w quarter-circle area) ── */
+  function doorBounds(el) {
+    const { x, y, w, dir, swing } = el;
+    if (dir === 'h') {
+      // panel spans x→x+w; arc extends ±w in y
+      return swing === 'in'
+        ? { bx: x, by: y - w, bw: w, bh: w }
+        : { bx: x, by: y,     bw: w, bh: w };
+    } else {
+      // panel spans y→y+w; arc extends ±w in x
+      return swing === 'in'
+        ? { bx: x - w, by: y, bw: w, bh: w }
+        : { bx: x,     by: y, bw: w, bh: w };
     }
   }
 
@@ -1524,21 +1542,27 @@
         g.appendChild(t);
 
       } else if (el.type === 'door') {
+        // Transparent hit area covering the full w×w quarter-circle square
+        const { bx, by, bw, bh } = doorBounds(el);
+        const hit = document.createElementNS(ns, 'rect');
+        hit.setAttribute('x', bx); hit.setAttribute('y', by);
+        hit.setAttribute('width', bw); hit.setAttribute('height', bh);
+        hit.setAttribute('fill', 'rgba(0,0,0,0)');
+        g.appendChild(hit);
         // Panel (3 cm thick)
-        const dw = el.dir === 'h' ? el.w : el.h;
-        const dh = el.dir === 'h' ? el.h : el.w;
+        const panelW = el.dir === 'h' ? el.w : el.h;
+        const panelH = el.dir === 'h' ? el.h : el.w;
         const panel = document.createElementNS(ns, 'rect');
         panel.setAttribute('x', el.x); panel.setAttribute('y', el.y);
-        panel.setAttribute('width', dw); panel.setAttribute('height', dh);
+        panel.setAttribute('width', panelW); panel.setAttribute('height', panelH);
         panel.setAttribute('fill', 'white');
         panel.setAttribute('stroke', '#222'); panel.setAttribute('stroke-width', '3');
         g.appendChild(panel);
-        // Arc (swing trajectory)
+        // Arc — solid line, same weight as panel
         const arc = document.createElementNS(ns, 'path');
         arc.setAttribute('d', doorArcPath(el));
         arc.setAttribute('fill', 'none');
-        arc.setAttribute('stroke', '#222'); arc.setAttribute('stroke-width', '2');
-        arc.setAttribute('stroke-dasharray', '8,4');
+        arc.setAttribute('stroke', '#222'); arc.setAttribute('stroke-width', '3');
         arc.setAttribute('pointer-events', 'none');
         g.appendChild(arc);
 
@@ -1551,13 +1575,15 @@
         g.appendChild(r);
       }
 
-      // selection ring — bounding box of visible panel
+      // selection ring — full square for doors, panel rect for others
       if (el.id === selectedId) {
         const ring = document.createElementNS(ns, 'rect');
         const pad = 4;
-        const rw = el.type === 'door' ? (el.dir === 'h' ? el.w : el.h) : el.w;
-        const rh = el.type === 'door' ? (el.dir === 'h' ? el.h : el.w) : el.h;
-        ring.setAttribute('x', el.x - pad);   ring.setAttribute('y', el.y - pad);
+        let rx = el.x, ry = el.y, rw = el.w, rh = el.h;
+        if (el.type === 'door') {
+          const b = doorBounds(el); rx = b.bx; ry = b.by; rw = b.bw; rh = b.bh;
+        }
+        ring.setAttribute('x', rx - pad);   ring.setAttribute('y', ry - pad);
         ring.setAttribute('width',  rw + pad * 2); ring.setAttribute('height', rh + pad * 2);
         ring.setAttribute('fill', 'none');
         ring.setAttribute('stroke', '#3b82f6'); ring.setAttribute('stroke-width', '2.5');
@@ -1658,8 +1684,8 @@
       const arc = document.createElementNS(ns, 'path');
       arc.setAttribute('d', doorArcPath({ x, y, w, dir: doorDir, hinge: doorHinge, swing: doorSwing }));
       arc.setAttribute('fill', 'none');
-      arc.setAttribute('stroke', '#e94560'); arc.setAttribute('stroke-width', '2');
-      arc.setAttribute('stroke-dasharray', '8,4'); arc.setAttribute('pointer-events', 'none');
+      arc.setAttribute('stroke', '#e94560'); arc.setAttribute('stroke-width', '3');
+      arc.setAttribute('pointer-events', 'none');
       epPreview.appendChild(arc);
       return;
     }
@@ -1981,12 +2007,9 @@
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const el of editElems) {
       if (el.type === 'door') {
-        // include arc reach (el.w cm in one direction)
-        const margin = el.w;
-        minX = Math.min(minX, el.x - (el.dir === 'v' ? margin : 0));
-        minY = Math.min(minY, el.y - (el.dir === 'h' ? margin : 0));
-        maxX = Math.max(maxX, el.x + (el.dir === 'h' ? el.w : el.h) + (el.dir === 'v' ? margin : 0));
-        maxY = Math.max(maxY, el.y + (el.dir === 'h' ? el.h : el.w) + (el.dir === 'h' ? margin : 0));
+        const { bx, by, bw, bh } = doorBounds(el);
+        minX = Math.min(minX, bx);      minY = Math.min(minY, by);
+        maxX = Math.max(maxX, bx + bw); maxY = Math.max(maxY, by + bh);
       } else {
         minX = Math.min(minX, el.x);     minY = Math.min(minY, el.y);
         maxX = Math.max(maxX, el.x + el.w); maxY = Math.max(maxY, el.y + el.h);
@@ -2006,7 +2029,7 @@
       if (el.type === 'door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
-        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="#222" stroke-width="3"/>\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2" stroke-dasharray="8,4"/>`;
+        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="#222" stroke-width="3"/>\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="3"/>`;
       }
       // reserved — opaque background + hatch overlay
       return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
