@@ -3,80 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>實價登錄（卡片版）</title>
 
 <style>
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: sans-serif;
     background: #f5f6f8;
     margin: 0;
-    padding: 16px;
 }
 
-/* 卡片容器 */
-.container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 14px;
+/* ===== 表格 ===== */
+.table {
+    overflow-x: auto;
 }
 
-/* 單筆卡片 */
-.card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 14px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 600px;
 }
 
-/* 標題列 */
-.header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
+/* 標題 */
+th {
+    background: #f2d2a4;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ddd;
 }
 
-.date {
-    font-size: 13px;
-    color: #666;
-}
-
-.price {
-    font-size: 18px;
+/* 樓層 */
+.floor {
+    background: #e9dcc8;
     font-weight: bold;
-    color: #d94848;
-}
-
-/* 2x2 區塊 */
-.grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    text-align: center;
+    width: 60px;
 }
 
 /* 每格 */
-.item {
-    background: #fafafa;
-    border-radius: 8px;
-    padding: 8px;
+td {
+    border: 1px solid #ddd;
+    padding: 6px;
+    background: #fff;
 }
 
-.label {
-    font-size: 11px;
-    color: #888;
-}
-
-.value {
-    font-size: 14px;
-    font-weight: 500;
-    margin-top: 2px;
-}
-
-/* 次要資訊 */
-.extra {
-    margin-top: 10px;
+/* ===== 2x2內容 ===== */
+.cell {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 4px;
     font-size: 12px;
-    color: #666;
-    line-height: 1.4;
+}
+
+/* label */
+.label {
+    color: #888;
+    font-size: 10px;
+}
+
+/* value */
+.value {
+    font-weight: 600;
+}
+
+/* 單價強調 */
+.price {
+    color: #d94848;
+    font-size: 14px;
+}
+
+/* 尚未登錄 */
+.empty {
+    text-align: center;
+    color: #aaa;
+    font-size: 13px;
+    padding: 20px 0;
+}
+
+/* 小角標 */
+.tag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: orange;
+    color: white;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 0 4px 0 4px;
+}
+
+/* cell wrapper */
+.cell-wrap {
+    position: relative;
 }
 
 </style>
@@ -84,104 +101,89 @@ body {
 
 <body>
 
-<div class="container">
+<div class="table">
+<table>
 
-    <!-- 卡片 1 -->
-    <div class="card">
-        <div class="header">
-            <div class="date">2025/12</div>
-            <div class="price">1830萬</div>
-        </div>
+<thead>
+<tr>
+    <th>樓層</th>
+    <th>A1</th>
+    <th>A2</th>
+    <th>A3</th>
+</tr>
+</thead>
 
-        <div class="grid">
-            <div class="item">
-                <div class="label">單價</div>
-                <div class="value">52.0萬/坪</div>
-            </div>
-            <div class="item">
-                <div class="label">坪數</div>
-                <div class="value">35.2坪</div>
-            </div>
-            <div class="item">
-                <div class="label">樓層</div>
-                <div class="value">10F / 15F</div>
-            </div>
-            <div class="item">
-                <div class="label">屋齡</div>
-                <div class="value">12年</div>
-            </div>
-        </div>
+<tbody>
 
-        <div class="extra">
-            車位：坡道平面（含車位價）<br>
-            備註：標準三房，無特殊交易
-        </div>
-    </div>
+<tr>
+    <td class="floor">22F</td>
 
-    <!-- 卡片 2 -->
-    <div class="card">
-        <div class="header">
-            <div class="date">2025/10</div>
-            <div class="price">1700萬</div>
-        </div>
-
-        <div class="grid">
-            <div class="item">
-                <div class="label">單價</div>
-                <div class="value">50.7萬/坪</div>
-            </div>
-            <div class="item">
-                <div class="label">坪數</div>
-                <div class="value">33.5坪</div>
-            </div>
-            <div class="item">
-                <div class="label">樓層</div>
-                <div class="value">8F / 15F</div>
-            </div>
-            <div class="item">
-                <div class="label">屋齡</div>
-                <div class="value">12年</div>
+    <!-- 有資料 -->
+    <td>
+        <div class="cell-wrap">
+            <div class="tag">1</div>
+            <div class="cell">
+                <div>
+                    <div class="label">日期</div>
+                    <div class="value">114/07</div>
+                </div>
+                <div>
+                    <div class="label">單價</div>
+                    <div class="value price">103.9</div>
+                </div>
+                <div>
+                    <div class="label">總價</div>
+                    <div class="value">3,976萬</div>
+                </div>
+                <div>
+                    <div class="label">車位</div>
+                    <div class="value">含</div>
+                </div>
             </div>
         </div>
+    </td>
 
-        <div class="extra">
-            車位：機械車位<br>
-            備註：低樓層成交
-        </div>
-    </div>
-
-    <!-- 卡片 3 -->
-    <div class="card">
-        <div class="header">
-            <div class="date">2025/08</div>
-            <div class="price">1920萬</div>
-        </div>
-
-        <div class="grid">
-            <div class="item">
-                <div class="label">單價</div>
-                <div class="value">53.1萬/坪</div>
-            </div>
-            <div class="item">
-                <div class="label">坪數</div>
-                <div class="value">36.1坪</div>
-            </div>
-            <div class="item">
-                <div class="label">樓層</div>
-                <div class="value">12F / 15F</div>
-            </div>
-            <div class="item">
-                <div class="label">屋齡</div>
-                <div class="value">11年</div>
+    <!-- 有資料 -->
+    <td>
+        <div class="cell-wrap">
+            <div class="tag">1</div>
+            <div class="cell">
+                <div>
+                    <div class="label">日期</div>
+                    <div class="value">114/07</div>
+                </div>
+                <div>
+                    <div class="label">單價</div>
+                    <div class="value price">104.1</div>
+                </div>
+                <div>
+                    <div class="label">總價</div>
+                    <div class="value">4,266萬</div>
+                </div>
+                <div>
+                    <div class="label">車位</div>
+                    <div class="value">含</div>
+                </div>
             </div>
         </div>
+    </td>
 
-        <div class="extra">
-            車位：坡道平面<br>
-            備註：高樓層景觀戶
-        </div>
-    </div>
+    <!-- 空 -->
+    <td>
+        <div class="empty">尚未登錄</div>
+    </td>
+</tr>
 
+<tr>
+    <td class="floor">21F</td>
+    <td><div class="empty">尚未登錄</div></td>
+    <td><div class="empty">尚未登錄</div></td>
+    <td><div class="empty">尚未登錄</div></td>
+</tr>
+
+</tbody>
+
+</table>
 </div>
 
 </body>
