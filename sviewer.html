@@ -506,6 +506,21 @@
       border-right:1px solid #0f3460; overflow:hidden;
     }
 
+    /* ── Door option toggles ── */
+    .door-opts {
+      display: flex; gap: 3px; margin-bottom: 4px;
+    }
+    .door-opts:last-child { margin-bottom: 0; }
+    .door-opt {
+      flex: 1; padding: 3px 4px;
+      border: 1px solid #1e3a5f; border-radius: 4px;
+      background: transparent; color: #94a3b8;
+      cursor: pointer; font-size: 0.72rem; text-align: center;
+      transition: background 0.12s, color 0.12s;
+    }
+    .door-opt:hover  { background: #1e3a5f; color: #e0e0e0; }
+    .door-opt.active { background: #e94560; color: #fff; border-color: #e94560; }
+
     /* ── Mobile layout ── */
     @media (max-width: 600px) {
       /* Topbar: tighten to stay single row */
@@ -643,6 +658,7 @@
       <button class="tool-btn" data-tool="vwall"><i class="tool-icon">│</i>垂直牆</button>
       <button class="tool-btn" data-tool="hwall"><i class="tool-icon">─</i>橫向牆</button>
       <button class="tool-btn" data-tool="reserved"><i class="tool-icon">▨</i>保留</button>
+      <button class="tool-btn" data-tool="door"><i class="tool-icon">⌐</i>門</button>
     </div>
 
     <div class="esec" id="dim-section">
@@ -661,6 +677,27 @@
         <label>L</label>
         <input type="number" class="dim-input" id="dim-len" value="200" min="10" step="10">
         <span class="dim-unit">cm</span>
+      </div>
+    </div>
+
+    <div class="esec" id="door-section" style="display:none">
+      <h3>門選項</h3>
+      <div class="dim-row">
+        <label>W</label>
+        <input type="number" class="dim-input" id="door-w" value="90" min="30" step="5">
+        <span class="dim-unit">cm</span>
+      </div>
+      <div class="door-opts">
+        <button class="door-opt active" id="door-dir-h">橫</button>
+        <button class="door-opt" id="door-dir-v">直</button>
+      </div>
+      <div class="door-opts">
+        <button class="door-opt active" id="door-hinge-l">左鉸</button>
+        <button class="door-opt" id="door-hinge-r">右鉸</button>
+      </div>
+      <div class="door-opts">
+        <button class="door-opt active" id="door-swing-in">內開</button>
+        <button class="door-opt" id="door-swing-out">外開</button>
       </div>
     </div>
 
@@ -1146,11 +1183,55 @@
   const epSnap           = document.getElementById('ep-snap');
 
   let isEditMode  = false;
-  let activeTool  = 'select';   // 'select'|'room'|'vwall'|'hwall'|'reserved'
+  let activeTool  = 'select';   // 'select'|'room'|'vwall'|'hwall'|'reserved'|'door'
   let editElems   = loadEditElems();  // placed elements data (persisted)
   let selectedId  = null;
   let eScale      = 1, ePanX = 0, ePanY = 0;
   let ePanning    = false, ePanSX = 0, ePanSY = 0;
+
+  // Door tool state
+  let doorDir   = 'h';   // 'h' | 'v'
+  let doorHinge = 'L';   // 'L'=left/top  'R'=right/bottom
+  let doorSwing = 'in';  // 'in' | 'out'
+
+  /* ── Door arc SVG path (quarter-circle) ──
+     Stored: { w = opening width, h = 3 (panel thickness), dir, hinge, swing }
+     Panel for 'h': width=w, height=3  |  for 'v': width=3, height=w
+     Arc sweep verification (SVG y-down, sweep-flag 1 = clockwise on screen):
+       h-door  L-in : free-end east → pivot north  CCW → sweep 0
+       h-door  L-out: free-end east → pivot south  CW  → sweep 1
+       h-door  R-in : free-end west → pivot north  CW  → sweep 1
+       h-door  R-out: free-end west → pivot south  CCW → sweep 0
+       v-door  L-in : free-end south → pivot west  CCW → sweep 0
+       v-door  L-out: free-end south → pivot east  CW  → sweep 1
+       v-door  R-in : free-end north → pivot west  CW  → sweep 1
+       v-door  R-out: free-end north → pivot east  CCW → sweep 0        */
+  function doorArcPath(el) {
+    const { x, y, w, dir, hinge, swing } = el;
+    if (dir === 'h') {
+      const cy = y + 1.5;
+      if (hinge === 'L') {
+        return swing === 'in'
+          ? `M ${x+w},${cy} A ${w},${w} 0 0,0 ${x},${cy-w}`
+          : `M ${x+w},${cy} A ${w},${w} 0 0,1 ${x},${cy+w}`;
+      } else {
+        return swing === 'in'
+          ? `M ${x},${cy} A ${w},${w} 0 0,1 ${x+w},${cy-w}`
+          : `M ${x},${cy} A ${w},${w} 0 0,0 ${x+w},${cy+w}`;
+      }
+    } else {
+      const cx = x + 1.5;
+      if (hinge === 'L') {
+        return swing === 'in'
+          ? `M ${cx},${y+w} A ${w},${w} 0 0,0 ${cx-w},${y}`
+          : `M ${cx},${y+w} A ${w},${w} 0 0,1 ${cx+w},${y}`;
+      } else {
+        return swing === 'in'
+          ? `M ${cx},${y} A ${w},${w} 0 0,1 ${cx-w},${y+w}`
+          : `M ${cx},${y} A ${w},${w} 0 0,0 ${cx+w},${y+w}`;
+      }
+    }
+  }
 
   /* ── Toggle edit mode ── */
   btnEditMode.addEventListener('click', () => {
@@ -1338,11 +1419,14 @@
   });
 
   function updateDimSection() {
-    const sec  = document.getElementById('dim-section');
-    const wRow = document.getElementById('dim-w-row');
-    const hRow = document.getElementById('dim-h-row');
-    const lRow = document.getElementById('dim-len-row');
-    if (activeTool === 'select') { sec.style.display = 'none'; return; }
+    const sec     = document.getElementById('dim-section');
+    const doorSec = document.getElementById('door-section');
+    const wRow    = document.getElementById('dim-w-row');
+    const hRow    = document.getElementById('dim-h-row');
+    const lRow    = document.getElementById('dim-len-row');
+    if (activeTool === 'select')  { sec.style.display = 'none'; doorSec.style.display = 'none'; return; }
+    if (activeTool === 'door')    { sec.style.display = 'none'; doorSec.style.display = ''; return; }
+    doorSec.style.display = 'none';
     sec.style.display = '';
     const isRect = activeTool === 'room' || activeTool === 'reserved';
     wRow.style.display = isRect ? '' : 'none';
@@ -1357,10 +1441,14 @@
     const el = editElems.find(e => e.id === selectedId);
     if (!el) { sec.style.display = 'none'; return; }
     sec.style.display = '';
-    const label = { room:'房', vwall:'垂直牆', hwall:'橫向牆', reserved:'保留' }[el.type];
-    info.innerHTML = (el.type === 'vwall' || el.type === 'hwall')
-      ? `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>長度：${el.type==='vwall'?el.h:el.w} cm`
-      : `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>尺寸：${el.w} × ${el.h} cm`;
+    const label = { room:'房', vwall:'垂直牆', hwall:'橫向牆', reserved:'保留', door:'門' }[el.type];
+    if (el.type === 'door') {
+      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>寬：${el.w} cm<br>${el.dir==='h'?'橫':'直'}・${el.hinge==='L'?'左':'右'}鉸・${el.swing==='in'?'內':'外'}開`;
+    } else if (el.type === 'vwall' || el.type === 'hwall') {
+      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>長度：${el.type==='vwall'?el.h:el.w} cm`;
+    } else {
+      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>尺寸：${el.w} × ${el.h} cm`;
+    }
   }
 
   /* ── Delete (with one-shot undo) ── */
@@ -1404,64 +1492,76 @@
   });
 
   /* ── Render elements ── */
+  const Z = { room: 0, vwall: 1, hwall: 1, door: 2, reserved: 3 };
   function renderEditElements() {
     const ns = 'http://www.w3.org/2000/svg';
     epElements.innerHTML = '';
-    // Sort: non-reserved first, reserved last so reserved always renders on top
-    const sorted = [...editElems].sort((a, b) =>
-      (a.type === 'reserved' ? 1 : 0) - (b.type === 'reserved' ? 1 : 0));
+    const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     for (const el of sorted) {
       const g = document.createElementNS(ns, 'g');
       g.dataset.id = el.id;
 
       if (el.type === 'room' || el.type === 'reserved') {
         if (el.type === 'reserved') {
-          // Opaque background beneath the hatch
           const bg = document.createElementNS(ns, 'rect');
           bg.setAttribute('x', el.x);   bg.setAttribute('y', el.y);
           bg.setAttribute('width', el.w); bg.setAttribute('height', el.h);
-          bg.setAttribute('fill', '#b8c8d4');
-          bg.setAttribute('pointer-events', 'none');
+          bg.setAttribute('fill', '#b8c8d4'); bg.setAttribute('pointer-events', 'none');
           g.appendChild(bg);
         }
         const r = document.createElementNS(ns, 'rect');
         r.setAttribute('x', el.x);   r.setAttribute('y', el.y);
         r.setAttribute('width', el.w); r.setAttribute('height', el.h);
         r.setAttribute('fill', el.type === 'room' ? 'white' : 'url(#ep-hatch)');
-        r.setAttribute('stroke', '#222');
-        r.setAttribute('stroke-width', '10');
+        r.setAttribute('stroke', '#222'); r.setAttribute('stroke-width', '10');
         g.appendChild(r);
-        // dimension label
         const t = document.createElementNS(ns, 'text');
-        t.setAttribute('x', el.x + el.w / 2);
-        t.setAttribute('y', el.y + el.h / 2 + 5);
-        t.setAttribute('text-anchor', 'middle');
-        t.setAttribute('font-size', '14');
+        t.setAttribute('x', el.x + el.w / 2); t.setAttribute('y', el.y + el.h / 2 + 5);
+        t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '14');
         t.setAttribute('fill', el.type === 'room' ? '#666' : '#444');
         t.setAttribute('pointer-events', 'none');
         t.textContent = `${el.w}×${el.h}`;
         g.appendChild(t);
+
+      } else if (el.type === 'door') {
+        // Panel (3 cm thick)
+        const dw = el.dir === 'h' ? el.w : el.h;
+        const dh = el.dir === 'h' ? el.h : el.w;
+        const panel = document.createElementNS(ns, 'rect');
+        panel.setAttribute('x', el.x); panel.setAttribute('y', el.y);
+        panel.setAttribute('width', dw); panel.setAttribute('height', dh);
+        panel.setAttribute('fill', 'white');
+        panel.setAttribute('stroke', '#222'); panel.setAttribute('stroke-width', '3');
+        g.appendChild(panel);
+        // Arc (swing trajectory)
+        const arc = document.createElementNS(ns, 'path');
+        arc.setAttribute('d', doorArcPath(el));
+        arc.setAttribute('fill', 'none');
+        arc.setAttribute('stroke', '#222'); arc.setAttribute('stroke-width', '2');
+        arc.setAttribute('stroke-dasharray', '8,4');
+        arc.setAttribute('pointer-events', 'none');
+        g.appendChild(arc);
+
       } else {
-        // vwall / hwall — solid filled rectangle
+        // vwall / hwall
         const r = document.createElementNS(ns, 'rect');
-        r.setAttribute('x', el.x);   r.setAttribute('y', el.y);
+        r.setAttribute('x', el.x); r.setAttribute('y', el.y);
         r.setAttribute('width', el.w); r.setAttribute('height', el.h);
         r.setAttribute('fill', '#222');
         g.appendChild(r);
       }
 
-      // selection ring
+      // selection ring — bounding box of visible panel
       if (el.id === selectedId) {
         const ring = document.createElementNS(ns, 'rect');
         const pad = 4;
+        const rw = el.type === 'door' ? (el.dir === 'h' ? el.w : el.h) : el.w;
+        const rh = el.type === 'door' ? (el.dir === 'h' ? el.h : el.w) : el.h;
         ring.setAttribute('x', el.x - pad);   ring.setAttribute('y', el.y - pad);
-        ring.setAttribute('width',  el.w + pad * 2);
-        ring.setAttribute('height', el.h + pad * 2);
+        ring.setAttribute('width',  rw + pad * 2); ring.setAttribute('height', rh + pad * 2);
         ring.setAttribute('fill', 'none');
-        ring.setAttribute('stroke', '#3b82f6');
-        ring.setAttribute('stroke-width', '2.5');
-        ring.setAttribute('stroke-dasharray', '10,4');
-        ring.setAttribute('pointer-events', 'none');
+        ring.setAttribute('stroke', '#3b82f6'); ring.setAttribute('stroke-width', '2.5');
+        ring.setAttribute('stroke-dasharray', '10,4'); ring.setAttribute('pointer-events', 'none');
         g.appendChild(ring);
       }
 
@@ -1545,6 +1645,24 @@
   function drawPreview(x, y, w, h, type) {
     const ns = 'http://www.w3.org/2000/svg';
     epPreview.innerHTML = '';
+    if (type === 'door') {
+      const dw = doorDir === 'h' ? w : 3;
+      const dh = doorDir === 'h' ? 3 : w;
+      const r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', y);
+      r.setAttribute('width', dw); r.setAttribute('height', dh);
+      r.setAttribute('fill', 'rgba(255,255,255,0.6)');
+      r.setAttribute('stroke', '#e94560'); r.setAttribute('stroke-width', '2.5');
+      r.setAttribute('pointer-events', 'none');
+      epPreview.appendChild(r);
+      const arc = document.createElementNS(ns, 'path');
+      arc.setAttribute('d', doorArcPath({ x, y, w, dir: doorDir, hinge: doorHinge, swing: doorSwing }));
+      arc.setAttribute('fill', 'none');
+      arc.setAttribute('stroke', '#e94560'); arc.setAttribute('stroke-width', '2');
+      arc.setAttribute('stroke-dasharray', '8,4'); arc.setAttribute('pointer-events', 'none');
+      epPreview.appendChild(arc);
+      return;
+    }
     const r = document.createElementNS(ns, 'rect');
     r.setAttribute('x', x); r.setAttribute('y', y);
     r.setAttribute('width', w); r.setAttribute('height', h);
@@ -1565,9 +1683,40 @@
     epPreview.appendChild(r);
   }
 
+  /* ── Snap door to nearest wall/room edge ── */
+  function snapDoor(x, y, w, dir) {
+    let sx = Math.round(x * 2) / 2;
+    let sy = Math.round(y * 2) / 2;
+    const DSNAP = 20; // cm
+    if (dir === 'h') {
+      let best = DSNAP;
+      for (const el of editElems) {
+        if (el.type === 'door') continue;
+        for (const edge of [el.y, el.y + (el.h ?? 0)]) {
+          const d = Math.abs(sy + 1.5 - edge);
+          if (d < best) { best = d; sy = edge - 1.5; }
+        }
+      }
+      sx = Math.max(0, Math.min(1600 - w, sx));
+      sy = Math.max(0, Math.min(1300 - 3, sy));
+    } else {
+      let best = DSNAP;
+      for (const el of editElems) {
+        if (el.type === 'door') continue;
+        for (const edge of [el.x, el.x + (el.w ?? 0)]) {
+          const d = Math.abs(sx + 1.5 - edge);
+          if (d < best) { best = d; sx = edge - 1.5; }
+        }
+      }
+      sx = Math.max(0, Math.min(1600 - 3, sx));
+      sy = Math.max(0, Math.min(1300 - w, sy));
+    }
+    return { x: sx, y: sy };
+  }
+
   /* ── Commit a new element ── */
-  function placeElement(x, y, w, h, type) {
-    editElems.push({ id: Date.now().toString(), type, x, y, w, h });
+  function placeElement(x, y, w, h, type, extra = {}) {
+    editElems.push({ id: Date.now().toString(), type, x, y, w, h, ...extra });
     saveEditElems(editElems);
     renderEditElements();
     epPreview.innerHTML = '';
@@ -1612,9 +1761,16 @@
   editSvgEl.addEventListener('click', e => {
     if (pointerMoved || activeTool === 'select' || !isEditMode) return;
     const sp = svgCoord(e);
-    const { w, h } = getDims();
-    const s = snapElement(sp.x, sp.y, w, h);
-    placeElement(s.x, s.y, w, h, activeTool);
+    if (activeTool === 'door') {
+      const dw = Math.max(30, parseInt(document.getElementById('door-w').value) || 90);
+      const s  = snapDoor(sp.x - (doorDir === 'h' ? dw / 2 : 1.5),
+                          sp.y - (doorDir === 'h' ? 1.5 : dw / 2), dw, doorDir);
+      placeElement(s.x, s.y, dw, 3, 'door', { dir: doorDir, hinge: doorHinge, swing: doorSwing });
+    } else {
+      const { w, h } = getDims();
+      const s = snapElement(sp.x, sp.y, w, h);
+      placeElement(s.x, s.y, w, h, activeTool);
+    }
   });
 
   /* ── SVG: mouse leaves — clear preview ── */
@@ -1638,8 +1794,13 @@
       const sp = svgCoord(e);
       const el = editElems.find(ee => ee.id === dragId);
       if (el) {
-        const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
-        el.x = s.x; el.y = s.y;
+        if (el.type === 'door') {
+          const s = snapDoor(sp.x - dragOffX, sp.y - dragOffY, el.w, el.dir);
+          el.x = s.x; el.y = s.y;
+        } else {
+          const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
+          el.x = s.x; el.y = s.y;
+        }
         renderEditElements();
         updateSelectedSection();
       }
@@ -1652,9 +1813,16 @@
       if (e.clientX >= svgRect.left && e.clientX <= svgRect.right &&
           e.clientY >= svgRect.top  && e.clientY <= svgRect.bottom) {
         const sp = svgCoord(e);
-        const { w, h } = getDims();
-        const s = snapElement(sp.x, sp.y, w, h);
-        drawPreview(s.x, s.y, w, h, activeTool);
+        if (activeTool === 'door') {
+          const dw = Math.max(30, parseInt(document.getElementById('door-w').value) || 90);
+          const s  = snapDoor(sp.x - (doorDir === 'h' ? dw / 2 : 1.5),
+                              sp.y - (doorDir === 'h' ? 1.5 : dw / 2), dw, doorDir);
+          drawPreview(s.x, s.y, dw, 3, 'door');
+        } else {
+          const { w, h } = getDims();
+          const s = snapElement(sp.x, sp.y, w, h);
+          drawPreview(s.x, s.y, w, h, activeTool);
+        }
       } else {
         epPreview.innerHTML = '';
       }
@@ -1725,8 +1893,13 @@
       const sp = svgCoord(e);
       const el = editElems.find(ee => ee.id === dragId);
       if (el) {
-        const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
-        el.x = s.x; el.y = s.y;
+        if (el.type === 'door') {
+          const s = snapDoor(sp.x - dragOffX, sp.y - dragOffY, el.w, el.dir);
+          el.x = s.x; el.y = s.y;
+        } else {
+          const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
+          el.x = s.x; el.y = s.y;
+        }
         renderEditElements();
         updateSelectedSection();
       }
@@ -1741,9 +1914,16 @@
     // Tap to place (non-select tool, no movement)
     if (!pointerMoved && activeTool !== 'select') {
       const sp = svgCoord(e);
-      const { w, h } = getDims();
-      const s = snapElement(sp.x - w / 2, sp.y - h / 2, w, h);
-      placeElement(s.x, s.y, w, h, activeTool);
+      if (activeTool === 'door') {
+        const dw = Math.max(30, parseInt(document.getElementById('door-w').value) || 90);
+        const s  = snapDoor(sp.x - (doorDir === 'h' ? dw / 2 : 1.5),
+                            sp.y - (doorDir === 'h' ? 1.5 : dw / 2), dw, doorDir);
+        placeElement(s.x, s.y, dw, 3, 'door', { dir: doorDir, hinge: doorHinge, swing: doorSwing });
+      } else {
+        const { w, h } = getDims();
+        const s = snapElement(sp.x - w / 2, sp.y - h / 2, w, h);
+        placeElement(s.x, s.y, w, h, activeTool);
+      }
     }
     mouseDownPos = null;
   });
@@ -1760,6 +1940,21 @@
     });
   });
   editSvgEl.style.cursor = 'default';
+
+  /* ── Door option toggles ── */
+  function setupDoorToggle(aId, bId, onChange) {
+    [aId, bId].forEach(id => {
+      document.getElementById(id).addEventListener('click', () => {
+        const val = id === aId ? 'a' : 'b';
+        document.getElementById(aId).classList.toggle('active', val === 'a');
+        document.getElementById(bId).classList.toggle('active', val === 'b');
+        onChange(val);
+      });
+    });
+  }
+  setupDoorToggle('door-dir-h', 'door-dir-v',   v => { doorDir   = v === 'a' ? 'h' : 'v'; });
+  setupDoorToggle('door-hinge-l', 'door-hinge-r', v => { doorHinge = v === 'a' ? 'L' : 'R'; });
+  setupDoorToggle('door-swing-in', 'door-swing-out', v => { doorSwing = v === 'a' ? 'in' : 'out'; });
 
   /* ── Delete key removes selected element ── */
   document.addEventListener('keydown', e => {
@@ -1785,21 +1980,34 @@
     // tight bounding box with 20 cm padding
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const el of editElems) {
-      minX = Math.min(minX, el.x);     minY = Math.min(minY, el.y);
-      maxX = Math.max(maxX, el.x + el.w); maxY = Math.max(maxY, el.y + el.h);
+      if (el.type === 'door') {
+        // include arc reach (el.w cm in one direction)
+        const margin = el.w;
+        minX = Math.min(minX, el.x - (el.dir === 'v' ? margin : 0));
+        minY = Math.min(minY, el.y - (el.dir === 'h' ? margin : 0));
+        maxX = Math.max(maxX, el.x + (el.dir === 'h' ? el.w : el.h) + (el.dir === 'v' ? margin : 0));
+        maxY = Math.max(maxY, el.y + (el.dir === 'h' ? el.h : el.w) + (el.dir === 'h' ? margin : 0));
+      } else {
+        minX = Math.min(minX, el.x);     minY = Math.min(minY, el.y);
+        maxX = Math.max(maxX, el.x + el.w); maxY = Math.max(maxY, el.y + el.h);
+      }
     }
     const pad = 20;
     minX -= pad; minY -= pad; maxX += pad; maxY += pad;
     const vw = maxX - minX, vh = maxY - minY;
 
-    // Sort: non-reserved first, reserved on top
-    const sorted = [...editElems].sort((a, b) =>
-      (a.type === 'reserved' ? 1 : 0) - (b.type === 'reserved' ? 1 : 0));
+    // Sort: room → walls → door → reserved
+    const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
       if (el.type === 'room')
         return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
       if (el.type === 'vwall' || el.type === 'hwall')
         return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      if (el.type === 'door') {
+        const dw = el.dir === 'h' ? el.w : el.h;
+        const dh = el.dir === 'h' ? el.h : el.w;
+        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="#222" stroke-width="3"/>\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2" stroke-dasharray="8,4"/>`;
+      }
       // reserved — opaque background + hatch overlay
       return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
