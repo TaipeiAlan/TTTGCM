@@ -1474,7 +1474,7 @@
      ════════════════════════════════════════ */
 
   const editSvgEl  = document.getElementById('edit-svg');
-  const SNAP_DIST  = 10;   // cm — edge-snap threshold
+  const SNAP_DIST  = 1;    // cm — edge-snap threshold
 
   let isDragging   = false;
   let dragId       = null;
@@ -1501,10 +1501,10 @@
     return { w, h };
   }
 
-  /* ── Snap: grid (1 cm) then edge ── */
+  /* ── Snap: grid (0.5 cm) then edge ── */
   function snapElement(x, y, w, h, excludeId) {
-    let sx = Math.round(x);
-    let sy = Math.round(y);
+    let sx = Math.round(x * 2) / 2;
+    let sy = Math.round(y * 2) / 2;
 
     let bestDX = SNAP_DIST, bestDY = SNAP_DIST;
     let snapX  = null,      snapY  = null;
