@@ -469,6 +469,18 @@
       font-size: 0.8rem;
     }
     .dim-unit { font-size: 0.7rem; color: #475569; }
+    .snap-opts { display: flex; gap: 4px; }
+    .snap-opt {
+      flex: 1;
+      padding: 4px 0;
+      border: 1px solid #1e3a5f;
+      border-radius: 4px;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+    .snap-opt.active { background: #0f3460; color: #fff; border-color: #3b82f6; }
 
     /* selected info */
     #selected-info { font-size: 0.77rem; color: #94a3b8; line-height: 1.9; }
@@ -718,6 +730,14 @@
       </div>
     </div>
 
+    <div class="esec" id="snap-section">
+      <h3>吸附尺度</h3>
+      <div class="snap-opts">
+        <button class="snap-opt active" id="snap-10">10</button>
+        <button class="snap-opt" id="snap-1">1</button>
+      </div>
+    </div>
+
     <div class="esec" id="door-section" style="display:none">
       <h3>門選項</h3>
       <div class="dim-row">
@@ -926,6 +946,7 @@
   const BG_KEY           = 'svg_viewer_bg';
   const MODE_KEY         = 'svg_viewer_mode';
   const EDIT_ELEMS_KEY   = 'svg_viewer_edit_elems';
+  const SNAP_UNIT_KEY    = 'svg_viewer_snap_unit';
 
   function loadRecords() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -943,6 +964,11 @@
   function loadEditElems() {
     try { return JSON.parse(localStorage.getItem(EDIT_ELEMS_KEY)) || []; }
     catch { return []; }
+  }
+  function saveSnapUnit(v) { localStorage.setItem(SNAP_UNIT_KEY, String(v)); }
+  function loadSnapUnit() {
+    const v = parseInt(localStorage.getItem(SNAP_UNIT_KEY) || '10', 10);
+    return v === 1 ? 1 : 10;
   }
 
   /* ── State ── */
@@ -1284,6 +1310,7 @@
   let selectedId  = null;
   let eScale      = 1, ePanX = 0, ePanY = 0;
   let ePanning    = false, ePanSX = 0, ePanSY = 0;
+  let snapUnit    = loadSnapUnit(); // 10(normal) or 1(fine)
 
   // Door tool state
   let doorDir   = 'h';   // 'h' | 'v'
@@ -1720,13 +1747,48 @@
      ════════════════════════════════════════ */
 
   const editSvgEl  = document.getElementById('edit-svg');
-  const SNAP_DIST  = 1;    // cm — edge-snap threshold
+  function updateSnapUi() {
+    document.getElementById('snap-10').classList.toggle('active', snapUnit === 10);
+    document.getElementById('snap-1').classList.toggle('active', snapUnit === 1);
+  }
+  document.getElementById('snap-10').addEventListener('click', () => {
+    snapUnit = 10; saveSnapUnit(snapUnit); updateSnapUi();
+  });
+  document.getElementById('snap-1').addEventListener('click', () => {
+    snapUnit = 1; saveSnapUnit(snapUnit); updateSnapUi();
+  });
+  updateSnapUi();
 
   let isDragging   = false;
   let dragId       = null;
   let dragOffX     = 0, dragOffY = 0;
+  let dragGroup    = null; // [{id,dx,dy}] doors dragged along with a room
   let mouseDownPos = null;
   let pointerMoved = false;
+
+  function clampPos(x, y, w, h) {
+    return {
+      x: Math.max(0, Math.min(1600 - w, x)),
+      y: Math.max(0, Math.min(1300 - h, y))
+    };
+  }
+
+  function linkedDoorsForRoom(roomEl) {
+    const tol = 2;
+    return editElems.filter(el => {
+      if (el.type !== 'door') return false;
+      if (el.dir === 'h') {
+        const overlapX = (el.x + el.w) > roomEl.x && el.x < (roomEl.x + roomEl.w);
+        const onTopOrBottom = Math.abs(el.y - roomEl.y) <= tol ||
+                              Math.abs(el.y - (roomEl.y + roomEl.h)) <= tol;
+        return overlapX && onTopOrBottom;
+      }
+      const overlapY = (el.y + el.w) > roomEl.y && el.y < (roomEl.y + roomEl.h);
+      const onLeftOrRight = Math.abs(el.x - roomEl.x) <= tol ||
+                            Math.abs(el.x - (roomEl.x + roomEl.w)) <= tol;
+      return overlapY && onLeftOrRight;
+    }).map(d => ({ id: d.id, dx: d.x - roomEl.x, dy: d.y - roomEl.y }));
+  }
 
   /* ── Mouse → SVG coordinate ── */
   function svgCoord(e) {
@@ -1749,10 +1811,10 @@
 
   /* ── Snap: grid (0.5 cm) then edge ── */
   function snapElement(x, y, w, h, excludeId) {
-    let sx = Math.round(x * 2) / 2;
-    let sy = Math.round(y * 2) / 2;
+    let sx = Math.round(x / snapUnit) * snapUnit;
+    let sy = Math.round(y / snapUnit) * snapUnit;
 
-    let bestDX = SNAP_DIST, bestDY = SNAP_DIST;
+    let bestDX = snapUnit, bestDY = snapUnit;
     let snapX  = null,      snapY  = null;
 
     for (const el of editElems) {
@@ -1781,10 +1843,7 @@
     if (snapY !== null) sy = snapY;
 
     // clamp to canvas
-    return {
-      x: Math.max(0, Math.min(1600 - w, sx)),
-      y: Math.max(0, Math.min(1300 - h, sy))
-    };
+    return clampPos(sx, sy, w, h);
   }
 
   /* ── Ghost preview element ── */
@@ -1831,9 +1890,9 @@
 
   /* ── Snap door to nearest wall/room edge ── */
   function snapDoor(x, y, w, dir) {
-    let sx = Math.round(x * 2) / 2;
-    let sy = Math.round(y * 2) / 2;
-    const DSNAP = 20; // cm
+    let sx = Math.round(x / snapUnit) * snapUnit;
+    let sy = Math.round(y / snapUnit) * snapUnit;
+    const DSNAP = Math.max(2, snapUnit * 2); // cm
     if (dir === 'h') {
       let best = DSNAP;
       for (const el of editElems) {
@@ -1843,8 +1902,8 @@
           if (d < best) { best = d; sy = edge - 1.5; }
         }
       }
-      sx = Math.max(0, Math.min(1600 - w, sx));
-      sy = Math.max(0, Math.min(1300 - 3, sy));
+      const p = clampPos(sx, sy, w, 3);
+      sx = p.x; sy = p.y;
     } else {
       let best = DSNAP;
       for (const el of editElems) {
@@ -1854,8 +1913,8 @@
           if (d < best) { best = d; sx = edge - 1.5; }
         }
       }
-      sx = Math.max(0, Math.min(1600 - 3, sx));
-      sy = Math.max(0, Math.min(1300 - w, sy));
+      const p = clampPos(sx, sy, 3, w);
+      sx = p.x; sy = p.y;
     }
     return { x: sx, y: sy };
   }
@@ -1893,6 +1952,7 @@
         if (el) {
           isDragging = true; dragId = selectedId;
           dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
+          dragGroup = el.type === 'room' ? linkedDoorsForRoom(el) : null;
         }
       } else {
         // click on empty → deselect
@@ -1924,6 +1984,30 @@
     if (!isDragging) epPreview.innerHTML = '';
   });
 
+  function dragSelectedTo(sp) {
+    const el = editElems.find(ee => ee.id === dragId);
+    if (!el) return;
+    const oldX = el.x, oldY = el.y;
+    if (el.type === 'door') {
+      const s = snapDoor(sp.x - dragOffX, sp.y - dragOffY, el.w, el.dir);
+      el.x = s.x; el.y = s.y;
+    } else {
+      const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
+      el.x = s.x; el.y = s.y;
+      if (el.type === 'room' && dragGroup?.length) {
+        const dx = el.x - oldX, dy = el.y - oldY;
+        for (const g of dragGroup) {
+          const d = editElems.find(ee => ee.id === g.id);
+          if (!d) continue;
+          const c = clampPos(d.x + dx, d.y + dy, d.w, d.h);
+          d.x = c.x; d.y = c.y;
+        }
+      }
+    }
+    renderEditElements();
+    updateSelectedSection();
+  }
+
   /* ── window mousemove — preview & drag ── */
   window.addEventListener('mousemove', e => {
     if (!isEditMode) return;
@@ -1937,19 +2021,7 @@
 
     // drag selected element
     if (isDragging && pointerMoved && dragId) {
-      const sp = svgCoord(e);
-      const el = editElems.find(ee => ee.id === dragId);
-      if (el) {
-        if (el.type === 'door') {
-          const s = snapDoor(sp.x - dragOffX, sp.y - dragOffY, el.w, el.dir);
-          el.x = s.x; el.y = s.y;
-        } else {
-          const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
-          el.x = s.x; el.y = s.y;
-        }
-        renderEditElements();
-        updateSelectedSection();
-      }
+      dragSelectedTo(svgCoord(e));
       return;
     }
 
@@ -1978,6 +2050,7 @@
   /* ── window mouseup — end drag ── */
   window.addEventListener('mouseup', () => {
     if (isDragging) { isDragging = false; dragId = null; saveEditElems(editElems); }
+    dragGroup = null;
     mouseDownPos = null;
   });
 
@@ -2002,6 +2075,7 @@
         if (el) {
           isDragging = true; dragId = selectedId;
           dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
+          dragGroup = el.type === 'room' ? linkedDoorsForRoom(el) : null;
           editSvgEl.setPointerCapture(e.pointerId); // lock events to this element
         }
       } else {
@@ -2036,25 +2110,14 @@
     }
 
     if (isDragging && pointerMoved && dragId) {
-      const sp = svgCoord(e);
-      const el = editElems.find(ee => ee.id === dragId);
-      if (el) {
-        if (el.type === 'door') {
-          const s = snapDoor(sp.x - dragOffX, sp.y - dragOffY, el.w, el.dir);
-          el.x = s.x; el.y = s.y;
-        } else {
-          const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
-          el.x = s.x; el.y = s.y;
-        }
-        renderEditElements();
-        updateSelectedSection();
-      }
+      dragSelectedTo(svgCoord(e));
     }
   });
 
   editSvgEl.addEventListener('pointerup', e => {
     if (!isEditMode || e.pointerType === 'mouse') return;
     if (isDragging) { isDragging = false; dragId = null; saveEditElems(editElems); }
+    dragGroup = null;
     if (ePanning)   { ePanning = false; }
 
     // Tap to place (non-select tool, no movement)
@@ -2076,7 +2139,7 @@
 
   editSvgEl.addEventListener('pointercancel', e => {
     if (e.pointerType === 'mouse') return;
-    isDragging = false; dragId = null; ePanning = false; mouseDownPos = null;
+    isDragging = false; dragId = null; dragGroup = null; ePanning = false; mouseDownPos = null;
   });
 
   /* ── SVG cursor by tool ── */
