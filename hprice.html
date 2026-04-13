@@ -7,421 +7,295 @@
   <style>
     :root {
       --bg: #f7f4ee;
-      --card: #ffffff;
+      --card: #fff;
       --line: #d9d1c4;
       --head: #ead4ab;
-      --head-strong: #d5b37d;
       --floor: #efe5d5;
       --text: #2f2f2f;
-      --muted: #8a8a8a;
+      --muted: #7f7f7f;
       --danger: #d64f41;
       --accent: #e8953f;
-      --accent-soft: #f8d8af;
-      --empty: #f2f2f2;
+      --empty: #efefef;
+
+      --cell-w: 148px;
+      --cell-h: 116px;
+      --floor-w: 38px;
+      --num-size: 39px;
+      --date-size: 18px;
+      --total-size: 30px;
+      --sub-size: 14px;
+      --topbar-gap: 6px;
+      --topbar-pad: 8px;
     }
 
-    * {
-      box-sizing: border-box;
+    body.size-m {
+      --cell-w: 122px;
+      --cell-h: 96px;
+      --num-size: 31px;
+      --date-size: 15px;
+      --total-size: 24px;
+      --sub-size: 12px;
     }
 
+    body.size-s {
+      --cell-w: 98px;
+      --cell-h: 80px;
+      --num-size: 24px;
+      --date-size: 13px;
+      --total-size: 18px;
+      --sub-size: 11px;
+    }
+
+    * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
-      color: var(--text);
       background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
     }
 
-    .wrap {
-      max-width: 100%;
-      margin: 0 auto;
-      padding: 12px;
-    }
+    .wrap { padding: 8px; }
 
     .topbar {
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      padding: var(--topbar-pad);
       display: grid;
-      gap: 10px;
+      gap: var(--topbar-gap);
     }
 
-    .topbar h1 {
-      margin: 0;
-      font-size: 20px;
-    }
-
-    .controls {
+    .top-row {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      justify-content: space-between;
       align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
+
+    h1 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.1;
+    }
+
+    .controls, .sizes { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 
     .btn {
-      border: 1px solid #b98b49;
-      background: #f5e8d2;
-      color: #7a5a2f;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
+      border: 1px solid #c7954f;
+      background: #f7e8cd;
+      color: #79552a;
+      border-radius: 7px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 700;
       cursor: pointer;
+      line-height: 1.2;
     }
 
-    #status {
-      font-size: 13px;
-      color: var(--muted);
-      word-break: break-word;
-    }
+    .btn.active { background: #e8953f; color: #fff; border-color: #d27b23; }
+    #status { font-size: 12px; color: var(--muted); line-height: 1.2; }
 
     .grid-wrap {
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: 10px;
       overflow: auto;
-      background: var(--card);
-      max-height: calc(100vh - 180px);
+      background: #fff;
+      max-height: calc(100vh - 136px);
     }
 
-    table {
-      border-collapse: separate;
-      border-spacing: 0;
-      min-width: 680px;
-      width: max-content;
-    }
-
-    th, td {
-      border-right: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-    }
+    table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+    th, td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 
     thead th {
       position: sticky;
       top: 0;
       z-index: 4;
       background: var(--head);
-      min-width: 158px;
-      padding: 10px 8px;
+      min-width: var(--cell-w);
+      padding: 6px 5px;
       text-align: center;
-      color: #7d5b2e;
-      font-weight: 800;
+      color: #7b5b2f;
+      font-size: 12px;
+      cursor: pointer;
     }
 
     thead th:first-child {
-      min-width: 74px;
+      min-width: var(--floor-w);
+      width: var(--floor-w);
       left: 0;
       z-index: 6;
-      background: linear-gradient(140deg, var(--floor) 55%, #f4efe6 55%);
       position: sticky;
-      color: #6b512e;
+      background: linear-gradient(140deg, var(--floor) 55%, #f3ede2 55%);
+      padding: 0;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 12px;
+      letter-spacing: 2px;
+      user-select: none;
     }
 
-    .house-head {
-      display: grid;
-      gap: 2px;
-      line-height: 1.2;
-    }
-
-    .house-head .name {
-      font-size: 28px;
-      font-weight: 800;
-    }
+    .unit-head { display: grid; gap: 2px; }
+    .unit-name { font-weight: 800; font-size: 18px; }
+    .unit-layout { font-size: 11px; color: #71542f; font-weight: 600; }
 
     tbody th.floor {
       position: sticky;
       left: 0;
       z-index: 3;
+      width: var(--floor-w);
+      min-width: var(--floor-w);
       background: var(--floor);
-      width: 74px;
       text-align: center;
-      color: #7d5b2e;
-      font-size: 32px;
-      font-weight: 900;
-      border-right: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      line-height: 1;
+      color: #74542d;
       padding: 0;
+      cursor: pointer;
+      user-select: none;
     }
 
-    .floor .f {
-      display: block;
-      padding-top: 12px;
-      font-size: 30px;
-    }
-
-    .floor .suffix {
-      display: block;
-      padding-bottom: 12px;
-      font-size: 16px;
-      letter-spacing: 0.5px;
-    }
+    .floor .f { display: block; font-size: 17px; font-weight: 900; padding-top: 8px; line-height: 1; }
+    .floor .s { display: block; font-size: 9px; font-weight: 800; padding-bottom: 8px; letter-spacing: 1px; }
 
     td.cell {
-      width: 158px;
-      min-height: 114px;
-      background: white;
-      cursor: pointer;
+      width: var(--cell-w);
+      height: var(--cell-h);
       vertical-align: top;
+      background: #fff;
+      padding: 6px;
+      cursor: pointer;
       position: relative;
-      padding: 8px;
     }
 
     td.cell.empty {
       background: var(--empty);
-      color: var(--muted);
+      color: #939393;
       text-align: center;
       vertical-align: middle;
-      font-size: 20px;
-      font-weight: 500;
-    }
-
-    td.cell.active {
-      outline: 3px solid var(--accent);
-      outline-offset: -2px;
-      z-index: 2;
-      background: #fffdf8;
-    }
-
-    td.cell.active::after {
-      content: "";
-      position: absolute;
-      inset: -1px;
-      border: 2px solid var(--accent);
-      pointer-events: none;
-    }
-
-    .cell .date {
-      color: #666;
-      font-size: 21px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .cell .unit-price {
-      display: flex;
-      align-items: baseline;
-      gap: 4px;
-      margin-bottom: 2px;
-    }
-
-    .cell .unit-price .num {
-      color: var(--danger);
-      font-size: 42px;
-      font-weight: 900;
-      line-height: 1;
-    }
-
-    .cell .unit-price .u {
-      font-size: 23px;
+      font-size: calc(var(--sub-size) + 1px);
       font-weight: 600;
-      color: #4c4c4c;
     }
 
-    .cell .total {
-      font-size: 38px;
-      font-weight: 800;
-      color: #3d3d3d;
-      line-height: 1.1;
-    }
+    td.cell.active { outline: 2px solid var(--accent); outline-offset: -2px; background: #fffdf8; }
 
-    .cell .sub {
-      margin-top: 6px;
-      color: #7b7b7b;
-      font-size: 21px;
-      font-weight: 700;
-    }
+    .date { font-size: var(--date-size); color: #666; font-weight: 700; margin-bottom: 3px; }
+    .unit-price { display: flex; align-items: baseline; gap: 2px; }
+    .num { color: var(--danger); font-weight: 900; font-size: var(--num-size); line-height: 1; }
+    .u { font-size: var(--sub-size); font-weight: 700; }
+    .total { font-size: var(--total-size); font-weight: 850; line-height: 1.1; }
 
     .badge {
       position: absolute;
       top: 0;
       right: 0;
       background: var(--accent);
-      color: white;
+      color: #fff;
       border-radius: 0 0 0 8px;
-      font-size: 11px;
-      padding: 3px 6px;
-      font-weight: 700;
+      font-size: 10px;
+      padding: 2px 5px;
     }
 
     .modal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.45);
       display: none;
       align-items: flex-end;
       justify-content: center;
       z-index: 20;
-      padding: 10px;
+      padding: 8px;
     }
 
-    .modal.show {
-      display: flex;
-    }
-
+    .modal.show { display: flex; }
     .modal-card {
       width: min(680px, 100%);
-      max-height: 86vh;
+      max-height: 88vh;
       overflow: auto;
-      background: white;
-      border-radius: 16px 16px 8px 8px;
-      padding: 14px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      background: #fff;
+      padding: 12px;
     }
 
-    .modal-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { margin: 0; font-size: 20px; }
+    .close-btn { border: none; background: transparent; font-size: 28px; color: #777; cursor: pointer; }
 
-    .modal-title {
-      font-size: 22px;
-      font-weight: 800;
-      margin: 0;
-    }
+    .kpi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 8px 0; }
+    .kpi .box { background: #f7f1e5; border-radius: 8px; padding: 7px; }
+    .kpi .label { color: #7f7a72; font-size: 12px; }
+    .kpi .value { font-size: 18px; font-weight: 800; }
 
-    .close-btn {
-      border: none;
-      background: transparent;
-      font-size: 28px;
-      color: #777;
-      cursor: pointer;
-      line-height: 1;
-    }
-
-    .detail {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-      margin-top: 8px;
-    }
-
-    .detail th,
-    .detail td {
-      border: 1px solid #e2dfd7;
-      padding: 8px;
-      vertical-align: top;
-    }
-
-    .detail th {
-      width: 34%;
-      background: #f5f1e8;
-      text-align: left;
-      color: #5f513c;
-    }
+    .detail, .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .detail th, .detail td, .stats-table th, .stats-table td { border: 1px solid #e4dfd4; padding: 7px; text-align: left; }
+    .detail th, .stats-table th { width: 34%; background: #f5f1e8; color: #5f513c; }
 
     @media (max-width: 640px) {
-      .wrap {
-        padding: 8px;
-      }
-
-      .grid-wrap {
-        max-height: calc(100vh - 160px);
-      }
-
-      thead th {
-        min-width: 126px;
-        font-size: 14px;
-      }
-
-      td.cell {
-        width: 126px;
-        min-height: 96px;
-      }
-
-      .cell .date {
-        font-size: 16px;
-      }
-
-      .cell .unit-price .num {
-        font-size: 38px;
-      }
-
-      .cell .unit-price .u {
-        font-size: 18px;
-      }
-
-      .cell .total {
-        font-size: 32px;
-      }
-
-      .cell .sub {
-        font-size: 16px;
-      }
-
-      td.cell.empty {
-        font-size: 16px;
-      }
-
-      tbody th.floor {
-        width: 64px;
-      }
-
-      .floor .f {
-        font-size: 22px;
-      }
-
-      .floor .suffix {
-        font-size: 14px;
-      }
+      .grid-wrap { max-height: calc(100vh - 120px); }
+      .unit-name { font-size: 16px; }
+      .top-row { align-items: flex-start; }
     }
   </style>
 </head>
-<body>
+<body class="size-l">
   <div class="wrap">
     <section class="topbar">
-      <h1>銷控表（hprice）</h1>
-      <div class="controls">
-        <label class="btn" for="fileInput">開啟 XLS / XLSX</label>
-        <input id="fileInput" type="file" accept=".xls,.xlsx" hidden>
+      <div class="top-row">
+        <h1>銷控表 hprice</h1>
+        <div class="controls">
+          <label class="btn" for="fileInput">開啟 XLS/XLSX</label>
+          <input id="fileInput" type="file" accept=".xls,.xlsx" hidden>
+        </div>
       </div>
-      <div id="status">請先載入 Excel，系統會使用第一個工作表（案件列表）自動產生銷控表。</div>
+      <div class="top-row">
+        <div class="sizes">
+          <span style="font-size:12px;color:#7d7d7d;">尺寸：</span>
+          <button class="btn size-btn active" data-size="l">大</button>
+          <button class="btn size-btn" data-size="m">中</button>
+          <button class="btn size-btn" data-size="s">小</button>
+        </div>
+        <div id="status">請先載入 Excel（第一個工作表）。</div>
+      </div>
     </section>
-
     <div class="grid-wrap" id="gridWrap"></div>
   </div>
 
-  <div class="modal" id="detailModal" role="dialog" aria-modal="true">
+  <div class="modal" id="modal">
     <div class="modal-card">
       <div class="modal-head">
-        <h2 class="modal-title" id="modalTitle">成交明細</h2>
-        <button class="close-btn" id="closeModal" aria-label="關閉">×</button>
+        <h2 id="modalTitle" class="modal-title">明細</h2>
+        <button id="closeModal" class="close-btn">×</button>
       </div>
-      <div id="modalSummary"></div>
-      <table class="detail" id="modalTable"></table>
+      <div id="modalBody"></div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-    const gridWrap = document.getElementById('gridWrap');
+    const CACHE_KEY = 'hprice_cache_v2';
+    const SIZE_KEY = 'hprice_size';
+
     const fileInput = document.getElementById('fileInput');
+    const gridWrap = document.getElementById('gridWrap');
     const statusEl = document.getElementById('status');
-    const modal = document.getElementById('detailModal');
-    const closeModal = document.getElementById('closeModal');
+    const modal = document.getElementById('modal');
     const modalTitle = document.getElementById('modalTitle');
-    const modalSummary = document.getElementById('modalSummary');
-    const modalTable = document.getElementById('modalTable');
+    const modalBody = document.getElementById('modalBody');
+    const closeModal = document.getElementById('closeModal');
+    const sizeBtns = [...document.querySelectorAll('.size-btn')];
+
+    let currentRecords = [];
 
     function parseROCDate(value) {
       if (!value) return 0;
-      if (typeof value === 'number') return value;
       const m = String(value).match(/(\d+)[^\d]+(\d+)[^\d]+(\d+)/);
       if (!m) return 0;
-      const y = Number(m[1]);
-      const mm = Number(m[2]);
-      const d = Number(m[3]);
-      return y * 10000 + mm * 100 + d;
+      return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
     }
 
     function cleanNumber(value) {
-      if (value === undefined || value === null) return '';
+      if (value === undefined || value === null || value === '') return '';
       const n = Number(String(value).replace(/,/g, '').trim());
-      if (Number.isNaN(n)) return String(value).trim();
-      return n;
+      return Number.isNaN(n) ? String(value).trim() : n;
     }
 
     function formatAmount(value, digits = 0) {
@@ -433,239 +307,304 @@
       });
     }
 
-    function parseFloor(value) {
-      if (!value) return null;
-      const first = String(value).split('/')[0];
+    function parseFloor(text) {
+      const first = String(text || '').split('/')[0];
       const m = first.match(/-?\d+/);
       return m ? Number(m[0]) : null;
     }
 
     function detectHeaderRow(rows) {
-      return rows.findIndex((row) => row.includes('棟及號') && row.includes('交易日期') && row.includes('總價(萬元)'));
+      return rows.findIndex((r) => r.includes('棟及號') && r.includes('交易日期') && r.includes('總價(萬元)'));
+    }
+
+    function detectDataDate(rows) {
+      for (const row of rows.slice(0, 6)) {
+        for (const cell of row) {
+          const text = String(cell || '');
+          const m = text.match(/(\d{4})年\s*(\d{2})月\s*(\d{2})日/);
+          if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+        }
+      }
+      return new Date().toISOString().slice(0, 10);
     }
 
     function extractData(rows) {
-      const headerRowIndex = detectHeaderRow(rows);
-      if (headerRowIndex < 0) {
-        throw new Error('找不到欄位標題列（棟及號 / 交易日期 / 總價(萬元)）。');
-      }
-
-      const header = rows[headerRowIndex];
-      const col = Object.fromEntries(header.map((name, idx) => [name, idx]));
-
+      const headerIndex = detectHeaderRow(rows);
+      if (headerIndex < 0) throw new Error('找不到標題列（棟及號 / 交易日期 / 總價(萬元)）');
+      const header = rows[headerIndex];
+      const col = Object.fromEntries(header.map((h, i) => [h, i]));
       const required = ['棟及號', '交易日期', '總價(萬元)', '單價(萬元/坪)', '樓別/樓高'];
-      const missing = required.filter((key) => col[key] === undefined);
-      if (missing.length) {
-        throw new Error('缺少必要欄位：' + missing.join('、'));
-      }
+      const missing = required.filter((k) => col[k] === undefined);
+      if (missing.length) throw new Error('缺少欄位：' + missing.join('、'));
 
-      const dataRows = rows.slice(headerRowIndex + 1).filter((r) => r[col['棟及號']] && r[col['樓別/樓高']]);
-
-      const records = dataRows.map((r) => {
-        const floor = parseFloor(r[col['樓別/樓高']]);
-        const unit = String(r[col['棟及號']]).trim();
-        return {
+      return rows.slice(headerIndex + 1)
+        .filter((r) => r[col['棟及號']] && r[col['樓別/樓高']])
+        .map((r) => ({
           編號: r[col['編號']] || '',
           建物坐落: r[col['建物坐落']] || '',
-          棟及號: unit,
+          棟及號: String(r[col['棟及號']]).trim(),
           建案名稱: r[col['建案名稱']] || '',
           交易日期: r[col['交易日期']] || '',
           總價: cleanNumber(r[col['總價(萬元)']]),
           單價: cleanNumber(r[col['單價(萬元/坪)']]),
-          總面積: r[col['總面積(坪)']] || '',
-          主建物佔比: r[col['主建物佔比(%)']] || '',
+          總面積: cleanNumber(r[col['總面積(坪)']]),
           型態: r[col['型態']] || '',
           樓別樓高: r[col['樓別/樓高']] || '',
-          樓層: floor,
+          樓層: parseFloor(r[col['樓別/樓高']]),
           交易標的: r[col['交易標的']] || '',
           交易筆棟數: r[col['交易筆棟數']] || '',
           建物格局: r[col['建物格局']] || '',
-          車位總價: r[col['車位總價(萬元)']] || '',
+          車位總價: cleanNumber(r[col['車位總價(萬元)']]),
           主要用途: r[col['主要用途']] || '',
           主要建材: r[col['主要建材']] || '',
           解約情形: r[col['解約情形']] || '',
           備註: r[col['備註']] || ''
-        };
-      }).filter((r) => r.樓層 !== null && r.棟及號);
-
-      return records;
+        }))
+        .filter((r) => r.樓層 !== null && r.棟及號);
     }
 
     function pickLatest(records) {
       const map = new Map();
-      for (const r of records) {
+      records.forEach((r) => {
         const key = `${r.樓層}__${r.棟及號}`;
-        if (!map.has(key)) {
-          map.set(key, r);
-          continue;
-        }
         const old = map.get(key);
-        if (parseROCDate(r.交易日期) >= parseROCDate(old.交易日期)) {
-          map.set(key, r);
-        }
-      }
+        if (!old || parseROCDate(r.交易日期) >= parseROCDate(old.交易日期)) map.set(key, r);
+      });
       return map;
     }
 
-    function renderTable(records) {
+    function getLayoutForUnit(records, unit) {
+      const layouts = records.filter((r) => r.棟及號 === unit && r.建物格局).map((r) => r.建物格局);
+      return layouts[0] || '-';
+    }
+
+    function openModal(title, html) {
+      modalTitle.textContent = title;
+      modalBody.innerHTML = html;
+      modal.classList.add('show');
+    }
+
+    function closeDetail() { modal.classList.remove('show'); }
+
+    function summarize(records) {
+      const sold = records.length;
+      const areas = records.map((r) => Number(r.總面積)).filter((n) => !Number.isNaN(n));
+      const maxArea = areas.length ? Math.max(...areas) : 0;
+      const minArea = areas.length ? Math.min(...areas) : 0;
+      return { sold, maxArea, minArea };
+    }
+
+    function buildStatsTable(rows) {
+      return `<table class="stats-table">${rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>`;
+    }
+
+    function showUnitStats(unit, unitRecords, totalFloors) {
+      const s = summarize(unitRecords);
+      const soldFloors = new Set(unitRecords.map((r) => r.樓層)).size;
+      openModal(
+        `戶別統計｜${unit}`,
+        buildStatsTable([
+          ['戶別', unit],
+          ['已售筆數', s.sold],
+          ['已售樓層數', `${soldFloors} / ${totalFloors}`],
+          ['最大坪數', s.maxArea ? `${formatAmount(s.maxArea, 2)} 坪` : '-'],
+          ['最小坪數', s.minArea ? `${formatAmount(s.minArea, 2)} 坪` : '-']
+        ])
+      );
+    }
+
+    function showFloorStats(floor, floorRecords, unitCount) {
+      const s = summarize(floorRecords);
+      const soldUnits = new Set(floorRecords.map((r) => r.棟及號)).size;
+      openModal(
+        `樓層統計｜${floor}F`,
+        buildStatsTable([
+          ['樓層', `${floor}F`],
+          ['已售筆數', s.sold],
+          ['已售戶數', `${soldUnits} / ${unitCount}`],
+          ['最大坪數', s.maxArea ? `${formatAmount(s.maxArea, 2)} 坪` : '-'],
+          ['最小坪數', s.minArea ? `${formatAmount(s.minArea, 2)} 坪` : '-']
+        ])
+      );
+    }
+
+    function showBuildingStats(records, floors, units) {
+      const s = summarize(records);
+      openModal(
+        '整棟統計',
+        buildStatsTable([
+          ['總交易筆數', s.sold],
+          ['樓層數', floors.length],
+          ['戶別數', units.length],
+          ['最大坪數', s.maxArea ? `${formatAmount(s.maxArea, 2)} 坪` : '-'],
+          ['最小坪數', s.minArea ? `${formatAmount(s.minArea, 2)} 坪` : '-']
+        ])
+      );
+    }
+
+    function showRecordDetail(record, floor, unit) {
+      const kpi = `
+        <div class="kpi">
+          <div class="box"><div class="label">交易日期</div><div class="value">${record.交易日期 || '-'}</div></div>
+          <div class="box"><div class="label">單價</div><div class="value" style="color:#d64f41;">${formatAmount(record.單價, 2)} 萬/坪</div></div>
+          <div class="box"><div class="label">總價</div><div class="value">${formatAmount(record.總價, 0)} 萬</div></div>
+        </div>`;
+      const rows = [
+        ['棟及號', record.棟及號], ['樓層', `${floor}F`], ['建案名稱', record.建案名稱], ['建物坐落', record.建物坐落],
+        ['總面積(坪)', record.總面積 || '-'], ['建物格局', record.建物格局 || '-'], ['交易標的', record.交易標的 || '-'],
+        ['車位總價(萬元)', record.車位總價 || '-'], ['交易筆棟數', record.交易筆棟數 || '-'], ['主要用途', record.主要用途 || '-'], ['備註', record.備註 || '-']
+      ];
+      openModal(`成交明細｜${floor}F ${unit}`, `${kpi}<table class="detail">${rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>`);
+    }
+
+    function removeActive() {
+      gridWrap.querySelectorAll('td.cell.active').forEach((cell) => cell.classList.remove('active'));
+    }
+
+    function renderTable(records, info = {}) {
+      currentRecords = records;
       if (!records.length) {
-        gridWrap.innerHTML = '<div style="padding:20px;color:#777;">沒有可顯示資料。</div>';
+        gridWrap.innerHTML = '<div style="padding:16px;color:#777;">沒有資料</div>';
         return;
       }
 
+      const latestMap = pickLatest(records);
       const units = [...new Set(records.map((r) => r.棟及號))].sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true }));
       const floors = [...new Set(records.map((r) => r.樓層))].sort((a, b) => b - a);
-      const latestMap = pickLatest(records);
 
       const table = document.createElement('table');
       const thead = document.createElement('thead');
-      const trHead = document.createElement('tr');
+      const hr = document.createElement('tr');
 
       const corner = document.createElement('th');
-      corner.innerHTML = '<div class="house-head"><span>樓層</span><span style="font-size:11px;font-weight:600;">\u2192 戶別</span></div>';
-      trHead.appendChild(corner);
+      corner.textContent = '全棟';
+      corner.addEventListener('click', () => showBuildingStats([...latestMap.values()], floors, units));
+      hr.appendChild(corner);
 
-      for (const unit of units) {
+      units.forEach((unit) => {
         const th = document.createElement('th');
-        th.textContent = unit;
-        trHead.appendChild(th);
-      }
-      thead.appendChild(trHead);
+        th.innerHTML = `<div class="unit-head"><div class="unit-name">${unit}</div><div class="unit-layout">${getLayoutForUnit(records, unit)}</div></div>`;
+        th.addEventListener('click', () => {
+          const unitRecords = [...latestMap.values()].filter((r) => r.棟及號 === unit);
+          showUnitStats(unit, unitRecords, floors.length);
+        });
+        hr.appendChild(th);
+      });
+
+      thead.appendChild(hr);
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
 
-      for (const floor of floors) {
+      floors.forEach((floor) => {
         const tr = document.createElement('tr');
-        const thFloor = document.createElement('th');
-        thFloor.className = 'floor';
-        thFloor.innerHTML = `<span class="f">${floor}</span><span class="suffix">F</span>`;
-        tr.appendChild(thFloor);
+        const fth = document.createElement('th');
+        fth.className = 'floor';
+        fth.innerHTML = `<span class="f">${floor}</span><span class="s">F</span>`;
+        fth.addEventListener('click', () => {
+          const floorRecords = [...latestMap.values()].filter((r) => r.樓層 === floor);
+          showFloorStats(floor, floorRecords, units.length);
+        });
+        tr.appendChild(fth);
 
-        for (const unit of units) {
-          const key = `${floor}__${unit}`;
-          const record = latestMap.get(key);
+        units.forEach((unit) => {
           const td = document.createElement('td');
           td.className = 'cell';
+          const record = latestMap.get(`${floor}__${unit}`);
 
           if (!record) {
             td.classList.add('empty');
             td.textContent = '尚未登錄';
-            td.addEventListener('click', () => {
-              removeActive();
-              td.classList.add('active');
-            });
+            td.addEventListener('click', () => { removeActive(); td.classList.add('active'); });
           } else {
-            const hasParking = String(record.交易標的).includes('車位') || Number(cleanNumber(record.車位總價)) > 0;
+            const hasParking = String(record.交易標的).includes('車位') || Number(record.車位總價) > 0;
             td.innerHTML = `
               <span class="badge">${hasParking ? '含車位' : '無車位'}</span>
               <div class="date">${record.交易日期 || '-'}</div>
-              <div class="unit-price">
-                <span class="num">${formatAmount(record.單價, 2)}</span>
-                <span class="u">萬/坪</span>
-              </div>
+              <div class="unit-price"><span class="num">${formatAmount(record.單價, 2)}</span><span class="u">萬/坪</span></div>
               <div class="total">${formatAmount(record.總價, 0)} 萬</div>
-              <div class="sub">${record.建物格局 || ''}</div>
             `;
             td.addEventListener('click', () => {
               removeActive();
               td.classList.add('active');
-              showDetail(record, floor, unit);
+              showRecordDetail(record, floor, unit);
             });
           }
 
           tr.appendChild(td);
-        }
+        });
 
         tbody.appendChild(tr);
-      }
+      });
 
       table.appendChild(tbody);
       gridWrap.innerHTML = '';
       gridWrap.appendChild(table);
+
+      const dataDate = info.dataDate || '-';
+      const cachedAt = info.cachedAt ? new Date(info.cachedAt).toLocaleString('zh-TW') : new Date().toLocaleString('zh-TW');
+      statusEl.textContent = `資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}`;
     }
 
-    function removeActive() {
-      gridWrap.querySelectorAll('td.cell.active').forEach((el) => el.classList.remove('active'));
+    function saveCache(records, dataDate) {
+      const payload = { records, dataDate, cachedAt: new Date().toISOString() };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
     }
 
-    function showDetail(record, floor, unit) {
-      modalTitle.textContent = `成交明細｜${floor}F ${unit}`;
-      modalSummary.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px;">
-          <div style="background:#f7f2e9;border-radius:8px;padding:8px;">
-            <div style="font-size:12px;color:#7b7468">交易日期</div>
-            <div style="font-size:20px;font-weight:800;">${record.交易日期 || '-'}</div>
-          </div>
-          <div style="background:#f7f2e9;border-radius:8px;padding:8px;">
-            <div style="font-size:12px;color:#7b7468">單價</div>
-            <div style="font-size:20px;font-weight:800;color:#d64f41;">${formatAmount(record.單價, 2)} 萬/坪</div>
-          </div>
-          <div style="background:#f7f2e9;border-radius:8px;padding:8px;">
-            <div style="font-size:12px;color:#7b7468">總價</div>
-            <div style="font-size:20px;font-weight:800;">${formatAmount(record.總價, 0)} 萬</div>
-          </div>
-        </div>
-      `;
-
-      const rows = [
-        ['建物坐落', record.建物坐落],
-        ['棟及號', record.棟及號],
-        ['建案名稱', record.建案名稱],
-        ['總面積(坪)', record.總面積],
-        ['主建物佔比(%)', record.主建物佔比],
-        ['型態', record.型態],
-        ['樓別/樓高', record.樓別樓高],
-        ['交易標的', record.交易標的],
-        ['交易筆棟數', record.交易筆棟數],
-        ['建物格局', record.建物格局],
-        ['車位總價(萬元)', record.車位總價 || '-'],
-        ['主要用途', record.主要用途],
-        ['主要建材', record.主要建材],
-        ['解約情形', record.解約情形 || '-'],
-        ['備註', record.備註 || '-']
-      ];
-
-      modalTable.innerHTML = rows.map(([k, v]) => `<tr><th>${k}</th><td>${v || '-'}</td></tr>`).join('');
-      modal.classList.add('show');
+    function loadCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed.records)) return null;
+        return parsed;
+      } catch {
+        return null;
+      }
     }
 
-    function closeDetail() {
-      modal.classList.remove('show');
+    async function handleUpload(file) {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const name = workbook.SheetNames[0];
+      if (!name) throw new Error('Excel 沒有工作表');
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, raw: false, defval: '' });
+      const records = extractData(rows);
+      const dataDate = detectDataDate(rows);
+      saveCache(records, dataDate);
+      renderTable(records, { dataDate, cachedAt: new Date().toISOString() });
     }
 
-    closeModal.addEventListener('click', closeDetail);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeDetail();
-    });
+    function setSize(size) {
+      document.body.classList.remove('size-l', 'size-m', 'size-s');
+      document.body.classList.add(`size-${size}`);
+      sizeBtns.forEach((btn) => btn.classList.toggle('active', btn.dataset.size === size));
+      localStorage.setItem(SIZE_KEY, size);
+    }
 
-    fileInput.addEventListener('change', async (event) => {
-      const file = event.target.files[0];
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
       if (!file) return;
       statusEl.textContent = `讀取中：${file.name}`;
-
       try {
-        const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        if (!firstSheetName) {
-          throw new Error('Excel 沒有任何工作表。');
-        }
-
-        const sheet = workbook.Sheets[firstSheetName];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
-        const records = extractData(rows);
-        renderTable(records);
-
-        const floors = [...new Set(records.map((r) => r.樓層))].sort((a, b) => b - a);
-        const units = [...new Set(records.map((r) => r.棟及號))].sort((a, b) => a.localeCompare(b, 'zh-Hant', { numeric: true }));
-        statusEl.textContent = `已載入 ${records.length} 筆交易（工作表：${firstSheetName}），樓層 ${floors.length}、戶別 ${units.length}。`; 
+        await handleUpload(file);
       } catch (err) {
-        console.error(err);
         statusEl.textContent = `解析失敗：${err.message}`;
         gridWrap.innerHTML = '';
       }
     });
+
+    sizeBtns.forEach((btn) => btn.addEventListener('click', () => setSize(btn.dataset.size)));
+
+    closeModal.addEventListener('click', closeDetail);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeDetail(); });
+
+    const cached = loadCache();
+    if (cached) {
+      renderTable(cached.records, cached);
+    }
+
+    setSize(localStorage.getItem(SIZE_KEY) || 'l');
   </script>
 </body>
 </html>
