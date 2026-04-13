@@ -528,24 +528,25 @@
       display: block;
       margin: 0 auto;
     }
-    .door-opt .ico-wall {
+    .door-opt .ico-wall,
+    .door-opt .ico-jamb {
       stroke: currentColor;
-      stroke-width: 2.2;
-      stroke-linecap: round;
       fill: none;
-      opacity: 0.75;
+      stroke-linecap: square;
     }
+    .door-opt .ico-wall { stroke-width: 4.4; opacity: 0.95; }
+    .door-opt .ico-jamb { stroke-width: 2.1; opacity: 0.95; }
     .door-opt .ico-panel,
     .door-opt .ico-arc,
-    .door-opt .ico-arrow {
+    .door-opt .ico-guide {
       stroke: currentColor;
       fill: none;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
     .door-opt .ico-panel { stroke-width: 2.2; }
-    .door-opt .ico-arc   { stroke-width: 1.9; }
-    .door-opt .ico-arrow { stroke-width: 1.7; }
+    .door-opt .ico-arc   { stroke-width: 1.7; opacity: 0.9; }
+    .door-opt .ico-guide { stroke-width: 1.4; opacity: 0.6; stroke-dasharray: 3 2; }
     .sr-only {
       position: absolute !important;
       width: 1px;
@@ -727,17 +728,21 @@
       <div class="door-opts">
         <button class="door-opt active" id="door-dir-h" title="橫向門" aria-label="橫向門">
           <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
-            <line class="ico-panel" x1="8" y1="12" x2="24" y2="12"></line>
-            <path class="ico-arc" d="M 24 12 A 12 12 0 0 0 12 2"></path>
+            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
+            <line class="ico-jamb" x1="10" y1="8.6" x2="10" y2="15.4"></line>
+            <line class="ico-jamb" x1="23.5" y1="8.6" x2="23.5" y2="15.4"></line>
+            <line class="ico-panel" x1="10" y1="12" x2="23.5" y2="12"></line>
+            <path class="ico-arc" d="M 23.5 12 A 13.5 13.5 0 0 0 10 25.5"></path>
           </svg>
           <span class="sr-only">橫向</span>
         </button>
         <button class="door-opt" id="door-dir-v" title="直向門" aria-label="直向門">
           <svg viewBox="0 0 44 24" aria-hidden="true">
             <line class="ico-wall" x1="22" y1="2" x2="22" y2="22"></line>
-            <line class="ico-panel" x1="22" y1="6" x2="22" y2="20"></line>
-            <path class="ico-arc" d="M 22 20 A 10 10 0 0 0 12 10"></path>
+            <line class="ico-jamb" x1="18.6" y1="6" x2="25.4" y2="6"></line>
+            <line class="ico-jamb" x1="18.6" y1="19.5" x2="25.4" y2="19.5"></line>
+            <line class="ico-panel" x1="22" y1="6" x2="22" y2="19.5"></line>
+            <path class="ico-arc" d="M 22 19.5 A 13.5 13.5 0 0 0 8.5 6"></path>
           </svg>
           <span class="sr-only">直向</span>
         </button>
@@ -745,19 +750,23 @@
       <div class="door-opts">
         <button class="door-opt active" id="door-hinge-l" title="左鉸" aria-label="左鉸">
           <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
-            <line class="ico-panel" x1="8" y1="12" x2="24" y2="12"></line>
-            <circle cx="8" cy="12" r="1.8" fill="currentColor"></circle>
-            <path class="ico-arc" d="M 24 12 A 12 12 0 0 0 12 2"></path>
+            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
+            <line class="ico-jamb" x1="10" y1="8.6" x2="10" y2="15.4"></line>
+            <line class="ico-jamb" x1="23.5" y1="8.6" x2="23.5" y2="15.4"></line>
+            <line class="ico-panel" x1="10" y1="12" x2="23.5" y2="12"></line>
+            <circle cx="10" cy="12" r="1.8" fill="currentColor"></circle>
+            <path class="ico-arc" d="M 23.5 12 A 13.5 13.5 0 0 0 10 25.5"></path>
           </svg>
           <span class="sr-only">左鉸</span>
         </button>
         <button class="door-opt" id="door-hinge-r" title="右鉸" aria-label="右鉸">
           <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
-            <line class="ico-panel" x1="20" y1="12" x2="36" y2="12"></line>
-            <circle cx="36" cy="12" r="1.8" fill="currentColor"></circle>
-            <path class="ico-arc" d="M 20 12 A 12 12 0 0 1 32 2"></path>
+            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
+            <line class="ico-jamb" x1="20.5" y1="8.6" x2="20.5" y2="15.4"></line>
+            <line class="ico-jamb" x1="34" y1="8.6" x2="34" y2="15.4"></line>
+            <line class="ico-panel" x1="20.5" y1="12" x2="34" y2="12"></line>
+            <circle cx="34" cy="12" r="1.8" fill="currentColor"></circle>
+            <path class="ico-arc" d="M 20.5 12 A 13.5 13.5 0 0 1 34 25.5"></path>
           </svg>
           <span class="sr-only">右鉸</span>
         </button>
@@ -765,19 +774,23 @@
       <div class="door-opts">
         <button class="door-opt active" id="door-swing-in" title="內開" aria-label="內開">
           <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
-            <line class="ico-panel" x1="8" y1="12" x2="24" y2="12"></line>
-            <path class="ico-arc" d="M 24 12 A 12 12 0 0 0 12 2"></path>
-            <polyline class="ico-arrow" points="13,3 11,5 14,6"></polyline>
+            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
+            <line class="ico-jamb" x1="10" y1="8.6" x2="10" y2="15.4"></line>
+            <line class="ico-jamb" x1="23.5" y1="8.6" x2="23.5" y2="15.4"></line>
+            <line class="ico-panel" x1="10" y1="12" x2="23.5" y2="12"></line>
+            <path class="ico-guide" d="M 10 12 A 13.5 13.5 0 0 1 23.5 25.5"></path>
+            <path class="ico-arc" d="M 23.5 12 A 13.5 13.5 0 0 0 10 25.5"></path>
           </svg>
           <span class="sr-only">內開</span>
         </button>
         <button class="door-opt" id="door-swing-out" title="外開" aria-label="外開">
           <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
-            <line class="ico-panel" x1="8" y1="12" x2="24" y2="12"></line>
-            <path class="ico-arc" d="M 24 12 A 12 12 0 0 1 12 22"></path>
-            <polyline class="ico-arrow" points="13,21 11,19 14,18"></polyline>
+            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
+            <line class="ico-jamb" x1="10" y1="8.6" x2="10" y2="15.4"></line>
+            <line class="ico-jamb" x1="23.5" y1="8.6" x2="23.5" y2="15.4"></line>
+            <line class="ico-panel" x1="10" y1="12" x2="23.5" y2="12"></line>
+            <path class="ico-guide" d="M 10 12 A 13.5 13.5 0 0 0 23.5 -1.5"></path>
+            <path class="ico-arc" d="M 23.5 12 A 13.5 13.5 0 0 1 10 -1.5"></path>
           </svg>
           <span class="sr-only">外開</span>
         </button>
