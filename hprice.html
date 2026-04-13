@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>銷控表 hprice</title>
+  <style>
+    :root {
+      --bg:#f7f4ee;--card:#fff;--line:#d9d1c4;--head:#ead4ab;--floor:#efe5d5;--text:#2f2f2f;--muted:#7f7f7f;
+      --danger:#d64f41;--accent:#e8953f;--empty:#efefef;
+      --cell-w:148px;--cell-h:116px;--floor-w:38px;
+      --num-size:30px;--total-size:30px;--date-size:16px;--sub-size:13px;
+    }
+    body.size-m{--cell-w:122px;--cell-h:96px;--num-size:24px;--total-size:24px;--date-size:14px;--sub-size:12px;}
+    body.size-s{--cell-w:98px;--cell-h:80px;--num-size:16px;--total-size:16px;--date-size:12px;--sub-size:11px;}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}
+    .wrap{padding:8px}
+    .topbar{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;padding:7px;display:grid;gap:6px}
+    .top-row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    h1{margin:0;font-size:16px;line-height:1.1}
+    .controls,.sizes{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .btn{border:1px solid #c7954f;background:#f7e8cd;color:#79552a;border-radius:7px;padding:4px 8px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.2}
+    .btn.active{background:#e8953f;color:#fff;border-color:#d27b23}
+    #status{font-size:12px;color:var(--muted);line-height:1.2}
+    .grid-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;background:#fff;max-height:calc(100vh - 120px)}
+
+    table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+    th,td{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+    thead th{position:sticky;top:0;z-index:4;background:var(--head);min-width:var(--cell-w);padding:6px 5px;text-align:center;color:#7b5b2f;font-size:12px;cursor:pointer;transition:.15s}
+    thead th:first-child{min-width:var(--floor-w);width:var(--floor-w);left:0;z-index:6;position:sticky;background:linear-gradient(140deg,var(--floor) 55%,#f3ede2 55%);padding:0;writing-mode:vertical-rl;text-orientation:mixed;font-size:12px;letter-spacing:2px;user-select:none}
+    .unit-head{display:grid;gap:2px}.unit-name{font-weight:800;font-size:18px}.unit-layout{font-size:11px;color:#71542f;font-weight:600}
+    tbody th.floor{position:sticky;left:0;z-index:3;width:var(--floor-w);min-width:var(--floor-w);background:var(--floor);text-align:center;color:#74542d;padding:0;cursor:pointer;user-select:none;transition:.15s}
+    .floor .f{display:block;font-size:17px;font-weight:900;padding-top:8px;line-height:1}.floor .s{display:block;font-size:9px;font-weight:800;padding-bottom:8px;letter-spacing:1px}
+    td.cell{width:var(--cell-w);height:var(--cell-h);vertical-align:top;background:#fff;padding:6px;cursor:pointer;position:relative;transition:.12s}
+    td.cell.empty{background:var(--empty);color:#939393;text-align:center;vertical-align:middle;font-size:calc(var(--sub-size) + 1px);font-weight:600}
+    td.cell.active{outline:2px solid var(--accent);outline-offset:-2px;background:#fffdf8}
+    .date{font-size:var(--date-size);color:#666;font-weight:700;margin-bottom:3px}
+    .unit-price{display:flex;align-items:baseline;gap:2px}.num{color:var(--danger);font-weight:900;font-size:var(--num-size);line-height:1}
+    .u{font-size:var(--sub-size);font-weight:700}.total{font-size:var(--total-size);font-weight:850;line-height:1.1}
+    .badge{position:absolute;top:0;right:0;background:var(--accent);color:#fff;border-radius:0 0 0 8px;font-size:10px;padding:2px 5px}
+
+    .hover-row,.hover-col,.hover-head,.hover-floor{background:#fff4de!important}
+    .hover-row.hover-col{background:#ffe7c5!important}
+
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:20;padding:8px}
+    .modal.show{display:flex}.modal-card{width:min(760px,100%);max-height:88vh;overflow:auto;border-radius:12px;background:#fff;padding:12px}
+    .modal-head{display:flex;justify-content:space-between;align-items:center}.modal-title{margin:0;font-size:20px}
+    .close-btn{border:none;background:transparent;font-size:28px;color:#777;cursor:pointer}
+    .kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0}.kpi .box{background:#f7f1e5;border-radius:8px;padding:7px}
+    .kpi .label{color:#7f7a72;font-size:12px}.kpi .value{font-size:18px;font-weight:800}
+    .detail,.stats-table,.summary-grid{width:100%;border-collapse:collapse;font-size:13px}
+    .detail th,.detail td,.stats-table th,.stats-table td,.summary-grid th,.summary-grid td{border:1px solid #e4dfd4;padding:7px;text-align:left}
+    .detail th,.stats-table th,.summary-grid th{background:#f5f1e8;color:#5f513c}
+
+    @media (max-width:640px){.unit-name{font-size:16px}}
+  </style>
+</head>
+<body class="size-l">
+  <div class="wrap">
+    <section class="topbar">
+      <div class="top-row">
+        <h1>銷控表 hprice</h1>
+        <div class="controls">
+          <label class="btn" for="fileInput">開啟 XLS/XLSX</label>
+          <input id="fileInput" type="file" accept=".xls,.xlsx" hidden>
+        </div>
+      </div>
+      <div class="top-row">
+        <div class="sizes">
+          <span style="font-size:12px;color:#7d7d7d;">尺寸：</span>
+          <button class="btn size-btn active" data-size="l">大</button>
+          <button class="btn size-btn" data-size="m">中</button>
+          <button class="btn size-btn" data-size="s">小</button>
+        </div>
+        <div id="status">請先載入 Excel（第一個工作表）。</div>
+      </div>
+    </section>
+    <div class="grid-wrap" id="gridWrap"></div>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="modalTitle" class="modal-title">明細</h2>
+        <button id="closeModal" class="close-btn">×</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    const CACHE_KEY='hprice_cache_v4';
+    const SIZE_KEY='hprice_size';
+    const fileInput=document.getElementById('fileInput');
+    const gridWrap=document.getElementById('gridWrap');
+    const statusEl=document.getElementById('status');
+    const modal=document.getElementById('modal');
+    const modalTitle=document.getElementById('modalTitle');
+    const modalBody=document.getElementById('modalBody');
+    const closeModal=document.getElementById('closeModal');
+    const sizeBtns=[...document.querySelectorAll('.size-btn')];
+
+    function parseROCDate(v){const m=String(v||'').match(/(\d+)[^\d]+(\d+)[^\d]+(\d+)/);return m?Number(m[1])*10000+Number(m[2])*100+Number(m[3]):0}
+    function cleanNumber(v){if(v===undefined||v===null||v==='')return '';const n=Number(String(v).replace(/,/g,'').trim());return Number.isNaN(n)?String(v).trim():n}
+    function formatAmount(v,d=0){const n=cleanNumber(v);if(typeof n!=='number')return v||'-';return n.toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d})}
+    function parseFloor(t){const m=String(t||'').split('/')[0].match(/-?\d+/);return m?Number(m[0]):null}
+    function detectHeaderRow(rows){return rows.findIndex(r=>r.includes('棟及號')&&r.includes('交易日期')&&r.includes('總價(萬元)'))}
+    function detectDataDate(rows){for(const row of rows.slice(0,6)){for(const c of row){const m=String(c||'').match(/(\d{4})年\s*(\d{2})月\s*(\d{2})日/);if(m)return `${m[1]}-${m[2]}-${m[3]}`}}return new Date().toISOString().slice(0,10)}
+
+    function getByAlias(row,col,aliases){for(const a of aliases){if(col[a]!==undefined)return row[col[a]]}return ''}
+    function normalizeSerial(v){const raw=String(v||'').trim();if(!raw)return '';const m=raw.match(/^(\d+)/);return m?m[1]:raw}
+    function parseArea(v){const n=Number(String(v||'').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null}
+    function parsePriceYuan(v){const n=Number(String(v||'').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null}
+    function findSheetName(names,keyword){return names.find(n=>String(n).includes(keyword))||''}
+
+    function parseSubSheet(rows,type){
+      if(!rows||!rows.length)return new Map();
+      const headerIdx=rows.findIndex(r=>r.includes('序號'));
+      if(headerIdx<0)return new Map();
+      const header=rows[headerIdx];
+      const col=Object.fromEntries(header.map((h,i)=>[h,i]));
+      const out=new Map();
+      rows.slice(headerIdx+1).forEach(r=>{
+        const serial=normalizeSerial(getByAlias(r,col,['序號']));
+        if(!serial)return;
+        let item=null;
+        if(type==='land'){
+          item={序號:getByAlias(r,col,['序號']),土地位置:getByAlias(r,col,['土地位置']),土地交易面積:parseArea(getByAlias(r,col,['土地交易面積'])),使用分區:getByAlias(r,col,['使用分區或編定'])};
+        }else if(type==='building'){
+          item={序號:getByAlias(r,col,['序號']),建物交易面積:parseArea(getByAlias(r,col,['建物交易面積'])),建物分層:getByAlias(r,col,['建物分層'])};
+        }else if(type==='parking'){
+          const yuan=parsePriceYuan(getByAlias(r,col,['車位價格']));
+          item={序號:getByAlias(r,col,['序號']),車位類別:getByAlias(r,col,['車位類別']),車位價格元:yuan,車位面積:parseArea(getByAlias(r,col,['車位面積'])),所在樓層:getByAlias(r,col,['所在樓層'])};
+        }
+        if(!item)return;
+        if(!out.has(serial))out.set(serial,[]);
+        out.get(serial).push(item);
+      });
+      return out;
+    }
+
+    function enrichFromSubSheets(records,maps){
+      return records.map(r=>{
+        const serial=normalizeSerial(r.編號);
+        const 土地明細=maps.land.get(serial)||[];
+        const 建物明細=maps.building.get(serial)||[];
+        const 車位明細=maps.parking.get(serial)||[];
+        const 土地坪數合計=土地明細.reduce((s,x)=>s+(x.土地交易面積||0),0);
+        const 車位坪數合計=車位明細.reduce((s,x)=>s+(x.車位面積||0),0);
+        const 車位總價元合計=車位明細.reduce((s,x)=>s+(x.車位價格元||0),0);
+        const 車位數量=車位明細.length||r.車位數量||'';
+        return {...r,土地明細,建物明細,車位明細,土地坪數:土地坪數合計||r.土地坪數,車位坪數:車位坪數合計||r.車位坪數,車位總價:(車位總價元合計?車位總價元合計/10000:r.車位總價),車位數量};
+      });
+    }
+
+    function extractData(rows){
+      const hi=detectHeaderRow(rows);if(hi<0)throw new Error('找不到標題列');
+      const header=rows[hi];const col=Object.fromEntries(header.map((h,i)=>[h,i]));
+      const required=['棟及號','交易日期','總價(萬元)','單價(萬元/坪)','樓別/樓高'];
+      const miss=required.filter(k=>col[k]===undefined);if(miss.length)throw new Error('缺少欄位：'+miss.join('、'));
+      return rows.slice(hi+1)
+        .filter(r=>r[col['棟及號']]&&r[col['樓別/樓高']])
+        .map(r=>({
+          編號:getByAlias(r,col,['編號']),建物坐落:getByAlias(r,col,['建物坐落']),棟及號:String(getByAlias(r,col,['棟及號'])).trim(),建案名稱:getByAlias(r,col,['建案名稱']),交易日期:getByAlias(r,col,['交易日期']),
+          總價:cleanNumber(getByAlias(r,col,['總價(萬元)'])),單價:cleanNumber(getByAlias(r,col,['單價(萬元/坪)'])),總面積:cleanNumber(getByAlias(r,col,['總面積(坪)','建物移轉總面積(坪)'])),
+          室內坪數:cleanNumber(getByAlias(r,col,['主建物面積(坪)','主建物坪數'])),陽台坪數:cleanNumber(getByAlias(r,col,['陽台面積(坪)','附屬建物面積(坪)'])),車位坪數:cleanNumber(getByAlias(r,col,['車位移轉總面積(坪)','車位面積(坪)'])),
+          土地坪數:cleanNumber(getByAlias(r,col,['土地移轉總面積(坪)','土地面積(坪)'])),
+          主建物佔比:getByAlias(r,col,['主建物佔比(%)']),型態:getByAlias(r,col,['型態']),樓別樓高:getByAlias(r,col,['樓別/樓高']),樓層:parseFloor(getByAlias(r,col,['樓別/樓高'])),
+          交易標的:getByAlias(r,col,['交易標的']),交易筆棟數:getByAlias(r,col,['交易筆棟數']),建物格局:getByAlias(r,col,['建物格局']),車位總價:cleanNumber(getByAlias(r,col,['車位總價(萬元)'])),
+          車位數量:cleanNumber(getByAlias(r,col,['車位個數','停車位個數'])),主要用途:getByAlias(r,col,['主要用途']),主要建材:getByAlias(r,col,['主要建材']),備註:getByAlias(r,col,['備註'])
+        })).filter(r=>r.樓層!==null&&r.棟及號)
+    }
+
+    function pickLatest(records){const m=new Map();records.forEach(r=>{const k=`${r.樓層}__${r.棟及號}`;const o=m.get(k);if(!o||parseROCDate(r.交易日期)>=parseROCDate(o.交易日期))m.set(k,r)});return m}
+    function openModal(t,h){modalTitle.textContent=t;modalBody.innerHTML=h;modal.classList.add('show')}
+    function closeDetail(){modal.classList.remove('show')}
+    function summarize(records){const sold=records.length;const areas=records.map(r=>Number(r.總面積)).filter(n=>!Number.isNaN(n));return{sold,maxArea:areas.length?Math.max(...areas):0,minArea:areas.length?Math.min(...areas):0}}
+
+    function groupUnitByContiguousFloors(unitRecords){
+      const rows=unitRecords
+        .map(r=>({floor:r.樓層,area:Number(r.總面積)}))
+        .filter(x=>!Number.isNaN(x.area))
+        .sort((a,b)=>b.floor-a.floor);
+      if(!rows.length)return [];
+      const groups=[];let start=rows[0].floor,end=rows[0].floor,area=rows[0].area;
+      for(let i=1;i<rows.length;i++){
+        const cur=rows[i],prev=rows[i-1];
+        const sameArea=Math.abs(cur.area-area)<0.11;
+        const contiguous=(prev.floor-cur.floor)===1;
+        if(sameArea&&contiguous){end=cur.floor;}else{groups.push({start,end,area});start=cur.floor;end=cur.floor;area=cur.area;}
+      }
+      groups.push({start,end,area});
+      return groups;
+    }
+
+    function buildStatsTable(rows){return `<table class="stats-table">${rows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>`}
+
+    function showUnitStats(unit,unitRecords,totalFloors){
+      const s=summarize(unitRecords);const soldFloors=new Set(unitRecords.map(r=>r.樓層)).size;
+      const grouped=groupUnitByContiguousFloors(unitRecords).map(g=>`<tr><th>${g.start===g.end?g.start:`${g.end}~${g.start}`}</th><td>${formatAmount(g.area,1)} 坪</td></tr>`).join('')||'<tr><td colspan="2">無坪數資料</td></tr>';
+      openModal(`戶別統計｜${unit}`,
+        buildStatsTable([
+          ['戶別',unit],['已售筆數',s.sold],['已售樓層數',`${soldFloors} / ${totalFloors}`],['最大坪數',s.maxArea?`${formatAmount(s.maxArea,2)} 坪`:'-'],['最小坪數',s.minArea?`${formatAmount(s.minArea,2)} 坪`:'-']
+        ])+
+        `<h3 style="font-size:15px;margin:10px 0 6px;">坪數收攏（連續樓層）</h3><table class="summary-grid"><tr><th>樓層區間</th><th>坪數</th></tr>${grouped}</table>`
+      )
+    }
+
+    function showFloorStats(floor,floorRecords,unitCount){
+      const s=summarize(floorRecords);const soldUnits=new Set(floorRecords.map(r=>r.棟及號)).size;
+      openModal(`樓層統計｜${floor}F`,buildStatsTable([
+        ['樓層',`${floor}F`],['已售筆數',s.sold],['已售戶數',`${soldUnits} / ${unitCount}`],['最大坪數',s.maxArea?`${formatAmount(s.maxArea,2)} 坪`:'-'],['最小坪數',s.minArea?`${formatAmount(s.minArea,2)} 坪`:'-']
+      ]))
+    }
+
+    function showBuildingStats(latestRecords,floors,units){
+      const s=summarize(latestRecords);
+      const floorRows=floors.map(f=>{const rs=latestRecords.filter(r=>r.樓層===f);return `<tr><td>${f}F</td><td>${rs.length}</td><td>${rs.length?formatAmount(Math.min(...rs.map(x=>Number(x.總面積)).filter(x=>!Number.isNaN(x))),2):'-'}</td><td>${rs.length?formatAmount(Math.max(...rs.map(x=>Number(x.總面積)).filter(x=>!Number.isNaN(x))),2):'-'}</td></tr>`}).join('');
+      const unitRows=units.map(u=>{const rs=latestRecords.filter(r=>r.棟及號===u);return `<tr><td>${u}</td><td>${rs.length}</td><td>${rs.length?formatAmount(Math.min(...rs.map(x=>Number(x.總面積)).filter(x=>!Number.isNaN(x))),2):'-'}</td><td>${rs.length?formatAmount(Math.max(...rs.map(x=>Number(x.總面積)).filter(x=>!Number.isNaN(x))),2):'-'}</td></tr>`}).join('');
+      openModal('整棟統計',
+        buildStatsTable([
+          ['總交易筆數',s.sold],['樓層數',floors.length],['戶別數',units.length],['最大坪數',s.maxArea?`${formatAmount(s.maxArea,2)} 坪`:'-'],['最小坪數',s.minArea?`${formatAmount(s.minArea,2)} 坪`:'-']
+        ])+
+        `<h3 style="font-size:15px;margin:10px 0 6px;">樓層統計</h3><table class="summary-grid"><tr><th>樓層</th><th>已售</th><th>最小坪數</th><th>最大坪數</th></tr>${floorRows}</table>`+
+        `<h3 style="font-size:15px;margin:10px 0 6px;">戶別統計</h3><table class="summary-grid"><tr><th>戶別</th><th>已售</th><th>最小坪數</th><th>最大坪數</th></tr>${unitRows}</table>`
+      )
+    }
+
+    function showRecordDetail(record,floor,unit){
+      const mainRatio=Number(String(record.主建物佔比).replace('%',''));
+      const commonRatio=!Number.isNaN(mainRatio)?`${formatAmount(100-mainRatio,2)}%`:'-';
+      const landRows=(record.土地明細||[]).map(x=>`<tr><td>${x.序號||'-'}</td><td>${x.土地位置||'-'}</td><td>${x.土地交易面積??'-'}</td><td>${x.使用分區||'-'}</td></tr>`).join('')||'<tr><td colspan="4">無資料</td></tr>';
+      const buildingRows=(record.建物明細||[]).map(x=>`<tr><td>${x.序號||'-'}</td><td>${x.建物交易面積??'-'}</td><td>${x.建物分層||'-'}</td></tr>`).join('')||'<tr><td colspan="3">無資料</td></tr>';
+      const parkingRows=(record.車位明細||[]).map(x=>`<tr><td>${x.序號||'-'}</td><td>${x.車位類別||'-'}</td><td>${x.車位價格元?formatAmount(x.車位價格元,0):'-'} 元</td><td>${x.車位面積??'-'}</td><td>${x.所在樓層||'-'}</td></tr>`).join('')||'<tr><td colspan="5">無資料</td></tr>';
+      const extRow=`<div style="font-size:12px;color:#6e6e6e;margin:6px 0 10px;line-height:1.5;">
+        室內(不含陽台)：${record.室內坪數||'-'} 坪 ｜ 陽台：${record.陽台坪數||'-'} 坪 ｜ 車位：${record.車位坪數||'-'} 坪 ｜ 土地：${record.土地坪數||'-'} 坪 ｜ 公設比：${commonRatio} ｜ 車位數量：${record.車位數量||'-'} ｜ 車位價格：${record.車位總價?formatAmount(record.車位總價,0):'-'} 萬
+      </div>`;
+      const kpi=`<div class="kpi">
+        <div class="box"><div class="label">交易日期</div><div class="value">${record.交易日期||'-'}</div></div>
+        <div class="box"><div class="label">單價</div><div class="value" style="color:#d64f41;">${formatAmount(record.單價,2)} 萬/坪</div></div>
+        <div class="box"><div class="label">總價</div><div class="value">${formatAmount(record.總價,0)} 萬</div></div>
+      </div>`;
+      const rows=[['棟及號',record.棟及號],['樓層',`${floor}F`],['建案名稱',record.建案名稱],['建物坐落',record.建物坐落],['總面積(坪)',record.總面積||'-'],['建物格局',record.建物格局||'-'],['交易標的',record.交易標的||'-'],['交易筆棟數',record.交易筆棟數||'-'],['主要用途',record.主要用途||'-'],['備註',record.備註||'-']];
+      openModal(`成交明細｜${floor}F ${unit}`,`${kpi}${extRow}<table class="detail">${rows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>
+        <h3 style="font-size:15px;margin:10px 0 6px;">土地分頁</h3><table class="summary-grid"><tr><th>序號</th><th>土地位置</th><th>土地交易面積(坪)</th><th>使用分區</th></tr>${landRows}</table>
+        <h3 style="font-size:15px;margin:10px 0 6px;">建物分頁</h3><table class="summary-grid"><tr><th>序號</th><th>建物交易面積(坪)</th><th>建物分層</th></tr>${buildingRows}</table>
+        <h3 style="font-size:15px;margin:10px 0 6px;">車位分頁</h3><table class="summary-grid"><tr><th>序號</th><th>車位類別</th><th>車位價格</th><th>車位面積(坪)</th><th>所在樓層</th></tr>${parkingRows}</table>`)
+    }
+
+    function clearHover(){gridWrap.querySelectorAll('.hover-row,.hover-col,.hover-head,.hover-floor').forEach(el=>el.classList.remove('hover-row','hover-col','hover-head','hover-floor'))}
+    function applyHover(floor,unit){
+      clearHover();
+      if(floor!==undefined){gridWrap.querySelectorAll(`[data-floor="${floor}"]`).forEach(el=>el.classList.add('hover-row'));const floorEl=gridWrap.querySelector(`th.floor[data-floor="${floor}"]`);if(floorEl)floorEl.classList.add('hover-floor');}
+      if(unit!==undefined){gridWrap.querySelectorAll(`[data-unit="${unit}"]`).forEach(el=>el.classList.add('hover-col'));const headEl=gridWrap.querySelector(`thead th[data-unit="${unit}"]`);if(headEl)headEl.classList.add('hover-head');}
+    }
+    function removeActive(){gridWrap.querySelectorAll('td.cell.active').forEach(c=>c.classList.remove('active'))}
+
+    function renderTable(records,info={}){
+      if(!records.length){gridWrap.innerHTML='<div style="padding:16px;color:#777;">沒有資料</div>';return}
+      const latestMap=pickLatest(records);
+      const units=[...new Set(records.map(r=>r.棟及號))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      const floors=[...new Set(records.map(r=>r.樓層))].sort((a,b)=>b-a);
+      const latestRecords=[...latestMap.values()];
+
+      const table=document.createElement('table');const thead=document.createElement('thead');const hr=document.createElement('tr');
+      const corner=document.createElement('th');corner.textContent='全棟';corner.addEventListener('click',()=>showBuildingStats(latestRecords,floors,units));hr.appendChild(corner);
+
+      units.forEach(unit=>{
+        const th=document.createElement('th');th.dataset.unit=unit;
+        const layout=latestRecords.find(r=>r.棟及號===unit)?.建物格局||'-';
+        th.innerHTML=`<div class="unit-head"><div class="unit-name">${unit}</div><div class="unit-layout">${layout}</div></div>`;
+        th.addEventListener('click',()=>showUnitStats(unit,latestRecords.filter(r=>r.棟及號===unit),floors.length));
+        th.addEventListener('mouseenter',()=>applyHover(undefined,unit));
+        th.addEventListener('mouseleave',clearHover);
+        hr.appendChild(th);
+      });
+      thead.appendChild(hr);table.appendChild(thead);
+
+      const tbody=document.createElement('tbody');
+      floors.forEach(floor=>{
+        const tr=document.createElement('tr');
+        const fth=document.createElement('th');fth.className='floor';fth.dataset.floor=floor;fth.innerHTML=`<span class="f">${floor}</span><span class="s">F</span>`;
+        fth.addEventListener('click',()=>showFloorStats(floor,latestRecords.filter(r=>r.樓層===floor),units.length));
+        fth.addEventListener('mouseenter',()=>applyHover(floor,undefined));fth.addEventListener('mouseleave',clearHover);
+        tr.appendChild(fth);
+
+        units.forEach(unit=>{
+          const td=document.createElement('td');td.className='cell';td.dataset.floor=floor;td.dataset.unit=unit;
+          const record=latestMap.get(`${floor}__${unit}`);
+          td.addEventListener('mouseenter',()=>applyHover(floor,unit));td.addEventListener('mouseleave',clearHover);
+          if(!record){td.classList.add('empty');td.textContent='尚未登錄';td.addEventListener('click',()=>{removeActive();td.classList.add('active')})}
+          else{
+            const hasParking=String(record.交易標的).includes('車位')||Number(record.車位總價)>0;
+            td.innerHTML=`<span class="badge">${hasParking?'含車位':'無車位'}</span><div class="date">${record.交易日期||'-'}</div><div class="unit-price"><span class="num">${formatAmount(record.單價,2)}</span><span class="u">萬/坪</span></div><div class="total">${formatAmount(record.總價,0)} 萬</div>`;
+            td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(record,floor,unit)})
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);gridWrap.innerHTML='';gridWrap.appendChild(table);
+      const dataDate=info.dataDate||'-';const cachedAt=info.cachedAt?new Date(info.cachedAt).toLocaleString('zh-TW'):new Date().toLocaleString('zh-TW');
+      statusEl.textContent=`資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}`;
+    }
+
+    function saveCache(records,dataDate){localStorage.setItem(CACHE_KEY,JSON.stringify({records,dataDate,cachedAt:new Date().toISOString()}))}
+    function loadCache(){try{const raw=localStorage.getItem(CACHE_KEY);if(!raw)return null;const p=JSON.parse(raw);return Array.isArray(p.records)?p:null}catch{return null}}
+
+    async function handleUpload(file){
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      const caseName=wb.SheetNames[0];
+      if(!caseName)throw new Error('Excel 沒有工作表');
+      const caseRows=XLSX.utils.sheet_to_json(wb.Sheets[caseName],{header:1,raw:false,defval:''});
+      let records=extractData(caseRows);
+
+      const landName=findSheetName(wb.SheetNames,'土地');
+      const buildingName=findSheetName(wb.SheetNames,'建物');
+      const parkingName=findSheetName(wb.SheetNames,'車位');
+      const landRows=landName?XLSX.utils.sheet_to_json(wb.Sheets[landName],{header:1,raw:false,defval:''}):[];
+      const buildingRows=buildingName?XLSX.utils.sheet_to_json(wb.Sheets[buildingName],{header:1,raw:false,defval:''}):[];
+      const parkingRows=parkingName?XLSX.utils.sheet_to_json(wb.Sheets[parkingName],{header:1,raw:false,defval:''}):[];
+      records=enrichFromSubSheets(records,{
+        land:parseSubSheet(landRows,'land'),
+        building:parseSubSheet(buildingRows,'building'),
+        parking:parseSubSheet(parkingRows,'parking')
+      });
+
+      const dataDate=detectDataDate(caseRows);
+      saveCache(records,dataDate);
+      renderTable(records,{dataDate,cachedAt:new Date().toISOString()});
+    }
+
+    function setSize(s){document.body.classList.remove('size-l','size-m','size-s');document.body.classList.add(`size-${s}`);sizeBtns.forEach(b=>b.classList.toggle('active',b.dataset.size===s));localStorage.setItem(SIZE_KEY,s)}
+
+    fileInput.addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;statusEl.textContent=`讀取中：${f.name}`;try{await handleUpload(f)}catch(err){statusEl.textContent=`解析失敗：${err.message}`;gridWrap.innerHTML=''}});
+    sizeBtns.forEach(btn=>btn.addEventListener('click',()=>setSize(btn.dataset.size)));
+    closeModal.addEventListener('click',closeDetail);modal.addEventListener('click',e=>{if(e.target===modal)closeDetail()});
+
+    const cached=loadCache();if(cached)renderTable(cached.records,cached);
+    setSize(localStorage.getItem(SIZE_KEY)||'l');
+  </script>
+</body>
+</html>
