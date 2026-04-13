@@ -517,9 +517,46 @@
       background: transparent; color: #94a3b8;
       cursor: pointer; font-size: 0.72rem; text-align: center;
       transition: background 0.12s, color 0.12s;
+      line-height: 0;
     }
     .door-opt:hover  { background: #1e3a5f; color: #e0e0e0; }
     .door-opt.active { background: #e94560; color: #fff; border-color: #e94560; }
+    .door-opt svg {
+      width: 100%;
+      max-width: 44px;
+      height: 22px;
+      display: block;
+      margin: 0 auto;
+    }
+    .door-opt .ico-wall {
+      stroke: currentColor;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      fill: none;
+      opacity: 0.75;
+    }
+    .door-opt .ico-panel,
+    .door-opt .ico-arc,
+    .door-opt .ico-arrow {
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .door-opt .ico-panel { stroke-width: 2.2; }
+    .door-opt .ico-arc   { stroke-width: 1.9; }
+    .door-opt .ico-arrow { stroke-width: 1.7; }
+    .sr-only {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
 
     /* ── Mobile layout ── */
     @media (max-width: 600px) {
@@ -688,16 +725,62 @@
         <span class="dim-unit">cm</span>
       </div>
       <div class="door-opts">
-        <button class="door-opt active" id="door-dir-h">橫</button>
-        <button class="door-opt" id="door-dir-v">直</button>
+        <button class="door-opt active" id="door-dir-h" title="橫向門" aria-label="橫向門">
+          <svg viewBox="0 0 44 24" aria-hidden="true">
+            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
+            <line class="ico-panel" x1="8" y1="12" x2="24" y2="12"></line>
+            <path class="ico-arc" d="M 24 12 A 12 12 0 0 0 12 2"></path>
+          </svg>
+          <span class="sr-only">橫向</span>
+        </button>
+        <button class="door-opt" id="door-dir-v" title="直向門" aria-label="直向門">
+          <svg viewBox="0 0 44 24" aria-hidden="true">
+            <line class="ico-wall" x1="22" y1="2" x2="22" y2="22"></line>
+            <line class="ico-panel" x1="22" y1="6" x2="22" y2="20"></line>
+            <path class="ico-arc" d="M 22 20 A 10 10 0 0 0 12 10"></path>
+          </svg>
+          <span class="sr-only">直向</span>
+        </button>
       </div>
       <div class="door-opts">
-        <button class="door-opt active" id="door-hinge-l">左鉸</button>
-        <button class="door-opt" id="door-hinge-r">右鉸</button>
+        <button class="door-opt active" id="door-hinge-l" title="左鉸" aria-label="左鉸">
+          <svg viewBox="0 0 44 24" aria-hidden="true">
+            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
+            <line class="ico-panel" x1="8" y1="12" x2="24" y2="12"></line>
+            <circle cx="8" cy="12" r="1.8" fill="currentColor"></circle>
+            <path class="ico-arc" d="M 24 12 A 12 12 0 0 0 12 2"></path>
+          </svg>
+          <span class="sr-only">左鉸</span>
+        </button>
+        <button class="door-opt" id="door-hinge-r" title="右鉸" aria-label="右鉸">
+          <svg viewBox="0 0 44 24" aria-hidden="true">
+            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
+            <line class="ico-panel" x1="20" y1="12" x2="36" y2="12"></line>
+            <circle cx="36" cy="12" r="1.8" fill="currentColor"></circle>
+            <path class="ico-arc" d="M 20 12 A 12 12 0 0 1 32 2"></path>
+          </svg>
+          <span class="sr-only">右鉸</span>
+        </button>
       </div>
       <div class="door-opts">
-        <button class="door-opt active" id="door-swing-in">內開</button>
-        <button class="door-opt" id="door-swing-out">外開</button>
+        <button class="door-opt active" id="door-swing-in" title="內開" aria-label="內開">
+          <svg viewBox="0 0 44 24" aria-hidden="true">
+            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
+            <line class="ico-panel" x1="8" y1="12" x2="24" y2="12"></line>
+            <path class="ico-arc" d="M 24 12 A 12 12 0 0 0 12 2"></path>
+            <polyline class="ico-arrow" points="13,3 11,5 14,6"></polyline>
+          </svg>
+          <span class="sr-only">內開</span>
+        </button>
+        <button class="door-opt" id="door-swing-out" title="外開" aria-label="外開">
+          <svg viewBox="0 0 44 24" aria-hidden="true">
+            <line class="ico-wall" x1="3" y1="12" x2="41" y2="12"></line>
+            <line class="ico-panel" x1="8" y1="12" x2="24" y2="12"></line>
+            <path class="ico-arc" d="M 24 12 A 12 12 0 0 1 12 22"></path>
+            <polyline class="ico-arrow" points="13,21 11,19 14,18"></polyline>
+          </svg>
+          <span class="sr-only">外開</span>
+        </button>
       </div>
     </div>
 
