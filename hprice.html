@@ -91,7 +91,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-    const CACHE_KEY='hprice_cache_v3';
+    const CACHE_KEY='hprice_cache_v4';
     const SIZE_KEY='hprice_size';
     const fileInput=document.getElementById('fileInput');
     const gridWrap=document.getElementById('gridWrap');
@@ -110,6 +110,50 @@
     function detectDataDate(rows){for(const row of rows.slice(0,6)){for(const c of row){const m=String(c||'').match(/(\d{4})年\s*(\d{2})月\s*(\d{2})日/);if(m)return `${m[1]}-${m[2]}-${m[3]}`}}return new Date().toISOString().slice(0,10)}
 
     function getByAlias(row,col,aliases){for(const a of aliases){if(col[a]!==undefined)return row[col[a]]}return ''}
+    function normalizeSerial(v){const raw=String(v||'').trim();if(!raw)return '';const m=raw.match(/^(\d+)/);return m?m[1]:raw}
+    function parseArea(v){const n=Number(String(v||'').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null}
+    function parsePriceYuan(v){const n=Number(String(v||'').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null}
+    function findSheetName(names,keyword){return names.find(n=>String(n).includes(keyword))||''}
+
+    function parseSubSheet(rows,type){
+      if(!rows||!rows.length)return new Map();
+      const headerIdx=rows.findIndex(r=>r.includes('序號'));
+      if(headerIdx<0)return new Map();
+      const header=rows[headerIdx];
+      const col=Object.fromEntries(header.map((h,i)=>[h,i]));
+      const out=new Map();
+      rows.slice(headerIdx+1).forEach(r=>{
+        const serial=normalizeSerial(getByAlias(r,col,['序號']));
+        if(!serial)return;
+        let item=null;
+        if(type==='land'){
+          item={序號:getByAlias(r,col,['序號']),土地位置:getByAlias(r,col,['土地位置']),土地交易面積:parseArea(getByAlias(r,col,['土地交易面積'])),使用分區:getByAlias(r,col,['使用分區或編定'])};
+        }else if(type==='building'){
+          item={序號:getByAlias(r,col,['序號']),建物交易面積:parseArea(getByAlias(r,col,['建物交易面積'])),建物分層:getByAlias(r,col,['建物分層'])};
+        }else if(type==='parking'){
+          const yuan=parsePriceYuan(getByAlias(r,col,['車位價格']));
+          item={序號:getByAlias(r,col,['序號']),車位類別:getByAlias(r,col,['車位類別']),車位價格元:yuan,車位面積:parseArea(getByAlias(r,col,['車位面積'])),所在樓層:getByAlias(r,col,['所在樓層'])};
+        }
+        if(!item)return;
+        if(!out.has(serial))out.set(serial,[]);
+        out.get(serial).push(item);
+      });
+      return out;
+    }
+
+    function enrichFromSubSheets(records,maps){
+      return records.map(r=>{
+        const serial=normalizeSerial(r.編號);
+        const 土地明細=maps.land.get(serial)||[];
+        const 建物明細=maps.building.get(serial)||[];
+        const 車位明細=maps.parking.get(serial)||[];
+        const 土地坪數合計=土地明細.reduce((s,x)=>s+(x.土地交易面積||0),0);
+        const 車位坪數合計=車位明細.reduce((s,x)=>s+(x.車位面積||0),0);
+        const 車位總價元合計=車位明細.reduce((s,x)=>s+(x.車位價格元||0),0);
+        const 車位數量=車位明細.length||r.車位數量||'';
+        return {...r,土地明細,建物明細,車位明細,土地坪數:土地坪數合計||r.土地坪數,車位坪數:車位坪數合計||r.車位坪數,車位總價:(車位總價元合計?車位總價元合計/10000:r.車位總價),車位數量};
+      });
+    }
 
     function extractData(rows){
       const hi=detectHeaderRow(rows);if(hi<0)throw new Error('找不到標題列');
@@ -187,8 +231,11 @@
     function showRecordDetail(record,floor,unit){
       const mainRatio=Number(String(record.主建物佔比).replace('%',''));
       const commonRatio=!Number.isNaN(mainRatio)?`${formatAmount(100-mainRatio,2)}%`:'-';
+      const landRows=(record.土地明細||[]).map(x=>`<tr><td>${x.序號||'-'}</td><td>${x.土地位置||'-'}</td><td>${x.土地交易面積??'-'}</td><td>${x.使用分區||'-'}</td></tr>`).join('')||'<tr><td colspan="4">無資料</td></tr>';
+      const buildingRows=(record.建物明細||[]).map(x=>`<tr><td>${x.序號||'-'}</td><td>${x.建物交易面積??'-'}</td><td>${x.建物分層||'-'}</td></tr>`).join('')||'<tr><td colspan="3">無資料</td></tr>';
+      const parkingRows=(record.車位明細||[]).map(x=>`<tr><td>${x.序號||'-'}</td><td>${x.車位類別||'-'}</td><td>${x.車位價格元?formatAmount(x.車位價格元,0):'-'} 元</td><td>${x.車位面積??'-'}</td><td>${x.所在樓層||'-'}</td></tr>`).join('')||'<tr><td colspan="5">無資料</td></tr>';
       const extRow=`<div style="font-size:12px;color:#6e6e6e;margin:6px 0 10px;line-height:1.5;">
-        室內(不含陽台)：${record.室內坪數||'-'} 坪 ｜ 陽台：${record.陽台坪數||'-'} 坪 ｜ 車位：${record.車位坪數||'-'} 坪 ｜ 土地：${record.土地坪數||'-'} 坪 ｜ 公設比：${commonRatio} ｜ 車位數量：${record.車位數量||'-'} ｜ 車位價格：${record.車位總價||'-'} 萬
+        室內(不含陽台)：${record.室內坪數||'-'} 坪 ｜ 陽台：${record.陽台坪數||'-'} 坪 ｜ 車位：${record.車位坪數||'-'} 坪 ｜ 土地：${record.土地坪數||'-'} 坪 ｜ 公設比：${commonRatio} ｜ 車位數量：${record.車位數量||'-'} ｜ 車位價格：${record.車位總價?formatAmount(record.車位總價,0):'-'} 萬
       </div>`;
       const kpi=`<div class="kpi">
         <div class="box"><div class="label">交易日期</div><div class="value">${record.交易日期||'-'}</div></div>
@@ -196,7 +243,10 @@
         <div class="box"><div class="label">總價</div><div class="value">${formatAmount(record.總價,0)} 萬</div></div>
       </div>`;
       const rows=[['棟及號',record.棟及號],['樓層',`${floor}F`],['建案名稱',record.建案名稱],['建物坐落',record.建物坐落],['總面積(坪)',record.總面積||'-'],['建物格局',record.建物格局||'-'],['交易標的',record.交易標的||'-'],['交易筆棟數',record.交易筆棟數||'-'],['主要用途',record.主要用途||'-'],['備註',record.備註||'-']];
-      openModal(`成交明細｜${floor}F ${unit}`,`${kpi}${extRow}<table class="detail">${rows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>`)
+      openModal(`成交明細｜${floor}F ${unit}`,`${kpi}${extRow}<table class="detail">${rows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>
+        <h3 style="font-size:15px;margin:10px 0 6px;">土地分頁</h3><table class="summary-grid"><tr><th>序號</th><th>土地位置</th><th>土地交易面積(坪)</th><th>使用分區</th></tr>${landRows}</table>
+        <h3 style="font-size:15px;margin:10px 0 6px;">建物分頁</h3><table class="summary-grid"><tr><th>序號</th><th>建物交易面積(坪)</th><th>建物分層</th></tr>${buildingRows}</table>
+        <h3 style="font-size:15px;margin:10px 0 6px;">車位分頁</h3><table class="summary-grid"><tr><th>序號</th><th>車位類別</th><th>車位價格</th><th>車位面積(坪)</th><th>所在樓層</th></tr>${parkingRows}</table>`)
     }
 
     function clearHover(){gridWrap.querySelectorAll('.hover-row,.hover-col,.hover-head,.hover-floor').forEach(el=>el.classList.remove('hover-row','hover-col','hover-head','hover-floor'))}
@@ -259,7 +309,30 @@
     function saveCache(records,dataDate){localStorage.setItem(CACHE_KEY,JSON.stringify({records,dataDate,cachedAt:new Date().toISOString()}))}
     function loadCache(){try{const raw=localStorage.getItem(CACHE_KEY);if(!raw)return null;const p=JSON.parse(raw);return Array.isArray(p.records)?p:null}catch{return null}}
 
-    async function handleUpload(file){const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const name=wb.SheetNames[0];if(!name)throw new Error('Excel 沒有工作表');const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false,defval:''});const records=extractData(rows);const dataDate=detectDataDate(rows);saveCache(records,dataDate);renderTable(records,{dataDate,cachedAt:new Date().toISOString()})}
+    async function handleUpload(file){
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      const caseName=wb.SheetNames[0];
+      if(!caseName)throw new Error('Excel 沒有工作表');
+      const caseRows=XLSX.utils.sheet_to_json(wb.Sheets[caseName],{header:1,raw:false,defval:''});
+      let records=extractData(caseRows);
+
+      const landName=findSheetName(wb.SheetNames,'土地');
+      const buildingName=findSheetName(wb.SheetNames,'建物');
+      const parkingName=findSheetName(wb.SheetNames,'車位');
+      const landRows=landName?XLSX.utils.sheet_to_json(wb.Sheets[landName],{header:1,raw:false,defval:''}):[];
+      const buildingRows=buildingName?XLSX.utils.sheet_to_json(wb.Sheets[buildingName],{header:1,raw:false,defval:''}):[];
+      const parkingRows=parkingName?XLSX.utils.sheet_to_json(wb.Sheets[parkingName],{header:1,raw:false,defval:''}):[];
+      records=enrichFromSubSheets(records,{
+        land:parseSubSheet(landRows,'land'),
+        building:parseSubSheet(buildingRows,'building'),
+        parking:parseSubSheet(parkingRows,'parking')
+      });
+
+      const dataDate=detectDataDate(caseRows);
+      saveCache(records,dataDate);
+      renderTable(records,{dataDate,cachedAt:new Date().toISOString()});
+    }
 
     function setSize(s){document.body.classList.remove('size-l','size-m','size-s');document.body.classList.add(`size-${s}`);sizeBtns.forEach(b=>b.classList.toggle('active',b.dataset.size===s));localStorage.setItem(SIZE_KEY,s)}
 
