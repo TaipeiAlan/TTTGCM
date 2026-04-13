@@ -92,6 +92,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     const CACHE_KEY='hprice_cache_v4';
+    const LEGACY_CACHE_KEYS=['hprice_cache','hprice_cache_v1','hprice_cache_v2','hprice_cache_v3'];
     const SIZE_KEY='hprice_size';
     const fileInput=document.getElementById('fileInput');
     const gridWrap=document.getElementById('gridWrap');
@@ -178,31 +179,44 @@
     function closeDetail(){modal.classList.remove('show')}
     function summarize(records){const sold=records.length;const areas=records.map(r=>Number(r.總面積)).filter(n=>!Number.isNaN(n));return{sold,maxArea:areas.length?Math.max(...areas):0,minArea:areas.length?Math.min(...areas):0}}
 
-    function groupUnitByContiguousFloors(unitRecords){
-      const rows=unitRecords
+    function groupUnitByContiguousFloors(unitRecords,allFloors){
+      const known=unitRecords
         .map(r=>({floor:r.樓層,area:Number(r.總面積)}))
         .filter(x=>!Number.isNaN(x.area))
-        .sort((a,b)=>b.floor-a.floor);
-      if(!rows.length)return [];
-      const groups=[];let start=rows[0].floor,end=rows[0].floor,area=rows[0].area;
-      for(let i=1;i<rows.length;i++){
-        const cur=rows[i],prev=rows[i-1];
-        const sameArea=Math.abs(cur.area-area)<0.11;
-        const contiguous=(prev.floor-cur.floor)===1;
-        if(sameArea&&contiguous){end=cur.floor;}else{groups.push({start,end,area});start=cur.floor;end=cur.floor;area=cur.area;}
+        .sort((a,b)=>a.floor-b.floor);
+      const inferredMap=new Map();
+      for(let i=0;i<known.length-1;i++){
+        const a=known[i],b=known[i+1];
+        if(Math.abs(a.area-b.area)<0.11&&b.floor-a.floor>1){
+          for(let f=a.floor+1;f<b.floor;f++)inferredMap.set(f,a.area);
+        }
       }
-      groups.push({start,end,area});
+      const knownMap=new Map(known.map(k=>[k.floor,k.area]));
+      const floors=[...allFloors].sort((a,b)=>b-a);
+      if(!floors.length)return [];
+      const list=floors.map(f=>{
+        if(knownMap.has(f))return {floor:f,label:`${formatAmount(knownMap.get(f),1)} 坪`};
+        if(inferredMap.has(f))return {floor:f,label:`${formatAmount(inferredMap.get(f),1)} 坪`};
+        return {floor:f,label:'尚未得知'};
+      });
+      const groups=[];let start=list[0].floor,end=list[0].floor,label=list[0].label;
+      for(let i=1;i<list.length;i++){
+        const cur=list[i],prev=list[i-1];
+        if(cur.label===label&&(prev.floor-cur.floor)===1){end=cur.floor;}
+        else{groups.push({start,end,label});start=cur.floor;end=cur.floor;label=cur.label;}
+      }
+      groups.push({start,end,label});
       return groups;
     }
 
     function buildStatsTable(rows){return `<table class="stats-table">${rows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>`}
 
-    function showUnitStats(unit,unitRecords,totalFloors){
+    function showUnitStats(unit,unitRecords,floors){
       const s=summarize(unitRecords);const soldFloors=new Set(unitRecords.map(r=>r.樓層)).size;
-      const grouped=groupUnitByContiguousFloors(unitRecords).map(g=>`<tr><th>${g.start===g.end?g.start:`${g.end}~${g.start}`}</th><td>${formatAmount(g.area,1)} 坪</td></tr>`).join('')||'<tr><td colspan="2">無坪數資料</td></tr>';
+      const grouped=groupUnitByContiguousFloors(unitRecords,floors).map(g=>`<tr><th>${g.start===g.end?g.start:`${g.end}~${g.start}`}</th><td>${g.label}</td></tr>`).join('')||'<tr><td colspan="2">無坪數資料</td></tr>';
       openModal(`戶別統計｜${unit}`,
         buildStatsTable([
-          ['戶別',unit],['已售筆數',s.sold],['已售樓層數',`${soldFloors} / ${totalFloors}`],['最大坪數',s.maxArea?`${formatAmount(s.maxArea,2)} 坪`:'-'],['最小坪數',s.minArea?`${formatAmount(s.minArea,2)} 坪`:'-']
+          ['戶別',unit],['已售筆數',s.sold],['已售樓層數',`${soldFloors} / ${floors.length}`],['最大坪數',s.maxArea?`${formatAmount(s.maxArea,2)} 坪`:'-'],['最小坪數',s.minArea?`${formatAmount(s.minArea,2)} 坪`:'-']
         ])+
         `<h3 style="font-size:15px;margin:10px 0 6px;">坪數收攏（連續樓層）</h3><table class="summary-grid"><tr><th>樓層區間</th><th>坪數</th></tr>${grouped}</table>`
       )
@@ -271,7 +285,7 @@
         const th=document.createElement('th');th.dataset.unit=unit;
         const layout=latestRecords.find(r=>r.棟及號===unit)?.建物格局||'-';
         th.innerHTML=`<div class="unit-head"><div class="unit-name">${unit}</div><div class="unit-layout">${layout}</div></div>`;
-        th.addEventListener('click',()=>showUnitStats(unit,latestRecords.filter(r=>r.棟及號===unit),floors.length));
+        th.addEventListener('click',()=>showUnitStats(unit,latestRecords.filter(r=>r.棟及號===unit),floors));
         th.addEventListener('mouseenter',()=>applyHover(undefined,unit));
         th.addEventListener('mouseleave',clearHover);
         hr.appendChild(th);
@@ -307,7 +321,20 @@
     }
 
     function saveCache(records,dataDate){localStorage.setItem(CACHE_KEY,JSON.stringify({records,dataDate,cachedAt:new Date().toISOString()}))}
-    function loadCache(){try{const raw=localStorage.getItem(CACHE_KEY);if(!raw)return null;const p=JSON.parse(raw);return Array.isArray(p.records)?p:null}catch{return null}}
+    function cleanupLegacyCaches(){LEGACY_CACHE_KEYS.forEach(k=>localStorage.removeItem(k))}
+    function isValidCachePayload(p){return !!(p&&Array.isArray(p.records)&&p.records.every(r=>r&&r.棟及號!==undefined&&r.樓層!==undefined))}
+    function loadCache(){
+      cleanupLegacyCaches();
+      try{
+        const raw=localStorage.getItem(CACHE_KEY);if(!raw)return null;
+        const p=JSON.parse(raw);
+        if(!isValidCachePayload(p)){localStorage.removeItem(CACHE_KEY);return null}
+        return p;
+      }catch{
+        localStorage.removeItem(CACHE_KEY);
+        return null
+      }
+    }
 
     async function handleUpload(file){
       const buf=await file.arrayBuffer();
