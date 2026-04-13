@@ -1347,6 +1347,22 @@
     }
   }
 
+  /* ── Door jamb rectangles (2×12 cm) ── */
+  function doorJambRects(el) {
+    const t = 2;   // thickness
+    const d = 12;  // depth
+    if (el.dir === 'h') {
+      return [
+        { x: el.x - t / 2,        y: el.y - d / 2, w: t, h: d },
+        { x: el.x + el.w - t / 2, y: el.y - d / 2, w: t, h: d }
+      ];
+    }
+    return [
+      { x: el.x - d / 2, y: el.y - t / 2,        w: d, h: t },
+      { x: el.x - d / 2, y: el.y + el.w - t / 2, w: d, h: t }
+    ];
+  }
+
   /* ── Toggle edit mode ── */
   btnEditMode.addEventListener('click', () => {
     isEditMode = !isEditMode;
@@ -1652,13 +1668,21 @@
         panel.setAttribute('x', el.x); panel.setAttribute('y', el.y);
         panel.setAttribute('width', panelW); panel.setAttribute('height', panelH);
         panel.setAttribute('fill', 'white');
-        panel.setAttribute('stroke', '#222'); panel.setAttribute('stroke-width', '3');
+        panel.setAttribute('stroke', 'none');
         g.appendChild(panel);
+        // Jambs: two 2x12 cm rectangles at both ends
+        for (const jb of doorJambRects(el)) {
+          const jr = document.createElementNS(ns, 'rect');
+          jr.setAttribute('x', jb.x); jr.setAttribute('y', jb.y);
+          jr.setAttribute('width', jb.w); jr.setAttribute('height', jb.h);
+          jr.setAttribute('fill', '#444');
+          g.appendChild(jr);
+        }
         // Arc — solid line, same weight as panel
         const arc = document.createElementNS(ns, 'path');
         arc.setAttribute('d', doorArcPath(el));
         arc.setAttribute('fill', 'none');
-        arc.setAttribute('stroke', '#222'); arc.setAttribute('stroke-width', '3');
+        arc.setAttribute('stroke', '#222'); arc.setAttribute('stroke-width', '2.2');
         arc.setAttribute('pointer-events', 'none');
         g.appendChild(arc);
 
@@ -2125,7 +2149,10 @@
       if (el.type === 'door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
-        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="#222" stroke-width="3"/>\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="3"/>`;
+        const jambs = doorJambRects(el)
+          .map(j => `  <rect x="${j.x}" y="${j.y}" width="${j.w}" height="${j.h}" fill="#444"/>`)
+          .join('\n');
+        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
       }
       // reserved — opaque background + hatch overlay
       return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
