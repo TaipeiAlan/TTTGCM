@@ -947,8 +947,9 @@
   const STORAGE_KEY      = 'svg_viewer_records';
   const BG_KEY           = 'svg_viewer_bg';
   const MODE_KEY         = 'svg_viewer_mode';
-  const EDIT_ELEMS_KEY   = 'svg_viewer_edit_elems';
-  const SNAP_UNIT_KEY    = 'svg_viewer_snap_unit';
+  const EDIT_ELEMS_KEY     = 'svg_viewer_edit_elems';     // kept for one-time migration
+  const EDIT_ELEMS_MAP_KEY = 'svg_viewer_edit_elems_map'; // per-SVG map
+  const SNAP_UNIT_KEY      = 'svg_viewer_snap_unit';
 
   function loadRecords() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -962,11 +963,22 @@
   function saveMode(on)  { localStorage.setItem(MODE_KEY, on ? '1' : '0'); }
   function loadMode()    { return localStorage.getItem(MODE_KEY) === '1'; }
 
-  function saveEditElems(arr) { localStorage.setItem(EDIT_ELEMS_KEY, JSON.stringify(arr)); }
-  function loadEditElems() {
-    try { return JSON.parse(localStorage.getItem(EDIT_ELEMS_KEY)) || []; }
-    catch { return []; }
+  function _loadElemsMap() {
+    try { return JSON.parse(localStorage.getItem(EDIT_ELEMS_MAP_KEY)) || {}; }
+    catch { return {}; }
   }
+  function saveEditElemsForId(id, arr) {
+    if (!id) return;
+    const map = _loadElemsMap();
+    if (arr.length) map[id] = arr; else delete map[id];
+    localStorage.setItem(EDIT_ELEMS_MAP_KEY, JSON.stringify(map));
+  }
+  function loadEditElemsForId(id) {
+    if (!id) return [];
+    return _loadElemsMap()[id] || [];
+  }
+  function removeEditElemsForId(id) { saveEditElemsForId(id, []); }
+  function saveEditElems(arr) { saveEditElemsForId(activeId, arr); }
   function saveSnapUnit(v) { localStorage.setItem(SNAP_UNIT_KEY, String(v)); }
   function loadSnapUnit() {
     const v = parseInt(localStorage.getItem(SNAP_UNIT_KEY) || '10', 10);
@@ -1011,7 +1023,12 @@
       nameSpan.title = rec.name;
 
       tab.appendChild(nameSpan);
+      tab.title = rec.name + '（雙擊進入編修模式）';
       tab.addEventListener('click', () => switchTo(rec.id));
+      tab.addEventListener('dblclick', () => {
+        switchTo(rec.id);
+        enterEditMode();
+      });
       tabsEl.appendChild(tab);
     });
 
@@ -1047,8 +1064,16 @@
 
   function switchTo(id) {
     activeId = id;
+    editElems = loadEditElemsForId(id);
+    selectedId = null; lastDeleted = null;
+    isDragging = false; dragId = null;
     renderTabs();
     renderSvg();
+    if (isEditMode) {
+      renderEditElements();
+      updateSelectedSection();
+      undoSection.style.display = 'none';
+    }
   }
 
   /* ── Transform (zoom/pan) ── */
@@ -1250,11 +1275,19 @@
     if (idx === -1) return;
     records.splice(idx, 1);
     saveRecords(records);
+    removeEditElemsForId(id);
     if (activeId === id) {
       activeId = records.length ? records[Math.max(0, idx - 1)].id : null;
+      editElems = loadEditElemsForId(activeId);
+      selectedId = null; lastDeleted = null;
     }
     renderTabs();
     renderSvg();
+    if (isEditMode) {
+      renderEditElements();
+      updateSelectedSection();
+      undoSection.style.display = 'none';
+    }
   }
 
   /* ── Toast ── */
@@ -1311,7 +1344,19 @@
 
   let isEditMode  = false;
   let activeTool  = 'select';   // 'select'|'room'|'vwall'|'hwall'|'reserved'|'door'
-  let editElems   = loadEditElems();  // placed elements data (persisted)
+  // One-time migration: move old single-key data to per-SVG map
+  (function() {
+    const old = localStorage.getItem(EDIT_ELEMS_KEY);
+    if (!old || !activeId) return;
+    if (!localStorage.getItem(EDIT_ELEMS_MAP_KEY)) {
+      try {
+        const arr = JSON.parse(old);
+        if (arr && arr.length) saveEditElemsForId(activeId, arr);
+      } catch {}
+    }
+    localStorage.removeItem(EDIT_ELEMS_KEY);
+  })();
+  let editElems = loadEditElemsForId(activeId);  // placed elements data (persisted)
   let selectedId  = null;
   let eScale      = 1, ePanX = 0, ePanY = 0;
   let ePanning    = false, ePanSX = 0, ePanSY = 0;
@@ -1398,12 +1443,15 @@
   /* ── Toggle edit mode ── */
   function enterEditMode() {
     if (isEditMode) return;
+    editElems = loadEditElemsForId(activeId);
+    selectedId = null;
     isEditMode = true;
     saveMode(true);
     document.body.classList.add('edit-mode');
     btnEditMode.classList.add('active');
     btnEditMode.textContent = '✕ 離開編修';
     renderEditGrid();
+    renderEditElements();
     requestAnimationFrame(fitEditCanvas);
     updateDimSection();
   }
@@ -2249,6 +2297,7 @@
     const name = input.trim() || `平面圖 #${records.length + 1}`;
     records.push({ id, name, svg: xml, createdAt: Date.now() });
     saveRecords(records);
+    saveEditElemsForId(id, editElems); // carry current elements to new record
     activeId = id;
     renderTabs();
     renderSvg();
@@ -2312,9 +2361,6 @@
     canvasEl.classList.remove('bg-dark', 'bg-light');
     if (savedBg) canvasEl.classList.add(savedBg);
   })();
-
-  // Restore edit elements rendering (grid not ready yet; rendered again when entering mode)
-  if (editElems.length) renderEditElements();
 
   // Restore edit mode
   if (loadMode()) {
