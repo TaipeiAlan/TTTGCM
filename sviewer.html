@@ -674,6 +674,8 @@
   <button class="bg-btn" data-bg="bg-dark">深色</button>
   <button class="bg-btn" data-bg="bg-light">淺色</button>
   <input type="file" id="file-input" accept=".svg,image/svg+xml">
+  <button class="btn btn-danger" id="btn-delete-active"
+          title="刪除目前 SVG" style="display:none;margin-left:auto">🗑 刪除</button>
 </div>
 
 <!-- Tabs -->
@@ -1008,17 +1010,7 @@
       nameSpan.textContent = rec.name;
       nameSpan.title = rec.name;
 
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'tab-close';
-      closeBtn.innerHTML = '✕';
-      closeBtn.title = '刪除';
-      closeBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        askDelete(rec.id, rec.name);
-      });
-
       tab.appendChild(nameSpan);
-      tab.appendChild(closeBtn);
       tab.addEventListener('click', () => switchTo(rec.id));
       tabsEl.appendChild(tab);
     });
@@ -1026,6 +1018,13 @@
     // scroll active tab into view
     const activeTab = tabsEl.querySelector('.tab.active');
     if (activeTab) activeTab.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+
+    // show/hide the topbar delete button
+    const btnDelActive = document.getElementById('btn-delete-active');
+    if (btnDelActive) {
+      btnDelActive.style.display =
+        (activeId && records.some(r => r.id === activeId)) ? '' : 'none';
+    }
   }
 
   /* ── Render SVG ── */
@@ -1134,6 +1133,11 @@
     pendingFileContent = null;
   }
 
+  document.getElementById('btn-delete-active').addEventListener('click', () => {
+    const rec = records.find(r => r.id === activeId);
+    if (rec) askDelete(rec.id, rec.name);
+  });
+
   document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
   modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
 
@@ -1174,6 +1178,7 @@
     renderTabs();
     renderSvg();
     closeModal();
+    enterEditMode();
   }
 
   let autoCounter = 0;
@@ -1391,17 +1396,27 @@
   }
 
   /* ── Toggle edit mode ── */
+  function enterEditMode() {
+    if (isEditMode) return;
+    isEditMode = true;
+    saveMode(true);
+    document.body.classList.add('edit-mode');
+    btnEditMode.classList.add('active');
+    btnEditMode.textContent = '✕ 離開編修';
+    renderEditGrid();
+    requestAnimationFrame(fitEditCanvas);
+    updateDimSection();
+  }
+
   btnEditMode.addEventListener('click', () => {
-    isEditMode = !isEditMode;
-    saveMode(isEditMode);
-    document.body.classList.toggle('edit-mode', isEditMode);
-    btnEditMode.classList.toggle('active', isEditMode);
-    btnEditMode.textContent = isEditMode ? '✕ 離開編修' : '✎ 編修模式';
-    if (isEditMode) {
-      renderEditGrid();
-      requestAnimationFrame(fitEditCanvas);
-      updateDimSection();
+    if (!isEditMode) {
+      enterEditMode();
     } else {
+      isEditMode = false;
+      saveMode(false);
+      document.body.classList.remove('edit-mode');
+      btnEditMode.classList.remove('active');
+      btnEditMode.textContent = '✎ 編修模式';
       epPreview.innerHTML = '';
       epSnap.innerHTML    = '';
       renderSvg();        // restore viewer on exit
@@ -2303,14 +2318,7 @@
 
   // Restore edit mode
   if (loadMode()) {
-    isEditMode = true;
-    saveMode(true);
-    document.body.classList.add('edit-mode');
-    btnEditMode.classList.add('active');
-    btnEditMode.textContent = '✕ 離開編修';
-    renderEditGrid();
-    requestAnimationFrame(fitEditCanvas);
-    updateDimSection();
+    enterEditMode();
   }
 
   renderTabs();
