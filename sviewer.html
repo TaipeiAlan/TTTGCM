@@ -1060,6 +1060,7 @@
       svgEl.removeAttribute('style');
     }
     resetTransform();
+    requestAnimationFrame(fitTransform);
   }
 
   function switchTo(id) {
