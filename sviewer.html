@@ -1011,7 +1011,12 @@
       nameSpan.title = rec.name;
 
       tab.appendChild(nameSpan);
+      tab.title = rec.name + '（雙擊進入編修模式）';
       tab.addEventListener('click', () => switchTo(rec.id));
+      tab.addEventListener('dblclick', () => {
+        switchTo(rec.id);
+        enterEditMode();
+      });
       tabsEl.appendChild(tab);
     });
 
