@@ -958,6 +958,7 @@
     </div>
 
     <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-modal-blank" style="margin-right:auto">從空白開始</button>
       <button class="btn btn-secondary" id="btn-modal-cancel">取消</button>
       <button class="btn btn-primary" id="btn-modal-save">儲存</button>
     </div>
@@ -1266,6 +1267,19 @@
 
   document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
   modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+
+  document.getElementById('btn-modal-blank').addEventListener('click', () => {
+    const id   = Date.now().toString();
+    const name = nameInput.value.trim() || autoName();
+    const blankSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1300" width="1600" height="1300" data-tttgcm-version="1"><desc id="tttgcm-data">[]</desc></svg>`;
+    records.push({ id, name, svg: blankSvg, createdAt: Date.now() });
+    saveRecords(records);
+    activeId = id;
+    renderTabs();
+    renderSvg();
+    closeModal();
+    enterEditMode();
+  });
 
   // Modal panel switching
   document.querySelectorAll('.modal-tab-btn').forEach(btn => {
@@ -1580,13 +1594,161 @@
       const bgEl  = doc.getElementById('tttgcm-bg');
       const bgMarkup = (bgEl && bgEl.innerHTML.trim()) || null;
       return { elems, bgMarkup };
-    } else {
-      // External SVG: whole thing becomes a background image
-      const b64 = btoa(unescape(encodeURIComponent(svgStr)));
-      const bgMarkup = `<image href="data:image/svg+xml;base64,${b64}" x="0" y="0" width="1600" height="1300" preserveAspectRatio="xMidYMid meet"/>`;
-      return { elems: [], bgMarkup };
     }
+
+    // Try to recover elements from visual shapes (SVGs made before metadata was embedded)
+    const recovered = tryRecoverElems(doc);
+    if (recovered.length > 0) return { elems: recovered, bgMarkup: null };
+
+    // External SVG: whole thing becomes a background image
+    const b64 = btoa(unescape(encodeURIComponent(svgStr)));
+    const bgMarkup = `<image href="data:image/svg+xml;base64,${b64}" x="0" y="0" width="1600" height="1300" preserveAspectRatio="xMidYMid meet"/>`;
+    return { elems: [], bgMarkup };
   }
+
+  /* ── Recover elements from a visually-rendered (no-metadata) SVG ── */
+  // Element type naming convention: all tttgcm element types use the "sv_" prefix
+  // (sv_room, sv_vwall, sv_hwall, sv_reserved, sv_door, ...).
+  // Future element types must also use the "sv_" prefix.
+  function tryRecoverElems(doc) {
+    // Method 1: data-type="sv_*" attributes (new format — direct, no pattern matching needed)
+    const svTypedElems = [...doc.querySelectorAll('[data-type]')]
+      .filter(e => e.getAttribute('data-type').startsWith('sv_'));
+    if (svTypedElems.length > 0) {
+      const elems = [];
+      let nid = Date.now();
+      for (const el of svTypedElems) {
+        const type = el.getAttribute('data-type').slice(3); // strip "sv_" prefix
+        if (type === 'room' || type === 'reserved' || type === 'vwall' || type === 'hwall') {
+          const x = +el.getAttribute('x'), y = +el.getAttribute('y');
+          const w = +el.getAttribute('width'), h = +el.getAttribute('height');
+          elems.push({ id: String(++nid), type, x, y, w, h });
+        } else if (type === 'door') {
+          const x     = +el.getAttribute('x'), y = +el.getAttribute('y');
+          const w     = +(el.getAttribute('data-w')    || el.getAttribute('width'));
+          const dir   =   el.getAttribute('data-dir')   || 'h';
+          const hinge =   el.getAttribute('data-hinge') || 'L';
+          const swing =   el.getAttribute('data-swing') || 'in';
+          elems.push({ id: String(++nid), type: 'door', x, y, w, h: 3, dir, hinge, swing });
+        }
+      }
+      if (elems.length > 0) return elems;
+    }
+
+    // Method 2: visual signature matching (legacy SVGs without data-type attributes)
+    const allRects = [...doc.querySelectorAll('rect')];
+    const allPaths = [...doc.querySelectorAll('path')];
+
+    // Signature check — bail early for truly external SVGs
+    const looks =
+      allRects.some(r => r.getAttribute('fill') === 'white'   && r.getAttribute('stroke') === '#222' && r.getAttribute('stroke-width') === '10') ||
+      allRects.some(r => r.getAttribute('fill') === '#b8c8d4' && r.getAttribute('stroke') === '#222') ||
+      allRects.some(r => { const w = +r.getAttribute('width'), h = +r.getAttribute('height'); return r.getAttribute('fill') === '#222' && (Math.round(w) === 10 || Math.round(h) === 10); }) ||
+      allPaths.some(p => p.getAttribute('stroke') === '#222'  && p.getAttribute('stroke-width') === '2.2');
+    if (!looks) return [];
+
+    const elems = [];
+    const used  = new Set();
+    let   nid   = Date.now();
+
+    // 1. Reserved (must be before rooms — same stroke/color signature)
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') === '#b8c8d4' &&
+          r.getAttribute('stroke') === '#222' &&
+          r.getAttribute('stroke-width') === '10') {
+        const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+        const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+        used.add(r);
+        for (const r2 of allRects) { // consume companion hatch rect
+          if (!used.has(r2) && r2.getAttribute('fill') === 'url(#hatch)' &&
+              Math.abs(+r2.getAttribute('x') - x) < 0.5 &&
+              Math.abs(+r2.getAttribute('y') - y) < 0.5) { used.add(r2); break; }
+        }
+        elems.push({ id: String(++nid), type: 'reserved', x, y, w, h });
+      }
+    }
+
+    // 2. Rooms
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') === 'white' &&
+          r.getAttribute('stroke') === '#222' &&
+          r.getAttribute('stroke-width') === '10') {
+        const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+        const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'room', x, y, w, h });
+      }
+    }
+
+    // 3. Walls (thin dark rects — width≈10 → vwall, height≈10 → hwall)
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') !== '#222') continue;
+      const stroke = r.getAttribute('stroke');
+      if (stroke && stroke !== 'none') continue;
+      const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+      const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+      if (Math.round(w) === 10) {
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'vwall', x, y, w: 10, h });
+      } else if (Math.round(h) === 10) {
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'hwall', x, y, w, h: 10 });
+      }
+    }
+
+    // 4. Doors — identify by the quarter-circle arc path, then consume panel + jambs
+    for (const path of allPaths) {
+      if (used.has(path)) continue;
+      if (path.getAttribute('stroke') !== '#222' || path.getAttribute('stroke-width') !== '2.2') continue;
+      const door = parseDoorArc(path.getAttribute('d') || '');
+      if (!door) continue;
+      used.add(path);
+      // panel rect (white, no stroke, at door.x/y)
+      for (const r of allRects) {
+        if (used.has(r)) continue;
+        if (r.getAttribute('fill') === 'white' && r.getAttribute('stroke') === 'none' &&
+            Math.abs(+r.getAttribute('x') - door.x) < 0.5 &&
+            Math.abs(+r.getAttribute('y') - door.y) < 0.5) { used.add(r); break; }
+      }
+      // jamb rects (fill #444, up to 2, within door.w+15 cm of door origin)
+      let jc = 0;
+      for (const r of allRects) {
+        if (used.has(r) || jc >= 2) break;
+        if (r.getAttribute('fill') === '#444' &&
+            Math.abs(+r.getAttribute('x') - door.x) < door.w + 15 &&
+            Math.abs(+r.getAttribute('y') - door.y) < door.w + 15) { used.add(r); jc++; }
+      }
+      elems.push({ id: String(++nid), type: 'door', ...door });
+    }
+
+    return elems;
+  }
+
+  /* ── Parse a tttgcm quarter-circle door arc path back to element params ── */
+  function parseDoorArc(d) {
+    // Format: M x1,y1 A r,r 0 0,sw x2,y2
+    const m = d.match(/M\s*([-\d.]+)[,\s]([-\d.]+)\s+A\s*([-\d.]+)[,\s][-\d.]+\s+0\s+0[,\s]([01])\s+([-\d.]+)[,\s]([-\d.]+)/);
+    if (!m) return null;
+    const x1 = +m[1], y1 = +m[2], r = +m[3], sw = +m[4], x2 = +m[5], y2 = +m[6];
+    const ir  = Math.round(r);
+    const idx = Math.round(x2 - x1), idy = Math.round(y2 - y1);
+
+    // Each (sign(dx), sign(dy), sweep) combination maps to exactly one door configuration.
+    //   dir='h' → panel horizontal; dir='v' → panel vertical
+    if (idx === -ir && idy === -ir && sw === 0) return { x: x2, y: y1, w: ir, h: 3, dir: 'h', hinge: 'L', swing: 'in'  };
+    if (idx === -ir && idy === -ir && sw === 1) return { x: x1, y: y2, w: ir, h: 3, dir: 'v', hinge: 'L', swing: 'in'  };
+    if (idx === -ir && idy ===  ir && sw === 1) return { x: x2, y: y1, w: ir, h: 3, dir: 'h', hinge: 'L', swing: 'out' };
+    if (idx === -ir && idy ===  ir && sw === 0) return { x: x1, y: y1, w: ir, h: 3, dir: 'v', hinge: 'R', swing: 'in'  };
+    if (idx ===  ir && idy === -ir && sw === 1) return { x: x1, y: y1, w: ir, h: 3, dir: 'h', hinge: 'R', swing: 'in'  };
+    if (idx ===  ir && idy === -ir && sw === 0) return { x: x1, y: y2, w: ir, h: 3, dir: 'v', hinge: 'L', swing: 'out' };
+    if (idx ===  ir && idy ===  ir && sw === 0) return { x: x1, y: y1, w: ir, h: 3, dir: 'h', hinge: 'R', swing: 'out' };
+    if (idx ===  ir && idy ===  ir && sw === 1) return { x: x1, y: y1, w: ir, h: 3, dir: 'v', hinge: 'R', swing: 'out' };
+    return null;
+  }
+
 
   function renderBgLayer() {
     epBg.innerHTML = currentBgMarkup || '';
@@ -1600,18 +1762,20 @@
     const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
       if (el.type === 'room')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
-      if (el.type === 'vwall' || el.type === 'hwall')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+        return `  <rect data-type="sv_room" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
+      if (el.type === 'vwall')
+        return `  <rect data-type="sv_vwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      if (el.type === 'hwall')
+        return `  <rect data-type="sv_hwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
       if (el.type === 'door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
         const jambs = doorJambRects(el)
           .map(j => `  <rect x="${j.x}" y="${j.y}" width="${j.w}" height="${j.h}" fill="#444"/>`)
           .join('\n');
-        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
+        return `  <rect data-type="sv_door" data-w="${el.w}" data-dir="${el.dir}" data-hinge="${el.hinge}" data-swing="${el.swing}" x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
       }
-      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
+      return `  <rect data-type="sv_reserved" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
 
     const bgPart   = currentBgMarkup ? `\n  <g id="tttgcm-bg">\n    ${currentBgMarkup}\n  </g>` : '';
@@ -2574,19 +2738,21 @@
     const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
       if (el.type === 'room')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
-      if (el.type === 'vwall' || el.type === 'hwall')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+        return `  <rect data-type="sv_room" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
+      if (el.type === 'vwall')
+        return `  <rect data-type="sv_vwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      if (el.type === 'hwall')
+        return `  <rect data-type="sv_hwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
       if (el.type === 'door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
         const jambs = doorJambRects(el)
           .map(j => `  <rect x="${j.x}" y="${j.y}" width="${j.w}" height="${j.h}" fill="#444"/>`)
           .join('\n');
-        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
+        return `  <rect data-type="sv_door" data-w="${el.w}" data-dir="${el.dir}" data-hinge="${el.hinge}" data-swing="${el.swing}" x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
       }
       // reserved — opaque background + hatch overlay
-      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
+      return `  <rect data-type="sv_reserved" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${vw} ${vh}" width="${vw}" height="${vh}" data-tttgcm-version="1">\n  <desc id="tttgcm-data">${JSON.stringify(editElems)}</desc>${defs}\n${shapes}\n</svg>`;
