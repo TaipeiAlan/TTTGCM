@@ -542,10 +542,9 @@
     }
 
     /* ── Door option toggles ── */
-    .door-opts {
-      display: flex; gap: 3px; margin-bottom: 4px;
+    .door-presets {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
     }
-    .door-opts:last-child { margin-bottom: 0; }
     .door-opt {
       flex: 1; padding: 3px 4px;
       border: 1px solid #1e3a5f; border-radius: 4px;
@@ -558,8 +557,8 @@
     .door-opt.active { background: #e94560; color: #fff; border-color: #e94560; }
     .door-opt svg {
       width: 100%;
-      max-width: 44px;
-      height: 22px;
+      max-width: 32px;
+      height: 26px;
       display: block;
       margin: 0 auto;
     }
@@ -582,6 +581,7 @@
     .door-opt .ico-panel { stroke-width: 2.2; }
     .door-opt .ico-arc   { stroke-width: 1.7; opacity: 0.9; }
     .door-opt .ico-guide { stroke-width: 1.4; opacity: 0.6; stroke-dasharray: 3 2; }
+    .door-opt .ico-hinge { fill: currentColor; stroke: none; }
     .sr-only {
       position: absolute !important;
       width: 1px;
@@ -770,74 +770,86 @@
         <input type="number" class="dim-input" id="door-w" value="90" min="30" step="5">
         <span class="dim-unit">cm</span>
       </div>
-      <div class="door-opts">
-        <button class="door-opt active" id="door-dir-h" title="橫向門" aria-label="橫向門">
-          <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
-            <line class="ico-jamb" x1="10" y1="8.6" x2="10" y2="15.4"></line>
-            <line class="ico-jamb" x1="23.5" y1="8.6" x2="23.5" y2="15.4"></line>
-            <line class="ico-panel" x1="10" y1="12" x2="23.5" y2="12"></line>
-            <path class="ico-arc" d="M 23.5 12 A 13.5 13.5 0 0 0 10 25.5"></path>
+      <div class="door-presets">
+        <button class="door-opt active" data-door="h|L|in" title="橫向 左鉸 內開" aria-label="橫向左鉸內開">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <line class="ico-wall" x1="0" y1="16" x2="32" y2="16"/>
+            <line class="ico-jamb" x1="4" y1="13" x2="4" y2="19"/>
+            <line class="ico-jamb" x1="16" y1="13" x2="16" y2="19"/>
+            <line class="ico-panel" x1="4" y1="16" x2="16" y2="16"/>
+            <circle class="ico-hinge" cx="4" cy="16" r="1.8"/>
+            <path class="ico-arc" d="M 16,16 A 12,12 0 0,0 4,4"/>
           </svg>
-          <span class="sr-only">橫向</span>
         </button>
-        <button class="door-opt" id="door-dir-v" title="直向門" aria-label="直向門">
-          <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="22" y1="2" x2="22" y2="22"></line>
-            <line class="ico-jamb" x1="18.6" y1="6" x2="25.4" y2="6"></line>
-            <line class="ico-jamb" x1="18.6" y1="19.5" x2="25.4" y2="19.5"></line>
-            <line class="ico-panel" x1="22" y1="6" x2="22" y2="19.5"></line>
-            <path class="ico-arc" d="M 22 19.5 A 13.5 13.5 0 0 0 8.5 6"></path>
+        <button class="door-opt" data-door="h|L|out" title="橫向 左鉸 外開" aria-label="橫向左鉸外開">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <line class="ico-wall" x1="0" y1="16" x2="32" y2="16"/>
+            <line class="ico-jamb" x1="4" y1="13" x2="4" y2="19"/>
+            <line class="ico-jamb" x1="16" y1="13" x2="16" y2="19"/>
+            <line class="ico-panel" x1="4" y1="16" x2="16" y2="16"/>
+            <circle class="ico-hinge" cx="4" cy="16" r="1.8"/>
+            <path class="ico-arc" d="M 16,16 A 12,12 0 0,1 4,28"/>
           </svg>
-          <span class="sr-only">直向</span>
         </button>
-      </div>
-      <div class="door-opts">
-        <button class="door-opt active" id="door-hinge-l" title="左鉸" aria-label="左鉸">
-          <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
-            <line class="ico-jamb" x1="10" y1="8.6" x2="10" y2="15.4"></line>
-            <line class="ico-jamb" x1="23.5" y1="8.6" x2="23.5" y2="15.4"></line>
-            <line class="ico-panel" x1="10" y1="12" x2="23.5" y2="12"></line>
-            <circle cx="10" cy="12" r="1.8" fill="currentColor"></circle>
-            <path class="ico-arc" d="M 23.5 12 A 13.5 13.5 0 0 0 10 25.5"></path>
+        <button class="door-opt" data-door="h|R|in" title="橫向 右鉸 內開" aria-label="橫向右鉸內開">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <line class="ico-wall" x1="0" y1="16" x2="32" y2="16"/>
+            <line class="ico-jamb" x1="16" y1="13" x2="16" y2="19"/>
+            <line class="ico-jamb" x1="28" y1="13" x2="28" y2="19"/>
+            <line class="ico-panel" x1="16" y1="16" x2="28" y2="16"/>
+            <circle class="ico-hinge" cx="28" cy="16" r="1.8"/>
+            <path class="ico-arc" d="M 16,16 A 12,12 0 0,1 28,4"/>
           </svg>
-          <span class="sr-only">左鉸</span>
         </button>
-        <button class="door-opt" id="door-hinge-r" title="右鉸" aria-label="右鉸">
-          <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
-            <line class="ico-jamb" x1="20.5" y1="8.6" x2="20.5" y2="15.4"></line>
-            <line class="ico-jamb" x1="34" y1="8.6" x2="34" y2="15.4"></line>
-            <line class="ico-panel" x1="20.5" y1="12" x2="34" y2="12"></line>
-            <circle cx="34" cy="12" r="1.8" fill="currentColor"></circle>
-            <path class="ico-arc" d="M 20.5 12 A 13.5 13.5 0 0 1 34 25.5"></path>
+        <button class="door-opt" data-door="h|R|out" title="橫向 右鉸 外開" aria-label="橫向右鉸外開">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <line class="ico-wall" x1="0" y1="16" x2="32" y2="16"/>
+            <line class="ico-jamb" x1="16" y1="13" x2="16" y2="19"/>
+            <line class="ico-jamb" x1="28" y1="13" x2="28" y2="19"/>
+            <line class="ico-panel" x1="16" y1="16" x2="28" y2="16"/>
+            <circle class="ico-hinge" cx="28" cy="16" r="1.8"/>
+            <path class="ico-arc" d="M 16,16 A 12,12 0 0,0 28,28"/>
           </svg>
-          <span class="sr-only">右鉸</span>
         </button>
-      </div>
-      <div class="door-opts">
-        <button class="door-opt active" id="door-swing-in" title="內開" aria-label="內開">
-          <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
-            <line class="ico-jamb" x1="10" y1="8.6" x2="10" y2="15.4"></line>
-            <line class="ico-jamb" x1="23.5" y1="8.6" x2="23.5" y2="15.4"></line>
-            <line class="ico-panel" x1="10" y1="12" x2="23.5" y2="12"></line>
-            <path class="ico-guide" d="M 10 12 A 13.5 13.5 0 0 1 23.5 25.5"></path>
-            <path class="ico-arc" d="M 23.5 12 A 13.5 13.5 0 0 0 10 25.5"></path>
+        <button class="door-opt" data-door="v|L|in" title="直向 左鉸 內開" aria-label="直向左鉸內開">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <line class="ico-wall" x1="16" y1="0" x2="16" y2="32"/>
+            <line class="ico-jamb" x1="13" y1="4" x2="19" y2="4"/>
+            <line class="ico-jamb" x1="13" y1="16" x2="19" y2="16"/>
+            <line class="ico-panel" x1="16" y1="4" x2="16" y2="16"/>
+            <circle class="ico-hinge" cx="16" cy="4" r="1.8"/>
+            <path class="ico-arc" d="M 16,16 A 12,12 0 0,1 4,4"/>
           </svg>
-          <span class="sr-only">內開</span>
         </button>
-        <button class="door-opt" id="door-swing-out" title="外開" aria-label="外開">
-          <svg viewBox="0 0 44 24" aria-hidden="true">
-            <line class="ico-wall" x1="2" y1="12" x2="42" y2="12"></line>
-            <line class="ico-jamb" x1="10" y1="8.6" x2="10" y2="15.4"></line>
-            <line class="ico-jamb" x1="23.5" y1="8.6" x2="23.5" y2="15.4"></line>
-            <line class="ico-panel" x1="10" y1="12" x2="23.5" y2="12"></line>
-            <path class="ico-guide" d="M 10 12 A 13.5 13.5 0 0 0 23.5 -1.5"></path>
-            <path class="ico-arc" d="M 23.5 12 A 13.5 13.5 0 0 1 10 -1.5"></path>
+        <button class="door-opt" data-door="v|L|out" title="直向 左鉸 外開" aria-label="直向左鉸外開">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <line class="ico-wall" x1="16" y1="0" x2="16" y2="32"/>
+            <line class="ico-jamb" x1="13" y1="4" x2="19" y2="4"/>
+            <line class="ico-jamb" x1="13" y1="16" x2="19" y2="16"/>
+            <line class="ico-panel" x1="16" y1="4" x2="16" y2="16"/>
+            <circle class="ico-hinge" cx="16" cy="4" r="1.8"/>
+            <path class="ico-arc" d="M 16,16 A 12,12 0 0,0 28,4"/>
           </svg>
-          <span class="sr-only">外開</span>
+        </button>
+        <button class="door-opt" data-door="v|R|in" title="直向 右鉸 內開" aria-label="直向右鉸內開">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <line class="ico-wall" x1="16" y1="0" x2="16" y2="32"/>
+            <line class="ico-jamb" x1="13" y1="4" x2="19" y2="4"/>
+            <line class="ico-jamb" x1="13" y1="16" x2="19" y2="16"/>
+            <line class="ico-panel" x1="16" y1="4" x2="16" y2="16"/>
+            <circle class="ico-hinge" cx="16" cy="16" r="1.8"/>
+            <path class="ico-arc" d="M 16,4 A 12,12 0 0,0 4,16"/>
+          </svg>
+        </button>
+        <button class="door-opt" data-door="v|R|out" title="直向 右鉸 外開" aria-label="直向右鉸外開">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <line class="ico-wall" x1="16" y1="0" x2="16" y2="32"/>
+            <line class="ico-jamb" x1="13" y1="4" x2="19" y2="4"/>
+            <line class="ico-jamb" x1="13" y1="16" x2="19" y2="16"/>
+            <line class="ico-panel" x1="16" y1="4" x2="16" y2="16"/>
+            <circle class="ico-hinge" cx="16" cy="16" r="1.8"/>
+            <path class="ico-arc" d="M 16,4 A 12,12 0 0,1 28,16"/>
+          </svg>
         </button>
       </div>
     </div>
@@ -986,6 +998,7 @@
   const EDIT_ELEMS_KEY     = 'svg_viewer_edit_elems';     // kept for one-time migration
   const EDIT_ELEMS_MAP_KEY = 'svg_viewer_edit_elems_map'; // per-SVG map
   const SNAP_UNIT_KEY      = 'svg_viewer_snap_unit';
+  const ACTIVE_ID_KEY      = 'svg_viewer_active_id';
 
   function loadRecords() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -1020,10 +1033,15 @@
     const v = parseInt(localStorage.getItem(SNAP_UNIT_KEY) || '10', 10);
     return v === 1 ? 1 : 10;
   }
+  function saveActiveId(id) { localStorage.setItem(ACTIVE_ID_KEY, id || ''); }
+  function loadActiveId()   { return localStorage.getItem(ACTIVE_ID_KEY) || null; }
 
   /* ── State ── */
   let records = loadRecords();       // [{id, name, svg, createdAt}]
-  let activeId = records.length ? records[records.length - 1].id : null;
+  const _savedActiveId = loadActiveId();
+  let activeId = (_savedActiveId && records.find(r => r.id === _savedActiveId))
+    ? _savedActiveId
+    : (records.length ? records[records.length - 1].id : null);
   let scale = 1;
   let panX = 0, panY = 0;
   let isPanning = false, startX = 0, startY = 0;
@@ -1127,6 +1145,7 @@
       epBg.innerHTML  = '';
     }
 
+    saveActiveId(id);
     renderTabs();
     renderSvg();
   }
@@ -1340,6 +1359,7 @@
       updateEditModeUI();
       if (isEditMode) { epBg.innerHTML = ''; }
     }
+    saveActiveId(activeId);
     renderTabs();
     renderSvg();
     if (isEditMode) {
@@ -2376,20 +2396,15 @@
   });
   editSvgEl.style.cursor = 'default';
 
-  /* ── Door option toggles ── */
-  function setupDoorToggle(aId, bId, onChange) {
-    [aId, bId].forEach(id => {
-      document.getElementById(id).addEventListener('click', () => {
-        const val = id === aId ? 'a' : 'b';
-        document.getElementById(aId).classList.toggle('active', val === 'a');
-        document.getElementById(bId).classList.toggle('active', val === 'b');
-        onChange(val);
-      });
+  /* ── Door preset buttons ── */
+  document.querySelectorAll('[data-door]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-door]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const [dir, hinge, swing] = btn.dataset.door.split('|');
+      doorDir = dir; doorHinge = hinge; doorSwing = swing;
     });
-  }
-  setupDoorToggle('door-dir-h', 'door-dir-v',   v => { doorDir   = v === 'a' ? 'h' : 'v'; });
-  setupDoorToggle('door-hinge-l', 'door-hinge-r', v => { doorHinge = v === 'a' ? 'L' : 'R'; });
-  setupDoorToggle('door-swing-in', 'door-swing-out', v => { doorSwing = v === 'a' ? 'in' : 'out'; });
+  });
 
   /* ── Delete key removes selected element ── */
   document.addEventListener('keydown', e => {
@@ -2548,6 +2563,7 @@
     saveRecords(records);
     localStorage.removeItem(EDIT_ELEMS_MAP_KEY);
     activeId = records[records.length - 1].id;
+    saveActiveId(activeId);
     showToast(`已將編修資料另存為 ${entries.length === 1 ? '"auto"' : `${entries.length} 筆 auto`} 紀錄`);
   })();
 
