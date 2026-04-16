@@ -1055,11 +1055,12 @@
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'tab-name';
-      nameSpan.textContent = rec.name;
+      const isEditing = editingSet.has(rec.id);
+      nameSpan.textContent = rec.name + (isEditing ? ' (編修中)' : '');
       nameSpan.title = rec.name;
 
       tab.appendChild(nameSpan);
-      tab.title = rec.name + '（雙擊進入編修模式）';
+      tab.title = rec.name + (isEditing ? '（編修中）' : '（雙擊進入編修模式）');
       tab.addEventListener('click', () => switchTo(rec.id));
       tab.addEventListener('dblclick', () => {
         switchTo(rec.id);
@@ -1100,21 +1101,32 @@
   }
 
   function switchTo(id) {
+    // Snapshot current SVG's edit state before leaving
+    if (editingSet.has(activeId)) {
+      editStateMap.set(activeId, { elems: [...editElems], bgMarkup: currentBgMarkup });
+    }
+
     activeId = id;
     selectedId = null; lastDeleted = null;
     isDragging = false; dragId = null;
-    if (isEditMode) {
-      const rec = records.find(r => r.id === id);
-      const { elems, bgMarkup } = rec ? parseSvgRecord(rec.svg) : { elems: [], bgMarkup: null };
-      editElems       = elems;
-      currentBgMarkup = bgMarkup;
+
+    updateEditModeUI(); // isEditMode now reflects new activeId
+
+    if (editingSet.has(id)) {
+      // Restore this SVG's edit state
+      const state = editStateMap.get(id) || {};
+      editElems       = [...(state.elems  || [])];
+      currentBgMarkup = state.bgMarkup || null;
       renderBgLayer();
       renderEditElements();
       updateSelectedSection();
       undoSection.style.display = 'none';
     } else {
-      editElems = loadEditElemsForId(id);
+      editElems       = [];
+      currentBgMarkup = null;
+      epBg.innerHTML  = '';
     }
+
     renderTabs();
     renderSvg();
   }
@@ -1319,10 +1331,14 @@
     records.splice(idx, 1);
     saveRecords(records);
     removeEditElemsForId(id);
+    editingSet.delete(id);
+    editStateMap.delete(id);
     if (activeId === id) {
       activeId = records.length ? records[Math.max(0, idx - 1)].id : null;
-      editElems = loadEditElemsForId(activeId);
+      editElems = []; currentBgMarkup = null;
       selectedId = null; lastDeleted = null;
+      updateEditModeUI();
+      if (isEditMode) { epBg.innerHTML = ''; }
     }
     renderTabs();
     renderSvg();
@@ -1386,8 +1402,10 @@
   const epPreview        = document.getElementById('ep-preview');
   const epSnap           = document.getElementById('ep-snap');
 
-  let isEditMode      = false;
-  let currentBgMarkup = null;   // SVG markup shown as bg in edit mode
+  let isEditMode      = false;    // mirrors editingSet.has(activeId)
+  let currentBgMarkup = null;     // SVG markup shown as bg in edit mode
+  const editingSet   = new Set(); // IDs whose edit mode is active
+  const editStateMap = new Map(); // id → { elems[], bgMarkup } working snapshots
   let activeTool  = 'select';   // 'select'|'room'|'vwall'|'hwall'|'reserved'|'door'
   // One-time migration: move old single-key data to per-SVG map
   (function() {
@@ -1485,6 +1503,14 @@
     ];
   }
 
+  /* ── Per-SVG edit mode helpers ── */
+  function updateEditModeUI() {
+    isEditMode = editingSet.has(activeId);
+    document.body.classList.toggle('edit-mode', isEditMode);
+    btnEditMode.classList.toggle('active', isEditMode);
+    btnEditMode.textContent = isEditMode ? '✕ 離開編修' : '✎ 編修模式';
+  }
+
   /* ── SVG record parse / generate ── */
 
   function parseSvgRecord(svgStr) {
@@ -1552,31 +1578,31 @@
   }
 
   function exitEditMode() {
-    isEditMode = false;
-    saveMode(false);
-    document.body.classList.remove('edit-mode');
-    btnEditMode.classList.remove('active');
-    btnEditMode.textContent = '✎ 編修模式';
+    editingSet.delete(activeId);
+    editStateMap.delete(activeId);
+    editElems       = [];
+    currentBgMarkup = null;
+    selectedId      = null;
+    updateEditModeUI();
+    renderTabs();
     epPreview.innerHTML = '';
     epSnap.innerHTML    = '';
     epBg.innerHTML      = '';
-    currentBgMarkup     = null;
     renderSvg();
   }
 
   /* ── Toggle edit mode ── */
   function enterEditMode() {
-    if (isEditMode) return;
+    if (editingSet.has(activeId)) return;
     const rec = records.find(r => r.id === activeId);
     const { elems, bgMarkup } = rec ? parseSvgRecord(rec.svg) : { elems: [], bgMarkup: null };
     editElems       = elems;
     currentBgMarkup = bgMarkup;
+    editingSet.add(activeId);
+    editStateMap.set(activeId, { elems: [...elems], bgMarkup });
     selectedId = null;
-    isEditMode = true;
-    saveMode(true);
-    document.body.classList.add('edit-mode');
-    btnEditMode.classList.add('active');
-    btnEditMode.textContent = '✕ 離開編修';
+    updateEditModeUI();
+    renderTabs();
     renderEditGrid();
     renderBgLayer();
     renderEditElements();
@@ -2524,11 +2550,6 @@
     activeId = records[records.length - 1].id;
     showToast(`已將編修資料另存為 ${entries.length === 1 ? '"auto"' : `${entries.length} 筆 auto`} 紀錄`);
   })();
-
-  // Restore edit mode
-  if (loadMode()) {
-    enterEditMode();
-  }
 
   renderTabs();
   renderSvg();
