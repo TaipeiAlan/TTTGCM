@@ -706,7 +706,7 @@
   <button class="bg-btn" data-bg="bg-medium">中</button>
   <button class="bg-btn" data-bg="bg-dark">深色</button>
   <button class="bg-btn" data-bg="bg-light">淺色</button>
-  <button class="btn btn-secondary" id="btn-edit-mode">✎ 編修模式</button>
+  <button class="btn btn-secondary" id="btn-edit-mode">✎ 進行編輯</button>
   <input type="file" id="file-input" accept=".svg,image/svg+xml">
   <button class="btn btn-danger" id="btn-delete-active"
           title="刪除目前 SVG" style="display:none;margin-left:auto">🗑 刪除</button>
@@ -1245,7 +1245,7 @@
   document.getElementById('btn-add').addEventListener('click', openModal);
 
   function openModal() {
-    nameInput.value = '';
+    nameInput.value = autoName();
     svgTextarea.value = '';
     pendingFileContent = null;
     switchModalPanel('paste');
@@ -1559,7 +1559,7 @@
   function updateEditModeUI() {
     isEditMode = editingSet.has(activeId);
     document.body.classList.toggle('edit-mode', isEditMode);
-    btnEditMode.classList.toggle('active', isEditMode);
+    btnEditMode.style.display = isEditMode ? 'none' : '';
   }
 
   /* ── SVG record parse / generate ── */
@@ -2569,7 +2569,7 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      canvasEl.classList.remove('bg-dark', 'bg-light');
+      canvasEl.classList.remove('bg-dark', 'bg-medium', 'bg-light');
       if (btn.dataset.bg) canvasEl.classList.add(btn.dataset.bg);
       saveBg(btn.dataset.bg ?? '');
     });
@@ -2583,35 +2583,8 @@
     document.querySelectorAll('.bg-btn').forEach(b => {
       b.classList.toggle('active', (b.dataset.bg ?? '') === savedBg);
     });
-    canvasEl.classList.remove('bg-dark', 'bg-light');
+    canvasEl.classList.remove('bg-dark', 'bg-medium', 'bg-light');
     if (savedBg) canvasEl.classList.add(savedBg);
-  })();
-
-  // ── Migration: convert existing per-SVG editElems → "auto" records ──
-  (function migrateEditElemsToRecords() {
-    const map = _loadElemsMap();
-    const entries = Object.entries(map).filter(([, elems]) => elems && elems.length > 0);
-    if (!entries.length) return;
-
-    let count = 0;
-    entries.forEach(([, elems]) => {
-      // Temporarily set state to generate a tttgcm SVG from these elems
-      editElems       = elems;
-      currentBgMarkup = null;
-      const xml = generateRecordSvg();
-      count++;
-      const autoName = entries.length === 1 ? 'auto' : `auto ${count}`;
-      const newId = (Date.now() + count).toString();
-      records.push({ id: newId, name: autoName, svg: xml, createdAt: Date.now() });
-    });
-
-    editElems       = [];
-    currentBgMarkup = null;
-    saveRecords(records);
-    localStorage.removeItem(EDIT_ELEMS_MAP_KEY);
-    activeId = records[records.length - 1].id;
-    saveActiveId(activeId);
-    showToast(`已將編修資料另存為 ${entries.length === 1 ? '"auto"' : `${entries.length} 筆 auto`} 紀錄`);
   })();
 
   /* ── Restore edit mode state from previous session ── */
