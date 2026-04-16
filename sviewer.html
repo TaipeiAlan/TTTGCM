@@ -322,6 +322,29 @@
     #confirm-box p { font-size: 0.9rem; color: #e0e0e0; line-height: 1.5; }
     #confirm-box .modal-footer { margin-top: 4px; }
 
+    #exit-edit-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    #exit-edit-overlay.open { display: flex; }
+    #exit-edit-box {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 10px;
+      padding: 24px;
+      width: min(400px, 92vw);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #exit-edit-box p { font-size: 0.9rem; color: #e0e0e0; line-height: 1.6; text-align: center; }
+    #exit-edit-name { color: #e94560; font-weight: 600; }
+
     /* ── Error toast ── */
     #toast {
       position: fixed;
@@ -670,9 +693,9 @@
   <button class="btn btn-primary" id="btn-add">+ 新增</button>
   <button class="btn btn-secondary" id="btn-edit-mode">✎ 編修模式</button>
   <span id="bg-label" style="color:#334155;font-size:0.72rem;margin-left:6px;white-space:nowrap">背景</span>
-  <button class="bg-btn active" data-bg="">無</button>
+  <button class="bg-btn" data-bg="">無</button>
   <button class="bg-btn" data-bg="bg-dark">深色</button>
-  <button class="bg-btn" data-bg="bg-light">淺色</button>
+  <button class="bg-btn active" data-bg="bg-light">淺色</button>
   <input type="file" id="file-input" accept=".svg,image/svg+xml">
   <button class="btn btn-danger" id="btn-delete-active"
           title="刪除目前 SVG" style="display:none;margin-left:auto">🗑 刪除</button>
@@ -861,6 +884,7 @@
           </pattern>
         </defs>
         <rect width="1600" height="1300" fill="white"/>
+        <g id="ep-bg"></g>
         <g id="ep-grid"></g>
         <g id="ep-elements"></g>
         <g id="ep-preview"></g>
@@ -903,6 +927,18 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" id="btn-modal-cancel">取消</button>
       <button class="btn btn-primary" id="btn-modal-save">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Exit-edit dialog -->
+<div id="exit-edit-overlay">
+  <div id="exit-edit-box">
+    <p>要將目前的編修結果儲存至「<span id="exit-edit-name"></span>」嗎？</p>
+    <div class="modal-footer" style="gap:6px;flex-wrap:wrap">
+      <button class="btn btn-secondary" id="btn-exit-cancel">繼續編修</button>
+      <button class="btn btn-secondary" id="btn-exit-nosave">直接離開</button>
+      <button class="btn btn-primary" id="btn-exit-save">儲存後離開</button>
     </div>
   </div>
 </div>
@@ -958,7 +994,7 @@
   function saveRecords(r) { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); }
 
   function saveBg(bg)    { localStorage.setItem(BG_KEY, bg); }
-  function loadBg()      { return localStorage.getItem(BG_KEY) ?? ''; }
+  function loadBg()      { return localStorage.getItem(BG_KEY) ?? 'bg-light'; }
 
   function saveMode(on)  { localStorage.setItem(MODE_KEY, on ? '1' : '0'); }
   function loadMode()    { return localStorage.getItem(MODE_KEY) === '1'; }
@@ -1065,16 +1101,22 @@
 
   function switchTo(id) {
     activeId = id;
-    editElems = loadEditElemsForId(id);
     selectedId = null; lastDeleted = null;
     isDragging = false; dragId = null;
-    renderTabs();
-    renderSvg();
     if (isEditMode) {
+      const rec = records.find(r => r.id === id);
+      const { elems, bgMarkup } = rec ? parseSvgRecord(rec.svg) : { elems: [], bgMarkup: null };
+      editElems       = elems;
+      currentBgMarkup = bgMarkup;
+      renderBgLayer();
       renderEditElements();
       updateSelectedSection();
       undoSection.style.display = 'none';
+    } else {
+      editElems = loadEditElemsForId(id);
     }
+    renderTabs();
+    renderSvg();
   }
 
   /* ── Transform (zoom/pan) ── */
@@ -1338,12 +1380,14 @@
   const btnEditMode      = document.getElementById('btn-edit-mode');
   const editCanvasWrap   = document.getElementById('edit-canvas-wrap');
   const editSvgContainer = document.getElementById('edit-svg-container');
+  const epBg             = document.getElementById('ep-bg');
   const epGrid           = document.getElementById('ep-grid');
   const epElements       = document.getElementById('ep-elements');
   const epPreview        = document.getElementById('ep-preview');
   const epSnap           = document.getElementById('ep-snap');
 
-  let isEditMode  = false;
+  let isEditMode      = false;
+  let currentBgMarkup = null;   // SVG markup shown as bg in edit mode
   let activeTool  = 'select';   // 'select'|'room'|'vwall'|'hwall'|'reserved'|'door'
   // One-time migration: move old single-key data to per-SVG map
   (function() {
@@ -1441,10 +1485,92 @@
     ];
   }
 
+  /* ── SVG record parse / generate ── */
+
+  function parseSvgRecord(svgStr) {
+    if (!svgStr) return { elems: [], bgMarkup: null };
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgStr, 'image/svg+xml');
+    const root = doc.documentElement;
+    if (root.tagName === 'parsererror' || !root) return { elems: [], bgMarkup: null };
+
+    if (root.getAttribute('data-tttgcm-version')) {
+      // Our own tttgcm SVG: extract stored data + background
+      const dataEl = doc.getElementById('tttgcm-data');
+      let elems = [];
+      try { elems = dataEl ? JSON.parse(dataEl.textContent || '[]') : []; } catch {}
+      const bgEl  = doc.getElementById('tttgcm-bg');
+      const bgMarkup = (bgEl && bgEl.innerHTML.trim()) || null;
+      return { elems, bgMarkup };
+    } else {
+      // External SVG: whole thing becomes a background image
+      const b64 = btoa(unescape(encodeURIComponent(svgStr)));
+      const bgMarkup = `<image href="data:image/svg+xml;base64,${b64}" x="0" y="0" width="1600" height="1300" preserveAspectRatio="xMidYMid meet"/>`;
+      return { elems: [], bgMarkup };
+    }
+  }
+
+  function renderBgLayer() {
+    epBg.innerHTML = currentBgMarkup || '';
+  }
+
+  function generateRecordSvg() {
+    const hasReserved = editElems.some(e => e.type === 'reserved');
+    const defs = hasReserved
+      ? `\n  <defs>\n    <pattern id="hatch" patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(45 0 0)">\n      <line x1="0" y1="0" x2="0" y2="12" stroke="#888" stroke-width="4"/>\n    </pattern>\n  </defs>` : '';
+
+    const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
+    const shapes = sorted.map(el => {
+      if (el.type === 'room')
+        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
+      if (el.type === 'vwall' || el.type === 'hwall')
+        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      if (el.type === 'door') {
+        const dw = el.dir === 'h' ? el.w : el.h;
+        const dh = el.dir === 'h' ? el.h : el.w;
+        const jambs = doorJambRects(el)
+          .map(j => `  <rect x="${j.x}" y="${j.y}" width="${j.w}" height="${j.h}" fill="#444"/>`)
+          .join('\n');
+        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
+      }
+      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
+    }).join('\n');
+
+    const bgPart   = currentBgMarkup ? `\n  <g id="tttgcm-bg">\n    ${currentBgMarkup}\n  </g>` : '';
+    const elemsPart = shapes ? `\n  <g id="tttgcm-elements">\n${shapes}\n  </g>` : '';
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1300" width="1600" height="1300" data-tttgcm-version="1">${defs}\n  <desc id="tttgcm-data">${JSON.stringify(editElems)}</desc>${bgPart}${elemsPart}\n</svg>`;
+  }
+
+  function saveEditToRecord() {
+    const rec = records.find(r => r.id === activeId);
+    if (!rec) return;
+    rec.svg = generateRecordSvg();
+    saveRecords(records);
+    renderSvg();
+    showToast(`已更新「${rec.name}」`);
+  }
+
+  function exitEditMode() {
+    isEditMode = false;
+    saveMode(false);
+    document.body.classList.remove('edit-mode');
+    btnEditMode.classList.remove('active');
+    btnEditMode.textContent = '✎ 編修模式';
+    epPreview.innerHTML = '';
+    epSnap.innerHTML    = '';
+    epBg.innerHTML      = '';
+    currentBgMarkup     = null;
+    renderSvg();
+  }
+
   /* ── Toggle edit mode ── */
   function enterEditMode() {
     if (isEditMode) return;
-    editElems = loadEditElemsForId(activeId);
+    const rec = records.find(r => r.id === activeId);
+    const { elems, bgMarkup } = rec ? parseSvgRecord(rec.svg) : { elems: [], bgMarkup: null };
+    editElems       = elems;
+    currentBgMarkup = bgMarkup;
     selectedId = null;
     isEditMode = true;
     saveMode(true);
@@ -1452,6 +1578,7 @@
     btnEditMode.classList.add('active');
     btnEditMode.textContent = '✕ 離開編修';
     renderEditGrid();
+    renderBgLayer();
     renderEditElements();
     requestAnimationFrame(fitEditCanvas);
     updateDimSection();
@@ -1461,15 +1588,24 @@
     if (!isEditMode) {
       enterEditMode();
     } else {
-      isEditMode = false;
-      saveMode(false);
-      document.body.classList.remove('edit-mode');
-      btnEditMode.classList.remove('active');
-      btnEditMode.textContent = '✎ 編修模式';
-      epPreview.innerHTML = '';
-      epSnap.innerHTML    = '';
-      renderSvg();        // restore viewer on exit
+      // Show save-or-discard dialog before exiting
+      const rec = records.find(r => r.id === activeId);
+      document.getElementById('exit-edit-name').textContent = rec ? rec.name : '';
+      document.getElementById('exit-edit-overlay').classList.add('open');
     }
+  });
+
+  document.getElementById('btn-exit-save').addEventListener('click', () => {
+    document.getElementById('exit-edit-overlay').classList.remove('open');
+    saveEditToRecord();
+    exitEditMode();
+  });
+  document.getElementById('btn-exit-nosave').addEventListener('click', () => {
+    document.getElementById('exit-edit-overlay').classList.remove('open');
+    exitEditMode();
+  });
+  document.getElementById('btn-exit-cancel').addEventListener('click', () => {
+    document.getElementById('exit-edit-overlay').classList.remove('open');
   });
 
   /* ── Fit / transform ── */
@@ -2361,6 +2497,32 @@
     });
     canvasEl.classList.remove('bg-dark', 'bg-light');
     if (savedBg) canvasEl.classList.add(savedBg);
+  })();
+
+  // ── Migration: convert existing per-SVG editElems → "auto" records ──
+  (function migrateEditElemsToRecords() {
+    const map = _loadElemsMap();
+    const entries = Object.entries(map).filter(([, elems]) => elems && elems.length > 0);
+    if (!entries.length) return;
+
+    let count = 0;
+    entries.forEach(([, elems]) => {
+      // Temporarily set state to generate a tttgcm SVG from these elems
+      editElems       = elems;
+      currentBgMarkup = null;
+      const xml = generateRecordSvg();
+      count++;
+      const autoName = entries.length === 1 ? 'auto' : `auto ${count}`;
+      const newId = (Date.now() + count).toString();
+      records.push({ id: newId, name: autoName, svg: xml, createdAt: Date.now() });
+    });
+
+    editElems       = [];
+    currentBgMarkup = null;
+    saveRecords(records);
+    localStorage.removeItem(EDIT_ELEMS_MAP_KEY);
+    activeId = records[records.length - 1].id;
+    showToast(`已將編修資料另存為 ${entries.length === 1 ? '"auto"' : `${entries.length} 筆 auto`} 紀錄`);
   })();
 
   // Restore edit mode
