@@ -999,6 +999,7 @@
   const EDIT_ELEMS_MAP_KEY = 'svg_viewer_edit_elems_map'; // per-SVG map
   const SNAP_UNIT_KEY      = 'svg_viewer_snap_unit';
   const ACTIVE_ID_KEY      = 'svg_viewer_active_id';
+  const EDITING_SET_KEY    = 'svg_viewer_editing_set';
 
   function loadRecords() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -1035,6 +1036,11 @@
   }
   function saveActiveId(id) { localStorage.setItem(ACTIVE_ID_KEY, id || ''); }
   function loadActiveId()   { return localStorage.getItem(ACTIVE_ID_KEY) || null; }
+  function saveEditingSet() { localStorage.setItem(EDITING_SET_KEY, JSON.stringify([...editingSet])); }
+  function loadEditingSetIds() {
+    try { return JSON.parse(localStorage.getItem(EDITING_SET_KEY)) || []; }
+    catch { return []; }
+  }
 
   /* ── State ── */
   let records = loadRecords();       // [{id, name, svg, createdAt}]
@@ -1351,6 +1357,7 @@
     saveRecords(records);
     removeEditElemsForId(id);
     editingSet.delete(id);
+    saveEditingSet();
     editStateMap.delete(id);
     if (activeId === id) {
       activeId = records.length ? records[Math.max(0, idx - 1)].id : null;
@@ -1599,6 +1606,7 @@
 
   function exitEditMode() {
     editingSet.delete(activeId);
+    saveEditingSet();
     editStateMap.delete(activeId);
     editElems       = [];
     currentBgMarkup = null;
@@ -1619,6 +1627,7 @@
     editElems       = elems;
     currentBgMarkup = bgMarkup;
     editingSet.add(activeId);
+    saveEditingSet();
     editStateMap.set(activeId, { elems: [...elems], bgMarkup });
     selectedId = null;
     updateEditModeUI();
@@ -2567,8 +2576,31 @@
     showToast(`已將編修資料另存為 ${entries.length === 1 ? '"auto"' : `${entries.length} 筆 auto`} 紀錄`);
   })();
 
+  /* ── Restore edit mode state from previous session ── */
+  (function restoreEditingState() {
+    const savedIds = loadEditingSetIds().filter(id => records.find(r => r.id === id));
+    savedIds.forEach(id => {
+      const rec = records.find(r => r.id === id);
+      const { elems, bgMarkup } = parseSvgRecord(rec.svg);
+      editingSet.add(id);
+      editStateMap.set(id, { elems: [...elems], bgMarkup });
+      if (id === activeId) {
+        editElems       = elems;
+        currentBgMarkup = bgMarkup;
+      }
+    });
+    updateEditModeUI();
+  })();
+
   renderTabs();
   renderSvg();
+  if (isEditMode) {
+    renderEditGrid();
+    renderBgLayer();
+    renderEditElements();
+    requestAnimationFrame(fitEditCanvas);
+    updateDimSection();
+  }
 </script>
 </body>
 </html>
