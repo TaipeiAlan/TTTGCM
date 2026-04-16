@@ -2589,7 +2589,7 @@
       return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${vw} ${vh}" width="${vw}" height="${vh}">${defs}\n${shapes}\n</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${vw} ${vh}" width="${vw}" height="${vh}" data-tttgcm-version="1">\n  <desc id="tttgcm-data">${JSON.stringify(editElems)}</desc>${defs}\n${shapes}\n</svg>`;
   }
 
   /* ── 另存新圖 ── */
