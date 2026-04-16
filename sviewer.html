@@ -1580,13 +1580,133 @@
       const bgEl  = doc.getElementById('tttgcm-bg');
       const bgMarkup = (bgEl && bgEl.innerHTML.trim()) || null;
       return { elems, bgMarkup };
-    } else {
-      // External SVG: whole thing becomes a background image
-      const b64 = btoa(unescape(encodeURIComponent(svgStr)));
-      const bgMarkup = `<image href="data:image/svg+xml;base64,${b64}" x="0" y="0" width="1600" height="1300" preserveAspectRatio="xMidYMid meet"/>`;
-      return { elems: [], bgMarkup };
     }
+
+    // Try to recover elements from visual shapes (SVGs made before metadata was embedded)
+    const recovered = tryRecoverElems(doc);
+    if (recovered.length > 0) return { elems: recovered, bgMarkup: null };
+
+    // External SVG: whole thing becomes a background image
+    const b64 = btoa(unescape(encodeURIComponent(svgStr)));
+    const bgMarkup = `<image href="data:image/svg+xml;base64,${b64}" x="0" y="0" width="1600" height="1300" preserveAspectRatio="xMidYMid meet"/>`;
+    return { elems: [], bgMarkup };
   }
+
+  /* ── Recover elements from a visually-rendered (no-metadata) SVG ── */
+  function tryRecoverElems(doc) {
+    const allRects = [...doc.querySelectorAll('rect')];
+    const allPaths = [...doc.querySelectorAll('path')];
+
+    // Signature check — bail early for truly external SVGs
+    const looks =
+      allRects.some(r => r.getAttribute('fill') === 'white'   && r.getAttribute('stroke') === '#222' && r.getAttribute('stroke-width') === '10') ||
+      allRects.some(r => r.getAttribute('fill') === '#b8c8d4' && r.getAttribute('stroke') === '#222') ||
+      allRects.some(r => { const w = +r.getAttribute('width'), h = +r.getAttribute('height'); return r.getAttribute('fill') === '#222' && (Math.round(w) === 10 || Math.round(h) === 10); }) ||
+      allPaths.some(p => p.getAttribute('stroke') === '#222'  && p.getAttribute('stroke-width') === '2.2');
+    if (!looks) return [];
+
+    const elems = [];
+    const used  = new Set();
+    let   nid   = Date.now();
+
+    // 1. Reserved (must be before rooms — same stroke/color signature)
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') === '#b8c8d4' &&
+          r.getAttribute('stroke') === '#222' &&
+          r.getAttribute('stroke-width') === '10') {
+        const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+        const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+        used.add(r);
+        for (const r2 of allRects) { // consume companion hatch rect
+          if (!used.has(r2) && r2.getAttribute('fill') === 'url(#hatch)' &&
+              Math.abs(+r2.getAttribute('x') - x) < 0.5 &&
+              Math.abs(+r2.getAttribute('y') - y) < 0.5) { used.add(r2); break; }
+        }
+        elems.push({ id: String(++nid), type: 'reserved', x, y, w, h });
+      }
+    }
+
+    // 2. Rooms
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') === 'white' &&
+          r.getAttribute('stroke') === '#222' &&
+          r.getAttribute('stroke-width') === '10') {
+        const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+        const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'room', x, y, w, h });
+      }
+    }
+
+    // 3. Walls (thin dark rects — width≈10 → vwall, height≈10 → hwall)
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') !== '#222') continue;
+      const stroke = r.getAttribute('stroke');
+      if (stroke && stroke !== 'none') continue;
+      const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+      const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+      if (Math.round(w) === 10) {
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'vwall', x, y, w: 10, h });
+      } else if (Math.round(h) === 10) {
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'hwall', x, y, w, h: 10 });
+      }
+    }
+
+    // 4. Doors — identify by the quarter-circle arc path, then consume panel + jambs
+    for (const path of allPaths) {
+      if (used.has(path)) continue;
+      if (path.getAttribute('stroke') !== '#222' || path.getAttribute('stroke-width') !== '2.2') continue;
+      const door = parseDoorArc(path.getAttribute('d') || '');
+      if (!door) continue;
+      used.add(path);
+      // panel rect (white, no stroke, at door.x/y)
+      for (const r of allRects) {
+        if (used.has(r)) continue;
+        if (r.getAttribute('fill') === 'white' && r.getAttribute('stroke') === 'none' &&
+            Math.abs(+r.getAttribute('x') - door.x) < 0.5 &&
+            Math.abs(+r.getAttribute('y') - door.y) < 0.5) { used.add(r); break; }
+      }
+      // jamb rects (fill #444, up to 2, within door.w+15 cm of door origin)
+      let jc = 0;
+      for (const r of allRects) {
+        if (used.has(r) || jc >= 2) break;
+        if (r.getAttribute('fill') === '#444' &&
+            Math.abs(+r.getAttribute('x') - door.x) < door.w + 15 &&
+            Math.abs(+r.getAttribute('y') - door.y) < door.w + 15) { used.add(r); jc++; }
+      }
+      elems.push({ id: String(++nid), type: 'door', ...door });
+    }
+
+    return elems;
+  }
+
+  /* ── Parse a tttgcm quarter-circle door arc path back to element params ── */
+  function parseDoorArc(d) {
+    // Format: M x1,y1 A r,r 0 0,sw x2,y2
+    const m = d.match(/M\s*([-\d.]+)[,\s]([-\d.]+)\s+A\s*([-\d.]+)[,\s][-\d.]+\s+0\s+0[,\s]([01])\s+([-\d.]+)[,\s]([-\d.]+)/);
+    if (!m) return null;
+    const x1 = +m[1], y1 = +m[2], r = +m[3], sw = +m[4], x2 = +m[5], y2 = +m[6];
+    const ir  = Math.round(r);
+    const idx = Math.round(x2 - x1), idy = Math.round(y2 - y1);
+
+    // Each (sign(dx), sign(dy), sweep) combination maps to exactly one door configuration.
+    //   dir='h' → panel horizontal; dir='v' → panel vertical
+    if (idx === -ir && idy === -ir && sw === 0) return { x: x2, y: y1, w: ir, h: 3, dir: 'h', hinge: 'L', swing: 'in'  };
+    if (idx === -ir && idy === -ir && sw === 1) return { x: x1, y: y2, w: ir, h: 3, dir: 'v', hinge: 'L', swing: 'in'  };
+    if (idx === -ir && idy ===  ir && sw === 1) return { x: x2, y: y1, w: ir, h: 3, dir: 'h', hinge: 'L', swing: 'out' };
+    if (idx === -ir && idy ===  ir && sw === 0) return { x: x1, y: y1, w: ir, h: 3, dir: 'v', hinge: 'R', swing: 'in'  };
+    if (idx ===  ir && idy === -ir && sw === 1) return { x: x1, y: y1, w: ir, h: 3, dir: 'h', hinge: 'R', swing: 'in'  };
+    if (idx ===  ir && idy === -ir && sw === 0) return { x: x1, y: y2, w: ir, h: 3, dir: 'v', hinge: 'L', swing: 'out' };
+    if (idx ===  ir && idy ===  ir && sw === 0) return { x: x1, y: y1, w: ir, h: 3, dir: 'h', hinge: 'R', swing: 'out' };
+    if (idx ===  ir && idy ===  ir && sw === 1) return { x: x1, y: y1, w: ir, h: 3, dir: 'v', hinge: 'R', swing: 'out' };
+    return null;
+  }
+
 
   function renderBgLayer() {
     epBg.innerHTML = currentBgMarkup || '';
