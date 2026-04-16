@@ -877,6 +877,7 @@
     <div class="esec" id="selected-section" style="display:none">
       <h3>選取元素</h3>
       <div id="selected-info"></div>
+      <div id="sel-dim-area"></div>
       <button class="btn btn-danger" id="btn-delete-selected"
               style="width:100%;margin-top:8px;font-size:0.8rem;padding:5px">刪除</button>
     </div>
@@ -1879,21 +1880,101 @@
     lRow.style.display = isRect ? 'none' : '';
   }
 
+  let _lastSelId = null; // track when selection actually changes vs drag-update
+
   function updateSelectedSection() {
-    const sec  = document.getElementById('selected-section');
-    const info = document.getElementById('selected-info');
-    if (!selectedId) { sec.style.display = 'none'; return; }
+    const sec = document.getElementById('selected-section');
+    if (!selectedId) { sec.style.display = 'none'; _lastSelId = null; return; }
     const el = editElems.find(e => e.id === selectedId);
-    if (!el) { sec.style.display = 'none'; return; }
+    if (!el)         { sec.style.display = 'none'; _lastSelId = null; return; }
     sec.style.display = '';
-    const label = { room:'房', vwall:'垂直牆', hwall:'橫向牆', reserved:'保留', door:'門' }[el.type];
-    if (el.type === 'door') {
-      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>寬：${el.w} cm<br>${el.dir==='h'?'橫':'直'}・${el.hinge==='L'?'左':'右'}鉸・${el.swing==='in'?'內':'外'}開`;
-    } else if (el.type === 'vwall' || el.type === 'hwall') {
-      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>長度：${el.type==='vwall'?el.h:el.w} cm`;
+    if (selectedId !== _lastSelId) {
+      _lastSelId = selectedId;
+      buildSelectedUI(el);
     } else {
-      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>尺寸：${el.w} × ${el.h} cm`;
+      // Drag in progress — only refresh position text, don't rebuild inputs
+      const posEl = document.getElementById('sel-pos');
+      if (posEl) posEl.textContent = `(${el.x}, ${el.y})`;
     }
+  }
+
+  function buildSelectedUI(el) {
+    const info    = document.getElementById('selected-info');
+    const dimArea = document.getElementById('sel-dim-area');
+    const LABEL   = { room:'房', vwall:'垂直牆', hwall:'橫向牆', reserved:'保留', door:'門' };
+    const doorExtra = el.type === 'door'
+      ? `<br>${el.dir==='h'?'橫':'直'}・${el.hinge==='L'?'左':'右'}鉸・${el.swing==='in'?'內':'外'}開`
+      : '';
+    info.innerHTML =
+      `${LABEL[el.type]}　<span id="sel-pos">(${el.x}, ${el.y})</span> cm${doorExtra}`;
+
+    dimArea.innerHTML = '';
+    const dims =
+      (el.type === 'room' || el.type === 'reserved')
+        ? [{ lbl:'W', key:'w', val:el.w, min:10 },
+           { lbl:'H', key:'h', val:el.h, min:10 }]
+      : el.type === 'vwall'
+        ? [{ lbl:'L', key:'h', val:el.h, min:10 }]
+      : el.type === 'hwall'
+        ? [{ lbl:'L', key:'w', val:el.w, min:10 }]
+      : el.type === 'door'
+        ? [{ lbl:'W', key:'w', val:el.w, min:30 }]
+      : [];
+
+    const capturedId = el.id; // safe even if selectedId changes later
+    for (const d of dims) {
+      const row = document.createElement('div');
+      row.className = 'dim-row';
+      row.style.marginTop = '4px';
+
+      const lbl = document.createElement('label');
+      lbl.textContent = d.lbl;
+
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.className = 'dim-input';
+      inp.value = d.val;   inp.min = d.min; inp.step = 1;
+
+      const unit = document.createElement('span');
+      unit.className = 'dim-unit'; unit.textContent = 'cm';
+
+      const commit = () => {
+        const v = Math.max(d.min, parseInt(inp.value) || d.min);
+        inp.value = v;
+        resizeElement(capturedId, d.key, v);
+      };
+      inp.addEventListener('focus',   () => { inp.dataset.orig = inp.value; });
+      inp.addEventListener('change',  commit);
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { commit(); inp.blur(); }
+        if (e.key === 'Escape') { inp.value = inp.dataset.orig ?? d.val; inp.blur(); }
+        e.stopPropagation(); // keep Delete/Backspace from deleting the element
+      });
+
+      row.append(lbl, inp, unit);
+      dimArea.appendChild(row);
+    }
+  }
+
+  function resizeElement(id, key, value) {
+    const el = editElems.find(e => e.id === id);
+    if (!el || el[key] === value) return;
+    el[key] = value;
+    // Clamp so element stays within canvas after resize
+    if (key === 'w') {
+      // vertical doors extend in Y direction; all others extend in X
+      if (el.type === 'door' && el.dir === 'v') {
+        if (el.y + value > 1300) el.y = Math.max(0, 1300 - value);
+      } else {
+        if (el.x + value > 1600) el.x = Math.max(0, 1600 - value);
+      }
+    } else { // key === 'h'
+      if (el.y + value > 1300) el.y = Math.max(0, 1300 - value);
+    }
+    editDirty = true;
+    saveEditElems(editElems);
+    renderEditElements();
+    const posEl = document.getElementById('sel-pos');
+    if (posEl) posEl.textContent = `(${el.x}, ${el.y})`;
   }
 
   /* ── Delete (with one-shot undo) ── */
