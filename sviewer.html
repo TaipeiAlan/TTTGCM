@@ -958,6 +958,7 @@
     </div>
 
     <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-modal-blank" style="margin-right:auto">從空白開始</button>
       <button class="btn btn-secondary" id="btn-modal-cancel">取消</button>
       <button class="btn btn-primary" id="btn-modal-save">儲存</button>
     </div>
@@ -1266,6 +1267,19 @@
 
   document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
   modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+
+  document.getElementById('btn-modal-blank').addEventListener('click', () => {
+    const id   = Date.now().toString();
+    const name = nameInput.value.trim() || autoName();
+    const blankSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1300" width="1600" height="1300" data-tttgcm-version="1"><desc id="tttgcm-data">[]</desc></svg>`;
+    records.push({ id, name, svg: blankSvg, createdAt: Date.now() });
+    saveRecords(records);
+    activeId = id;
+    renderTabs();
+    renderSvg();
+    closeModal();
+    enterEditMode();
+  });
 
   // Modal panel switching
   document.querySelectorAll('.modal-tab-btn').forEach(btn => {
@@ -1593,7 +1607,35 @@
   }
 
   /* ── Recover elements from a visually-rendered (no-metadata) SVG ── */
+  // Element type naming convention: all tttgcm element types use the "sv_" prefix
+  // (sv_room, sv_vwall, sv_hwall, sv_reserved, sv_door, ...).
+  // Future element types must also use the "sv_" prefix.
   function tryRecoverElems(doc) {
+    // Method 1: data-type="sv_*" attributes (new format — direct, no pattern matching needed)
+    const svTypedElems = [...doc.querySelectorAll('[data-type]')]
+      .filter(e => e.getAttribute('data-type').startsWith('sv_'));
+    if (svTypedElems.length > 0) {
+      const elems = [];
+      let nid = Date.now();
+      for (const el of svTypedElems) {
+        const type = el.getAttribute('data-type').slice(3); // strip "sv_" prefix
+        if (type === 'room' || type === 'reserved' || type === 'vwall' || type === 'hwall') {
+          const x = +el.getAttribute('x'), y = +el.getAttribute('y');
+          const w = +el.getAttribute('width'), h = +el.getAttribute('height');
+          elems.push({ id: String(++nid), type, x, y, w, h });
+        } else if (type === 'door') {
+          const x     = +el.getAttribute('x'), y = +el.getAttribute('y');
+          const w     = +(el.getAttribute('data-w')    || el.getAttribute('width'));
+          const dir   =   el.getAttribute('data-dir')   || 'h';
+          const hinge =   el.getAttribute('data-hinge') || 'L';
+          const swing =   el.getAttribute('data-swing') || 'in';
+          elems.push({ id: String(++nid), type: 'door', x, y, w, h: 3, dir, hinge, swing });
+        }
+      }
+      if (elems.length > 0) return elems;
+    }
+
+    // Method 2: visual signature matching (legacy SVGs without data-type attributes)
     const allRects = [...doc.querySelectorAll('rect')];
     const allPaths = [...doc.querySelectorAll('path')];
 
@@ -1720,18 +1762,20 @@
     const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
       if (el.type === 'room')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
-      if (el.type === 'vwall' || el.type === 'hwall')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+        return `  <rect data-type="sv_room" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
+      if (el.type === 'vwall')
+        return `  <rect data-type="sv_vwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      if (el.type === 'hwall')
+        return `  <rect data-type="sv_hwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
       if (el.type === 'door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
         const jambs = doorJambRects(el)
           .map(j => `  <rect x="${j.x}" y="${j.y}" width="${j.w}" height="${j.h}" fill="#444"/>`)
           .join('\n');
-        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
+        return `  <rect data-type="sv_door" data-w="${el.w}" data-dir="${el.dir}" data-hinge="${el.hinge}" data-swing="${el.swing}" x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
       }
-      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
+      return `  <rect data-type="sv_reserved" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
 
     const bgPart   = currentBgMarkup ? `\n  <g id="tttgcm-bg">\n    ${currentBgMarkup}\n  </g>` : '';
@@ -2694,19 +2738,21 @@
     const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
       if (el.type === 'room')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
-      if (el.type === 'vwall' || el.type === 'hwall')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+        return `  <rect data-type="sv_room" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
+      if (el.type === 'vwall')
+        return `  <rect data-type="sv_vwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      if (el.type === 'hwall')
+        return `  <rect data-type="sv_hwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
       if (el.type === 'door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
         const jambs = doorJambRects(el)
           .map(j => `  <rect x="${j.x}" y="${j.y}" width="${j.w}" height="${j.h}" fill="#444"/>`)
           .join('\n');
-        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
+        return `  <rect data-type="sv_door" data-w="${el.w}" data-dir="${el.dir}" data-hinge="${el.hinge}" data-swing="${el.swing}" x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
       }
       // reserved — opaque background + hatch overlay
-      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
+      return `  <rect data-type="sv_reserved" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${vw} ${vh}" width="${vw}" height="${vh}" data-tttgcm-version="1">\n  <desc id="tttgcm-data">${JSON.stringify(editElems)}</desc>${defs}\n${shapes}\n</svg>`;
