@@ -385,8 +385,18 @@
     }
     .bg-btn:hover { color: #e0e0e0; border-color: #3b82f6; }
     .bg-btn.active { background: #0f3460; color: #e0e0e0; border-color: #3b82f6; }
-    #canvas.bg-dark  { background: #0f172a !important; }
-    #canvas.bg-light { background: #e8ecf0 !important; }
+    #canvas.bg-dark   { background: #0f172a !important; }
+    #canvas.bg-medium {
+      background-color: #7b96aa !important;
+      background-image: repeating-linear-gradient(
+        45deg,
+        rgba(0,0,0,0.07) 0,
+        rgba(0,0,0,0.07) 1px,
+        transparent 0,
+        transparent 14px
+      ) !important;
+    }
+    #canvas.bg-light  { background: #e8ecf0 !important; }
 
     /* sidebar */
     /* Canvas handles its own touch — disable browser pan/zoom there */
@@ -651,18 +661,18 @@
       }
 
       /* 工具 section: 2-column grid so all 5 buttons fit in 130px sidebar height */
-      body.edit-mode #edit-sidebar > .esec:first-child {
+      body.edit-mode #tool-section {
         display: flex;
         flex-wrap: wrap;
         align-content: flex-start;
         gap: 3px;
         min-width: 132px;
       }
-      body.edit-mode #edit-sidebar > .esec:first-child > h3 {
+      body.edit-mode #tool-section > h3 {
         flex-basis: 100%;
         margin-bottom: 0;
       }
-      body.edit-mode #edit-sidebar > .esec:first-child > .tool-btn {
+      body.edit-mode #tool-section > .tool-btn {
         flex: 0 0 calc(50% - 2px);
         min-width: 0;
         margin-bottom: 0;
@@ -691,11 +701,12 @@
 <div id="topbar">
   <h1>SVG Viewer</h1>
   <button class="btn btn-primary" id="btn-add">+ 新增</button>
-  <button class="btn btn-secondary" id="btn-edit-mode">✎ 編修模式</button>
   <span id="bg-label" style="color:#334155;font-size:0.72rem;margin-left:6px;white-space:nowrap">背景</span>
   <button class="bg-btn" data-bg="">無</button>
+  <button class="bg-btn" data-bg="bg-medium">中</button>
   <button class="bg-btn" data-bg="bg-dark">深色</button>
-  <button class="bg-btn active" data-bg="bg-light">淺色</button>
+  <button class="bg-btn" data-bg="bg-light">淺色</button>
+  <button class="btn btn-secondary" id="btn-edit-mode">✎ 編修模式</button>
   <input type="file" id="file-input" accept=".svg,image/svg+xml">
   <button class="btn btn-danger" id="btn-delete-active"
           title="刪除目前 SVG" style="display:none;margin-left:auto">🗑 刪除</button>
@@ -726,7 +737,16 @@
   <!-- ── Edit Sidebar ── -->
   <div id="edit-sidebar">
 
-    <div class="esec">
+    <div class="esec" id="edit-action-section">
+      <div style="display:flex;gap:5px;">
+        <button class="btn btn-primary" id="btn-edit-save"
+                style="flex:1;font-size:0.8rem;padding:5px">儲存</button>
+        <button class="btn btn-secondary" id="btn-edit-leave"
+                style="flex:1;font-size:0.8rem;padding:5px">離開</button>
+      </div>
+    </div>
+
+    <div class="esec" id="tool-section">
       <h3>工具</h3>
       <button class="tool-btn active" data-tool="select"><i class="tool-icon">▶</i>選取</button>
       <button class="tool-btn" data-tool="room"><i class="tool-icon">□</i>房</button>
@@ -1008,7 +1028,7 @@
   function saveRecords(r) { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); }
 
   function saveBg(bg)    { localStorage.setItem(BG_KEY, bg); }
-  function loadBg()      { return localStorage.getItem(BG_KEY) ?? 'bg-light'; }
+  function loadBg()      { return localStorage.getItem(BG_KEY) ?? 'bg-medium'; }
 
   function saveMode(on)  { localStorage.setItem(MODE_KEY, on ? '1' : '0'); }
   function loadMode()    { return localStorage.getItem(MODE_KEY) === '1'; }
@@ -1286,10 +1306,14 @@
     enterEditMode();
   }
 
-  let autoCounter = 0;
   function autoName() {
-    autoCounter++;
-    return `SVG #${records.length + 1}`;
+    const now = new Date();
+    const Y = now.getFullYear();
+    const M = String(now.getMonth() + 1).padStart(2, '0');
+    const D = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    return `${Y}${M}${D}_${h}${m}`;
   }
 
   /* ── File open (drop zone) ── */
@@ -1430,6 +1454,7 @@
   const epSnap           = document.getElementById('ep-snap');
 
   let isEditMode      = false;    // mirrors editingSet.has(activeId)
+  let editDirty       = false;    // true when there are unsaved changes in edit mode
   let currentBgMarkup = null;     // SVG markup shown as bg in edit mode
   const editingSet   = new Set(); // IDs whose edit mode is active
   const editStateMap = new Map(); // id → { elems[], bgMarkup } working snapshots
@@ -1535,7 +1560,6 @@
     isEditMode = editingSet.has(activeId);
     document.body.classList.toggle('edit-mode', isEditMode);
     btnEditMode.classList.toggle('active', isEditMode);
-    btnEditMode.textContent = isEditMode ? '✕ 離開編修' : '✎ 編修模式';
   }
 
   /* ── SVG record parse / generate ── */
@@ -1600,6 +1624,7 @@
     if (!rec) return;
     rec.svg = generateRecordSvg();
     saveRecords(records);
+    editDirty = false;
     renderSvg();
     showToast(`已更新「${rec.name}」`);
   }
@@ -1626,6 +1651,7 @@
     const { elems, bgMarkup } = rec ? parseSvgRecord(rec.svg) : { elems: [], bgMarkup: null };
     editElems       = elems;
     currentBgMarkup = bgMarkup;
+    editDirty       = false;
     editingSet.add(activeId);
     saveEditingSet();
     editStateMap.set(activeId, { elems: [...elems], bgMarkup });
@@ -1640,14 +1666,7 @@
   }
 
   btnEditMode.addEventListener('click', () => {
-    if (!isEditMode) {
-      enterEditMode();
-    } else {
-      // Show save-or-discard dialog before exiting
-      const rec = records.find(r => r.id === activeId);
-      document.getElementById('exit-edit-name').textContent = rec ? rec.name : '';
-      document.getElementById('exit-edit-overlay').classList.add('open');
-    }
+    if (!isEditMode) enterEditMode();
   });
 
   document.getElementById('btn-exit-save').addEventListener('click', () => {
@@ -1661,6 +1680,20 @@
   });
   document.getElementById('btn-exit-cancel').addEventListener('click', () => {
     document.getElementById('exit-edit-overlay').classList.remove('open');
+  });
+
+  /* ── Sidebar 儲存 / 離開 buttons ── */
+  document.getElementById('btn-edit-save').addEventListener('click', () => {
+    saveEditToRecord();
+  });
+  document.getElementById('btn-edit-leave').addEventListener('click', () => {
+    if (!editDirty) {
+      exitEditMode();
+    } else {
+      const rec = records.find(r => r.id === activeId);
+      document.getElementById('exit-edit-name').textContent = rec ? rec.name : '';
+      document.getElementById('exit-edit-overlay').classList.add('open');
+    }
   });
 
   /* ── Fit / transform ── */
@@ -1872,6 +1905,7 @@
     if (!el) return;
     lastDeleted = { ...el };
     editElems = editElems.filter(e => e.id !== id);
+    editDirty = true;
     saveEditElems(editElems);
     selectedId = null;
     renderEditElements();
@@ -1887,6 +1921,7 @@
   document.getElementById('btn-undo-delete').addEventListener('click', () => {
     if (!lastDeleted) return;
     editElems.push(lastDeleted);
+    editDirty = true;
     saveEditElems(editElems);
     lastDeleted = null;
     renderEditElements();
@@ -1898,6 +1933,7 @@
     if (!editElems.length) return;
     if (!confirm('確定清空畫布？此操作無法復原。')) return;
     editElems = []; selectedId = null; lastDeleted = null;
+    editDirty = true;
     saveEditElems(editElems);
     renderEditElements(); updateSelectedSection();
     undoSection.style.display = 'none';
@@ -2177,6 +2213,7 @@
   /* ── Commit a new element ── */
   function placeElement(x, y, w, h, type, extra = {}) {
     editElems.push({ id: Date.now().toString(), type, x, y, w, h, ...extra });
+    editDirty = true;
     saveEditElems(editElems);
     renderEditElements();
     epPreview.innerHTML = '';
@@ -2304,7 +2341,7 @@
 
   /* ── window mouseup — end drag ── */
   window.addEventListener('mouseup', () => {
-    if (isDragging) { isDragging = false; dragId = null; saveEditElems(editElems); }
+    if (isDragging) { isDragging = false; dragId = null; editDirty = true; saveEditElems(editElems); }
     dragGroup = null;
     mouseDownPos = null;
   });
@@ -2371,7 +2408,7 @@
 
   editSvgEl.addEventListener('pointerup', e => {
     if (!isEditMode || e.pointerType === 'mouse') return;
-    if (isDragging) { isDragging = false; dragId = null; saveEditElems(editElems); }
+    if (isDragging) { isDragging = false; dragId = null; editDirty = true; saveEditElems(editElems); }
     dragGroup = null;
     if (ePanning)   { ePanning = false; }
 
@@ -2485,6 +2522,7 @@
     records.push({ id, name, svg: xml, createdAt: Date.now() });
     saveRecords(records);
     saveEditElemsForId(id, editElems); // carry current elements to new record
+    editDirty = false;
     activeId = id;
     renderTabs();
     renderSvg();
