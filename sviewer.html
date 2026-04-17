@@ -1242,6 +1242,17 @@
       nameSpan.title = rec.name;
 
       tab.appendChild(nameSpan);
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'tab-close';
+      closeBtn.textContent = '×';
+      closeBtn.title = '刪除';
+      closeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        askDelete(rec.id, rec.name);
+      });
+      tab.appendChild(closeBtn);
+
       tab.title = rec.name + (isEditing ? '（編修中）' : '（雙擊進入編修模式）');
       tab.addEventListener('click', () => switchTo(rec.id));
       tab.addEventListener('dblclick', () => {
