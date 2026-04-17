@@ -1596,7 +1596,7 @@
      EDIT MODE  —  Phase 1: skeleton
      ════════════════════════════════════════ */
 
-  const btnEditMode      = document.getElementById('btn-edit-mode');
+  const btnEditMode      = document.getElementById('btn-edit-mode'); // may be null in newer layout
   const editCanvasWrap   = document.getElementById('edit-canvas-wrap');
   const editSvgContainer = document.getElementById('edit-svg-container');
   const epBg             = document.getElementById('ep-bg');
@@ -1711,7 +1711,7 @@
   function updateEditModeUI() {
     isEditMode = editingSet.has(activeId);
     document.body.classList.toggle('edit-mode', isEditMode);
-    btnEditMode.style.display = isEditMode ? 'none' : '';
+    if (btnEditMode) btnEditMode.style.display = isEditMode ? 'none' : '';
   }
 
   /* ── SVG record parse / generate ── */
@@ -1969,7 +1969,7 @@
     updateDimSection();
   }
 
-  btnEditMode.addEventListener('click', () => {
+  if (btnEditMode) btnEditMode.addEventListener('click', () => {
     if (!isEditMode) enterEditMode();
   });
 
