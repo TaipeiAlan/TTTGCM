@@ -88,12 +88,12 @@
       align-items: center;
       gap: 6px;
       padding: 5px 12px;
-      background: #0f3460;
+      background: #1a3360;
       border-radius: 5px 5px 0 0;
       cursor: pointer;
       font-size: 0.8rem;
       color: #94a3b8;
-      border: 1px solid #1e3a5f;
+      border: 1px solid #2a4d7c;
       border-bottom: none;
       max-width: 180px;
       transition: border-color 0.15s, color 0.15s;
@@ -3040,7 +3040,7 @@
   });
 
   /* ── Cloud modal ── */
-  (function() {
+  try { (function() {
     const overlay    = document.getElementById('cloud-overlay');
     const urlInput   = document.getElementById('cloud-url');
     const keyInput   = document.getElementById('cloud-key');
@@ -3151,7 +3151,7 @@
         if (urlInput.value.trim() && keyInput.value.trim()) refreshSlots();
       }, 800);
     }));
-  })();
+  })(); } catch(e) { console.error('[cloud]', e); }
 
   /* ── Init ── */
 
