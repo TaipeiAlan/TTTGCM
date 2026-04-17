@@ -1739,6 +1739,9 @@
       const dataEl = doc.getElementById('tttgcm-data');
       let elems = [];
       try { elems = dataEl ? JSON.parse(dataEl.textContent || '[]') : []; } catch {}
+      // Normalize legacy bare type names to sv_ prefix (room→sv_room, etc.)
+      const _TN = { room:'sv_room', vwall:'sv_vwall', hwall:'sv_hwall', reserved:'sv_reserved', door:'sv_door' };
+      elems = elems.map(e => ({ ...e, type: _TN[e.type] ?? e.type }));
       const bgEl  = doc.getElementById('tttgcm-bg');
       const bgMarkup = (bgEl && bgEl.innerHTML.trim()) || null;
       return { elems, bgMarkup };
@@ -1766,18 +1769,18 @@
       const elems = [];
       let nid = Date.now();
       for (const el of svTypedElems) {
-        const type = el.getAttribute('data-type').slice(3); // strip "sv_" prefix
-        if (type === 'room' || type === 'reserved' || type === 'vwall' || type === 'hwall') {
+        const type = el.getAttribute('data-type'); // keep full sv_ prefix
+        if (type === 'sv_room' || type === 'sv_reserved' || type === 'sv_vwall' || type === 'sv_hwall') {
           const x = +el.getAttribute('x'), y = +el.getAttribute('y');
           const w = +el.getAttribute('width'), h = +el.getAttribute('height');
           elems.push({ id: String(++nid), type, x, y, w, h });
-        } else if (type === 'door') {
+        } else if (type === 'sv_door') {
           const x     = +el.getAttribute('x'), y = +el.getAttribute('y');
           const w     = +(el.getAttribute('data-w')    || el.getAttribute('width'));
           const dir   =   el.getAttribute('data-dir')   || 'h';
           const hinge =   el.getAttribute('data-hinge') || 'L';
           const swing =   el.getAttribute('data-swing') || 'in';
-          elems.push({ id: String(++nid), type: 'door', x, y, w, h: 3, dir, hinge, swing });
+          elems.push({ id: String(++nid), type: 'sv_door', x, y, w, h: 3, dir, hinge, swing });
         }
       }
       if (elems.length > 0) return elems;
@@ -1813,7 +1816,7 @@
               Math.abs(+r2.getAttribute('x') - x) < 0.5 &&
               Math.abs(+r2.getAttribute('y') - y) < 0.5) { used.add(r2); break; }
         }
-        elems.push({ id: String(++nid), type: 'reserved', x, y, w, h });
+        elems.push({ id: String(++nid), type: 'sv_reserved', x, y, w, h });
       }
     }
 
@@ -1826,7 +1829,7 @@
         const x = +r.getAttribute('x'), y = +r.getAttribute('y');
         const w = +r.getAttribute('width'), h = +r.getAttribute('height');
         used.add(r);
-        elems.push({ id: String(++nid), type: 'room', x, y, w, h });
+        elems.push({ id: String(++nid), type: 'sv_room', x, y, w, h });
       }
     }
 
@@ -1840,10 +1843,10 @@
       const w = +r.getAttribute('width'), h = +r.getAttribute('height');
       if (Math.round(w) === 10) {
         used.add(r);
-        elems.push({ id: String(++nid), type: 'vwall', x, y, w: 10, h });
+        elems.push({ id: String(++nid), type: 'sv_vwall', x, y, w: 10, h });
       } else if (Math.round(h) === 10) {
         used.add(r);
-        elems.push({ id: String(++nid), type: 'hwall', x, y, w, h: 10 });
+        elems.push({ id: String(++nid), type: 'sv_hwall', x, y, w, h: 10 });
       }
     }
 
@@ -1869,7 +1872,7 @@
             Math.abs(+r.getAttribute('x') - door.x) < door.w + 15 &&
             Math.abs(+r.getAttribute('y') - door.y) < door.w + 15) { used.add(r); jc++; }
       }
-      elems.push({ id: String(++nid), type: 'door', ...door });
+      elems.push({ id: String(++nid), type: 'sv_door', ...door });
     }
 
     return elems;
@@ -1903,19 +1906,19 @@
   }
 
   function generateRecordSvg() {
-    const hasReserved = editElems.some(e => e.type === 'reserved');
+    const hasReserved = editElems.some(e => e.type === 'sv_reserved');
     const defs = hasReserved
       ? `\n  <defs>\n    <pattern id="hatch" patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(45 0 0)">\n      <line x1="0" y1="0" x2="0" y2="12" stroke="#888" stroke-width="4"/>\n    </pattern>\n  </defs>` : '';
 
     const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
-      if (el.type === 'room')
+      if (el.type === 'sv_room')
         return `  <rect data-type="sv_room" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
-      if (el.type === 'vwall')
+      if (el.type === 'sv_vwall')
         return `  <rect data-type="sv_vwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
-      if (el.type === 'hwall')
+      if (el.type === 'sv_hwall')
         return `  <rect data-type="sv_hwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
-      if (el.type === 'door') {
+      if (el.type === 'sv_door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
         const jambs = doorJambRects(el)
@@ -2215,8 +2218,8 @@
   function buildSelectedUI(el) {
     const info    = document.getElementById('selected-info');
     const dimArea = document.getElementById('sel-dim-area');
-    const LABEL   = { room:'房', vwall:'垂直牆', hwall:'橫向牆', reserved:'保留', door:'門' };
-    const doorExtra = el.type === 'door'
+    const LABEL   = { sv_room:'房', sv_vwall:'垂直牆', sv_hwall:'橫向牆', sv_reserved:'保留', sv_door:'門' };
+    const doorExtra = el.type === 'sv_door'
       ? `<br>${el.dir==='h'?'橫':'直'}・${el.hinge==='L'?'左':'右'}鉸・${el.swing==='in'?'內':'外'}開`
       : '';
     info.innerHTML =
@@ -2224,14 +2227,14 @@
 
     dimArea.innerHTML = '';
     const dims =
-      (el.type === 'room' || el.type === 'reserved')
+      (el.type === 'sv_room' || el.type === 'sv_reserved')
         ? [{ lbl:'W', key:'w', val:el.w, min:10 },
            { lbl:'H', key:'h', val:el.h, min:10 }]
-      : el.type === 'vwall'
+      : el.type === 'sv_vwall'
         ? [{ lbl:'L', key:'h', val:el.h, min:10 }]
-      : el.type === 'hwall'
+      : el.type === 'sv_hwall'
         ? [{ lbl:'L', key:'w', val:el.w, min:10 }]
-      : el.type === 'door'
+      : el.type === 'sv_door'
         ? [{ lbl:'W', key:'w', val:el.w, min:30 }]
       : [];
 
@@ -2276,7 +2279,7 @@
     // Clamp so element stays within canvas after resize
     if (key === 'w') {
       // vertical doors extend in Y direction; all others extend in X
-      if (el.type === 'door' && el.dir === 'v') {
+      if (el.type === 'sv_door' && el.dir === 'v') {
         if (el.y + value > 1300) el.y = Math.max(0, 1300 - value);
       } else {
         if (el.x + value > 1600) el.x = Math.max(0, 1600 - value);
@@ -2335,7 +2338,7 @@
   });
 
   /* ── Render elements ── */
-  const Z = { room: 0, vwall: 1, hwall: 1, door: 2, reserved: 3 };
+  const Z = { sv_room: 0, sv_vwall: 1, sv_hwall: 1, sv_door: 2, sv_reserved: 3 };
   function renderEditElements() {
     const ns = 'http://www.w3.org/2000/svg';
     epElements.innerHTML = '';
@@ -2344,8 +2347,8 @@
       const g = document.createElementNS(ns, 'g');
       g.dataset.id = el.id;
 
-      if (el.type === 'room' || el.type === 'reserved') {
-        if (el.type === 'reserved') {
+      if (el.type === 'sv_room' || el.type === 'sv_reserved') {
+        if (el.type === 'sv_reserved') {
           const bg = document.createElementNS(ns, 'rect');
           bg.setAttribute('x', el.x);   bg.setAttribute('y', el.y);
           bg.setAttribute('width', el.w); bg.setAttribute('height', el.h);
@@ -2355,18 +2358,18 @@
         const r = document.createElementNS(ns, 'rect');
         r.setAttribute('x', el.x);   r.setAttribute('y', el.y);
         r.setAttribute('width', el.w); r.setAttribute('height', el.h);
-        r.setAttribute('fill', el.type === 'room' ? 'white' : 'url(#ep-hatch)');
+        r.setAttribute('fill', el.type === 'sv_room' ? 'white' : 'url(#ep-hatch)');
         r.setAttribute('stroke', '#222'); r.setAttribute('stroke-width', '10');
         g.appendChild(r);
         const t = document.createElementNS(ns, 'text');
         t.setAttribute('x', el.x + el.w / 2); t.setAttribute('y', el.y + el.h / 2 + 5);
         t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '14');
-        t.setAttribute('fill', el.type === 'room' ? '#666' : '#444');
+        t.setAttribute('fill', el.type === 'sv_room' ? '#666' : '#444');
         t.setAttribute('pointer-events', 'none');
         t.textContent = `${el.w}×${el.h}`;
         g.appendChild(t);
 
-      } else if (el.type === 'door') {
+      } else if (el.type === 'sv_door') {
         // Transparent hit area covering the full w×w quarter-circle square
         const { bx, by, bw, bh } = doorBounds(el);
         const hit = document.createElementNS(ns, 'rect');
@@ -2413,7 +2416,7 @@
         const ring = document.createElementNS(ns, 'rect');
         const pad = 4;
         let rx = el.x, ry = el.y, rw = el.w, rh = el.h;
-        if (el.type === 'door') {
+        if (el.type === 'sv_door') {
           const b = doorBounds(el); rx = b.bx; ry = b.by; rw = b.bw; rh = b.bh;
         }
         ring.setAttribute('x', rx - pad);   ring.setAttribute('y', ry - pad);
@@ -2465,7 +2468,7 @@
   function linkedDoorsForRoom(roomEl) {
     const tol = 2;
     return editElems.filter(el => {
-      if (el.type !== 'door') return false;
+      if (el.type !== 'sv_door') return false;
       if (el.dir === 'h') {
         const overlapX = (el.x + el.w) > roomEl.x && el.x < (roomEl.x + roomEl.w);
         const onTopOrBottom = Math.abs(el.y - roomEl.y) <= tol ||
@@ -2596,7 +2599,7 @@
     if (dir === 'h') {
       let best = DSNAP;
       for (const el of editElems) {
-        if (el.type === 'door') continue;
+        if (el.type === 'sv_door') continue;
         for (const edge of [el.y, el.y + (el.h ?? 0)]) {
           const d = Math.abs(sy + 1.5 - edge);
           if (d < best) { best = d; sy = edge - 1.5; }
@@ -2607,7 +2610,7 @@
     } else {
       let best = DSNAP;
       for (const el of editElems) {
-        if (el.type === 'door') continue;
+        if (el.type === 'sv_door') continue;
         for (const edge of [el.x, el.x + (el.w ?? 0)]) {
           const d = Math.abs(sx + 1.5 - edge);
           if (d < best) { best = d; sx = edge - 1.5; }
@@ -2621,7 +2624,8 @@
 
   /* ── Commit a new element ── */
   function placeElement(x, y, w, h, type, extra = {}) {
-    editElems.push({ id: Date.now().toString(), type, x, y, w, h, ...extra });
+    const elemType = type.startsWith('sv_') ? type : 'sv_' + type;
+    editElems.push({ id: Date.now().toString(), type: elemType, x, y, w, h, ...extra });
     editDirty = true;
     saveEditElems(editElems);
     renderEditElements();
@@ -2663,7 +2667,7 @@
             dragGroupOffsets = null;
             isDragging = true; dragId = clickedId;
             dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
-            dragGroup = el.type === 'room' ? linkedDoorsForRoom(el) : null;
+            dragGroup = el.type === 'sv_room' ? linkedDoorsForRoom(el) : null;
           }
           renderEditElements();
           updateSelectedSection();
@@ -2708,7 +2712,7 @@
       for (const { id, offX, offY } of dragGroupOffsets) {
         const el = editElems.find(ee => ee.id === id);
         if (!el) continue;
-        if (el.type === 'door') {
+        if (el.type === 'sv_door') {
           const s = snapDoor(sp.x - offX, sp.y - offY, el.w, el.dir);
           el.x = s.x; el.y = s.y;
         } else {
@@ -2723,13 +2727,13 @@
     const el = editElems.find(ee => ee.id === dragId);
     if (!el) return;
     const oldX = el.x, oldY = el.y;
-    if (el.type === 'door') {
+    if (el.type === 'sv_door') {
       const s = snapDoor(sp.x - dragOffX, sp.y - dragOffY, el.w, el.dir);
       el.x = s.x; el.y = s.y;
     } else {
       const s = snapElement(sp.x - dragOffX, sp.y - dragOffY, el.w, el.h, dragId);
       el.x = s.x; el.y = s.y;
-      if (el.type === 'room' && dragGroup?.length) {
+      if (el.type === 'sv_room' && dragGroup?.length) {
         const dx = el.x - oldX, dy = el.y - oldY;
         for (const g of dragGroup) {
           const d = editElems.find(ee => ee.id === g.id);
@@ -2798,8 +2802,8 @@
         const y0 = Math.min(selBox.y0, selBox.y1), y1 = Math.max(selBox.y0, selBox.y1);
         const hits = editElems.filter(el => {
           const ex = el.x, ey = el.y;
-          const ew = el.type === 'door' ? doorBounds(el).bw : el.w;
-          const eh = el.type === 'door' ? doorBounds(el).bh : el.h;
+          const ew = el.type === 'sv_door' ? doorBounds(el).bw : el.w;
+          const eh = el.type === 'sv_door' ? doorBounds(el).bh : el.h;
           return ex >= x0 && ey >= y0 && (ex + ew) <= x1 && (ey + eh) <= y1;
         });
         selectedIds = new Set(hits.map(el => el.id));
@@ -2840,7 +2844,7 @@
         if (el) {
           isDragging = true; dragId = selectedId;
           dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
-          dragGroup = el.type === 'room' ? linkedDoorsForRoom(el) : null;
+          dragGroup = el.type === 'sv_room' ? linkedDoorsForRoom(el) : null;
           editSvgEl.setPointerCapture(e.pointerId); // lock events to this element
         }
       } else {
@@ -2942,14 +2946,14 @@
   function generateSvgXml() {
     if (!editElems.length) { showToast('畫布上沒有元素'); return null; }
 
-    const hasReserved = editElems.some(e => e.type === 'reserved');
+    const hasReserved = editElems.some(e => e.type === 'sv_reserved');
     const defs = hasReserved
       ? `\n  <defs>\n    <pattern id="hatch" patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(45 0 0)">\n      <line x1="0" y1="0" x2="0" y2="12" stroke="#888" stroke-width="4"/>\n    </pattern>\n  </defs>` : '';
 
     // tight bounding box with 20 cm padding
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const el of editElems) {
-      if (el.type === 'door') {
+      if (el.type === 'sv_door') {
         const { bx, by, bw, bh } = doorBounds(el);
         minX = Math.min(minX, bx);      minY = Math.min(minY, by);
         maxX = Math.max(maxX, bx + bw); maxY = Math.max(maxY, by + bh);
@@ -2965,13 +2969,13 @@
     // Sort: room → walls → door → reserved
     const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
-      if (el.type === 'room')
+      if (el.type === 'sv_room')
         return `  <rect data-type="sv_room" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
-      if (el.type === 'vwall')
+      if (el.type === 'sv_vwall')
         return `  <rect data-type="sv_vwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
-      if (el.type === 'hwall')
+      if (el.type === 'sv_hwall')
         return `  <rect data-type="sv_hwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
-      if (el.type === 'door') {
+      if (el.type === 'sv_door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
         const jambs = doorJambRects(el)
