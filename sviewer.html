@@ -93,18 +93,15 @@
       cursor: pointer;
       font-size: 0.8rem;
       color: #94a3b8;
-      border: 1px solid transparent;
+      border: 1px solid #1e3a5f;
       border-bottom: none;
       max-width: 180px;
-      transition: background 0.15s;
+      transition: border-color 0.15s, color 0.15s;
       white-space: nowrap;
     }
-    .tab:hover { background: #1e4080; color: #e0e0e0; }
-    .tab.active {
-      background: #1a1a2e;
-      color: #e94560;
-      border-color: #0f3460;
-    }
+    .tab:hover { color: #e0e0e0; border-color: #3b82f6; }
+    .tab.active { color: #e0e0e0; border-color: #3b82f6; }
+    .tab-editing-badge { color: #e94560; font-size: 0.85em; }
 
     .tab-name {
       overflow: hidden;
@@ -344,6 +341,52 @@
     }
     #exit-edit-box p { font-size: 0.9rem; color: #e0e0e0; line-height: 1.6; text-align: center; }
     #exit-edit-name { color: #e94560; font-weight: 600; }
+
+    /* ── Cloud modal ── */
+    #cloud-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75); z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    #cloud-overlay.open { display: flex; }
+    #cloud-box {
+      background: #16213e; border: 1px solid #0f3460; border-radius: 10px;
+      padding: 20px; width: min(540px, 95vw); max-height: 88vh;
+      display: flex; flex-direction: column; gap: 14px; overflow: hidden;
+    }
+    #cloud-box h2 { font-size: 1rem; color: #e94560; margin: 0; }
+    .cloud-settings { display: flex; flex-direction: column; gap: 8px; }
+    .cloud-settings label { font-size: 0.75rem; color: #94a3b8; }
+    .cloud-settings input {
+      width: 100%; padding: 5px 8px; border-radius: 4px;
+      border: 1px solid #1e3a5f; background: #0f172a; color: #e0e0e0;
+      font-size: 0.78rem; box-sizing: border-box;
+    }
+    #cloud-device-row { font-size: 0.72rem; color: #475569; }
+    #cloud-device-row span { color: #64748b; font-family: monospace; }
+    #cloud-slots { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .cloud-slot {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; background: #0f172a;
+      border: 1px solid #1e3a5f; border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .cloud-slot-num { color: #475569; min-width: 20px; font-size: 0.72rem; }
+    .cloud-slot-name { flex: 1; color: #e0e0e0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cloud-slot-time { color: #475569; font-size: 0.68rem; white-space: nowrap; }
+    .cloud-slot-empty .cloud-slot-name { color: #334155; font-style: italic; }
+    .cloud-slot-actions { display: flex; gap: 4px; }
+    .cloud-slot-actions button {
+      padding: 2px 8px; font-size: 0.72rem; border-radius: 3px;
+      border: 1px solid; cursor: pointer; transition: background 0.1s;
+    }
+    .btn-cloud-up   { border-color: #1e3a5f; background: #0f3460; color: #94a3b8; }
+    .btn-cloud-up:hover { background: #1e4080; color: #e0e0e0; }
+    .btn-cloud-dl   { border-color: #1e3a5f; background: #0f3460; color: #94a3b8; }
+    .btn-cloud-dl:hover { background: #1e4080; color: #e0e0e0; }
+    .btn-cloud-del  { border-color: #7f1d1d; background: transparent; color: #ef4444; }
+    .btn-cloud-del:hover { background: #7f1d1d; color: #fff; }
+    #cloud-status { font-size: 0.75rem; color: #64748b; text-align: center; min-height: 1.2em; }
 
     /* ── Error toast ── */
     #toast {
@@ -705,8 +748,8 @@
   <button class="bg-btn" data-bg="">無</button>
   <button class="bg-btn" data-bg="bg-medium">中</button>
   <button class="bg-btn" data-bg="bg-dark">深色</button>
-  <button class="bg-btn" data-bg="bg-light">淺色</button>
-  <button class="btn btn-secondary" id="btn-edit-mode">✎ 進行編輯</button>
+  <button class="bg-btn active" data-bg="bg-light">淺色</button>
+  <button class="bg-btn" id="btn-cloud" title="雲端備份">☁</button>
   <input type="file" id="file-input" accept=".svg,image/svg+xml">
   <button class="btn btn-danger" id="btn-delete-active"
           title="刪除目前 SVG" style="display:none;margin-left:auto">🗑 刪除</button>
@@ -1012,6 +1055,25 @@
   </div>
 </div>
 
+<!-- Cloud Modal -->
+<div id="cloud-overlay">
+  <div id="cloud-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2>☁ 雲端備份</h2>
+      <button class="btn btn-secondary" id="btn-cloud-close" style="font-size:0.8rem;padding:4px 12px">關閉</button>
+    </div>
+    <div class="cloud-settings">
+      <label>Supabase URL</label>
+      <input type="text" id="cloud-url" placeholder="https://xxxx.supabase.co">
+      <label>Anon Key</label>
+      <input type="password" id="cloud-key" placeholder="eyJ...">
+    </div>
+    <div id="cloud-device-row">裝置識別碼：<span id="cloud-device-id"></span></div>
+    <div id="cloud-status"></div>
+    <div id="cloud-slots"></div>
+  </div>
+</div>
+
 <script>
   /* ── Storage helpers ── */
   const STORAGE_KEY      = 'svg_viewer_records';
@@ -1022,6 +1084,9 @@
   const SNAP_UNIT_KEY      = 'svg_viewer_snap_unit';
   const ACTIVE_ID_KEY      = 'svg_viewer_active_id';
   const EDITING_SET_KEY    = 'svg_viewer_editing_set';
+  const CLOUD_URL_KEY      = 'svg_viewer_cloud_url';
+  const CLOUD_KEY_KEY      = 'svg_viewer_cloud_key';
+  const CLOUD_DEVICE_KEY   = 'svg_viewer_cloud_device';
 
   function loadRecords() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
@@ -1064,6 +1129,71 @@
     catch { return []; }
   }
 
+  /* ── Cloud helpers ── */
+  function getDeviceKey() {
+    let k = localStorage.getItem(CLOUD_DEVICE_KEY);
+    if (!k) {
+      k = crypto.randomUUID ? crypto.randomUUID()
+        : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+      localStorage.setItem(CLOUD_DEVICE_KEY, k);
+    }
+    return k;
+  }
+  function getCloudConfig() {
+    return {
+      url: (localStorage.getItem(CLOUD_URL_KEY) || '').trim().replace(/\/$/, ''),
+      key: (localStorage.getItem(CLOUD_KEY_KEY) || '').trim()
+    };
+  }
+  function saveCloudConfig(url, key) {
+    localStorage.setItem(CLOUD_URL_KEY, url);
+    localStorage.setItem(CLOUD_KEY_KEY, key);
+  }
+  async function sbFetch(method, path, body) {
+    const { url, key } = getCloudConfig();
+    if (!url || !key) throw new Error('請先設定 Supabase URL 與 Anon Key');
+    const res = await fetch(url + path, {
+      method,
+      headers: {
+        'apikey': key, 'Authorization': 'Bearer ' + key,
+        'Content-Type': 'application/json',
+        ...(method !== 'GET' ? { 'Prefer': 'resolution=merge-duplicates' } : {})
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${txt.slice(0, 120)}`);
+    }
+    return method === 'DELETE' ? null : res.json();
+  }
+  async function cloudList() {
+    const dk = getDeviceKey();
+    return sbFetch('GET',
+      `/rest/v1/sviewer_svgs?device_key=eq.${encodeURIComponent(dk)}&select=slot,name,updated_at&order=slot`
+    );
+  }
+  async function cloudUpload(slot, name, svgContent) {
+    const dk = getDeviceKey();
+    return sbFetch('POST', '/rest/v1/sviewer_svgs', {
+      device_key: dk, slot, name, svg_content: svgContent, updated_at: new Date().toISOString()
+    });
+  }
+  async function cloudDownload(slot) {
+    const dk = getDeviceKey();
+    const rows = await sbFetch('GET',
+      `/rest/v1/sviewer_svgs?device_key=eq.${encodeURIComponent(dk)}&slot=eq.${slot}&select=name,svg_content`
+    );
+    return rows && rows[0] ? rows[0] : null;
+  }
+  async function cloudDelete(slot) {
+    const dk = getDeviceKey();
+    return sbFetch('DELETE',
+      `/rest/v1/sviewer_svgs?device_key=eq.${encodeURIComponent(dk)}&slot=eq.${slot}`
+    );
+  }
+
   /* ── State ── */
   let records = loadRecords();       // [{id, name, svg, createdAt}]
   const _savedActiveId = loadActiveId();
@@ -1102,7 +1232,13 @@
       const nameSpan = document.createElement('span');
       nameSpan.className = 'tab-name';
       const isEditing = editingSet.has(rec.id);
-      nameSpan.textContent = rec.name + (isEditing ? ' (編修中)' : '');
+      nameSpan.appendChild(document.createTextNode(rec.name));
+      if (isEditing) {
+        const badge = document.createElement('span');
+        badge.className = 'tab-editing-badge';
+        badge.textContent = ' (編修中)';
+        nameSpan.appendChild(badge);
+      }
       nameSpan.title = rec.name;
 
       tab.appendChild(nameSpan);
@@ -1155,6 +1291,7 @@
     activeId = id;
     selectedId = null; lastDeleted = null;
     isDragging = false; dragId = null;
+    selectedIds.clear(); selBox = null; dragGroupOffsets = null;
 
     updateEditModeUI(); // isEditMode now reflects new activeId
 
@@ -1801,6 +1938,8 @@
     editElems       = [];
     currentBgMarkup = null;
     selectedId      = null;
+    selectedIds.clear();
+    selBox          = null;
     updateEditModeUI();
     renderTabs();
     epPreview.innerHTML = '';
@@ -2259,7 +2398,7 @@
       }
 
       // selection ring — full square for doors, panel rect for others
-      if (el.id === selectedId) {
+      if (el.id === selectedId || selectedIds.has(el.id)) {
         const ring = document.createElementNS(ns, 'rect');
         const pad = 4;
         let rx = el.x, ry = el.y, rw = el.w, rh = el.h;
@@ -2301,6 +2440,9 @@
   let dragGroup    = null; // [{id,dx,dy}] doors dragged along with a room
   let mouseDownPos = null;
   let pointerMoved = false;
+  let selBox       = null;  // {x0,y0,x1,y1} SVG coords while rubber-band active
+  let selectedIds  = new Set(); // multi-selection
+  let dragGroupOffsets = null; // [{id,offX,offY}] for group drag
 
   function clampPos(x, y, w, h) {
     return {
@@ -2333,6 +2475,17 @@
       x: (e.clientX - r.left) * (1600 / r.width),
       y: (e.clientY - r.top)  * (1300 / r.height)
     };
+  }
+
+  function renderSelBox() {
+    if (!selBox) { epSnap.innerHTML = ''; return; }
+    const x = Math.min(selBox.x0, selBox.x1);
+    const y = Math.min(selBox.y0, selBox.y1);
+    const w = Math.abs(selBox.x1 - selBox.x0);
+    const h = Math.abs(selBox.y1 - selBox.y0);
+    epSnap.innerHTML = `<rect x="${x}" y="${y}" width="${w}" height="${h}"
+      fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"
+      stroke-dasharray="6 3" pointer-events="none"/>`;
   }
 
   /* ── Read dimension inputs ── */
@@ -2480,20 +2633,37 @@
     if (activeTool === 'select') {
       const g = e.target.closest('[data-id]');
       if (g) {
-        selectedId = g.dataset.id;
-        renderEditElements();
-        updateSelectedSection();
-        // prepare drag
+        const clickedId = g.dataset.id;
         const sp = svgCoord(e);
-        const el = editElems.find(ee => ee.id === selectedId);
+        const el = editElems.find(ee => ee.id === clickedId);
         if (el) {
-          isDragging = true; dragId = selectedId;
-          dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
-          dragGroup = el.type === 'room' ? linkedDoorsForRoom(el) : null;
+          if (selectedIds.has(clickedId) && selectedIds.size > 1) {
+            // drag the whole group
+            isDragging = true; dragId = clickedId;
+            dragGroupOffsets = [...selectedIds].map(id => {
+              const ee = editElems.find(e => e.id === id);
+              return { id, offX: sp.x - ee.x, offY: sp.y - ee.y };
+            });
+            dragGroup = null;
+          } else {
+            // single element
+            selectedId = clickedId;
+            selectedIds.clear();
+            dragGroupOffsets = null;
+            isDragging = true; dragId = clickedId;
+            dragOffX = sp.x - el.x; dragOffY = sp.y - el.y;
+            dragGroup = el.type === 'room' ? linkedDoorsForRoom(el) : null;
+          }
+          renderEditElements();
+          updateSelectedSection();
         }
       } else {
-        // click on empty → deselect
+        // start rubber-band selection on empty canvas
+        const sp = svgCoord(e);
+        selBox = { x0: sp.x, y0: sp.y, x1: sp.x, y1: sp.y };
         selectedId = null;
+        selectedIds.clear();
+        dragGroupOffsets = null;
         renderEditElements();
         updateSelectedSection();
       }
@@ -2522,6 +2692,23 @@
   });
 
   function dragSelectedTo(sp) {
+    // Group drag (rubber-band multi-select)
+    if (dragGroupOffsets) {
+      for (const { id, offX, offY } of dragGroupOffsets) {
+        const el = editElems.find(ee => ee.id === id);
+        if (!el) continue;
+        if (el.type === 'door') {
+          const s = snapDoor(sp.x - offX, sp.y - offY, el.w, el.dir);
+          el.x = s.x; el.y = s.y;
+        } else {
+          const s = snapElement(sp.x - offX, sp.y - offY, el.w, el.h, id);
+          el.x = s.x; el.y = s.y;
+        }
+      }
+      renderEditElements();
+      return;
+    }
+    // Single element drag
     const el = editElems.find(ee => ee.id === dragId);
     if (!el) return;
     const oldX = el.x, oldY = el.y;
@@ -2556,6 +2743,14 @@
       pointerMoved = true;
     }
 
+    // rubber-band selection box
+    if (selBox && pointerMoved) {
+      const sp = svgCoord(e);
+      selBox.x1 = sp.x; selBox.y1 = sp.y;
+      renderSelBox();
+      return;
+    }
+
     // drag selected element
     if (isDragging && pointerMoved && dragId) {
       dragSelectedTo(svgCoord(e));
@@ -2584,9 +2779,31 @@
     }
   });
 
-  /* ── window mouseup — end drag ── */
+  /* ── window mouseup — end drag / finalize rubber-band ── */
   window.addEventListener('mouseup', () => {
-    if (isDragging) { isDragging = false; dragId = null; editDirty = true; saveEditElems(editElems); }
+    if (selBox) {
+      if (pointerMoved) {
+        const x0 = Math.min(selBox.x0, selBox.x1), x1 = Math.max(selBox.x0, selBox.x1);
+        const y0 = Math.min(selBox.y0, selBox.y1), y1 = Math.max(selBox.y0, selBox.y1);
+        const hits = editElems.filter(el => {
+          const ex = el.x, ey = el.y;
+          const ew = el.type === 'door' ? doorBounds(el).bw : el.w;
+          const eh = el.type === 'door' ? doorBounds(el).bh : el.h;
+          return ex >= x0 && ey >= y0 && (ex + ew) <= x1 && (ey + eh) <= y1;
+        });
+        selectedIds = new Set(hits.map(el => el.id));
+        if (selectedIds.size === 1) {
+          selectedId = [...selectedIds][0]; selectedIds.clear();
+        } else {
+          selectedId = null;
+        }
+        renderEditElements();
+        updateSelectedSection();
+      }
+      selBox = null;
+      epSnap.innerHTML = '';
+    }
+    if (isDragging) { isDragging = false; dragId = null; dragGroupOffsets = null; saveEditElems(editElems); }
     dragGroup = null;
     mouseDownPos = null;
   });
@@ -2812,9 +3029,9 @@
   });
 
   /* ── Viewer background toggle ── */
-  document.querySelectorAll('.bg-btn').forEach(btn => {
+  document.querySelectorAll('.bg-btn[data-bg]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.bg-btn[data-bg]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       canvasEl.classList.remove('bg-dark', 'bg-medium', 'bg-light');
       if (btn.dataset.bg) canvasEl.classList.add(btn.dataset.bg);
@@ -2822,12 +3039,126 @@
     });
   });
 
+  /* ── Cloud modal ── */
+  (function() {
+    const overlay    = document.getElementById('cloud-overlay');
+    const urlInput   = document.getElementById('cloud-url');
+    const keyInput   = document.getElementById('cloud-key');
+    const slotsEl    = document.getElementById('cloud-slots');
+    const statusEl   = document.getElementById('cloud-status');
+    const deviceIdEl = document.getElementById('cloud-device-id');
+    const SLOT_COUNT = 10;
+
+    function setStatus(msg, isErr) {
+      statusEl.textContent = msg;
+      statusEl.style.color = isErr ? '#ef4444' : '#64748b';
+    }
+
+    async function refreshSlots() {
+      setStatus('載入中…');
+      slotsEl.innerHTML = '';
+      let cloudRows = [];
+      const { url, key } = getCloudConfig();
+      if (url && key) {
+        try { cloudRows = await cloudList(); }
+        catch(e) { setStatus(e.message, true); }
+      } else {
+        setStatus('請輸入 Supabase URL 與 Anon Key 後即可使用雲端備份');
+      }
+      const bySlot = Object.fromEntries((cloudRows||[]).map(r => [r.slot, r]));
+      for (let s = 1; s <= SLOT_COUNT; s++) {
+        const row = bySlot[s];
+        const div = document.createElement('div');
+        div.className = 'cloud-slot' + (row ? '' : ' cloud-slot-empty');
+        div.innerHTML = `
+          <span class="cloud-slot-num">#${s}</span>
+          <span class="cloud-slot-name">${row ? row.name.replace(/</g,'&lt;') : '（空）'}</span>
+          <span class="cloud-slot-time">${row ? new Date(row.updated_at).toLocaleString('zh-TW',{dateStyle:'short',timeStyle:'short'}) : ''}</span>
+          <span class="cloud-slot-actions"></span>`;
+        const acts = div.querySelector('.cloud-slot-actions');
+        const upBtn = document.createElement('button');
+        upBtn.className = 'btn-cloud-up'; upBtn.textContent = '↑上傳';
+        upBtn.addEventListener('click', async () => {
+          const rec = records.find(r => r.id === activeId);
+          if (!rec) { setStatus('請先選擇一個本地 SVG', true); return; }
+          saveCloudConfig(urlInput.value.trim(), keyInput.value.trim());
+          setStatus(`上傳「${rec.name}」到第 ${s} 格…`);
+          try {
+            await cloudUpload(s, rec.name, rec.svg);
+            setStatus(`已上傳到第 ${s} 格`);
+            await refreshSlots();
+          } catch(e) { setStatus(e.message, true); }
+        });
+        acts.appendChild(upBtn);
+        if (row) {
+          const dlBtn = document.createElement('button');
+          dlBtn.className = 'btn-cloud-dl'; dlBtn.textContent = '↓下載';
+          dlBtn.addEventListener('click', async () => {
+            setStatus(`下載第 ${s} 格…`);
+            try {
+              const data = await cloudDownload(s);
+              if (!data) { setStatus('找不到資料', true); return; }
+              const newRec = { id: Date.now().toString(), name: data.name + ' (雲端)', svg: data.svg_content, createdAt: Date.now() };
+              records.push(newRec);
+              saveRecords(records);
+              switchTo(newRec.id);
+              renderTabs(); renderSvg();
+              setStatus(`已下載「${data.name}」`);
+            } catch(e) { setStatus(e.message, true); }
+          });
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn-cloud-del'; delBtn.textContent = '刪';
+          delBtn.addEventListener('click', async () => {
+            if (!confirm(`確定要刪除雲端第 ${s} 格「${row.name}」嗎？`)) return;
+            setStatus(`刪除第 ${s} 格…`);
+            try {
+              await cloudDelete(s);
+              setStatus(`已刪除第 ${s} 格`);
+              await refreshSlots();
+            } catch(e) { setStatus(e.message, true); }
+          });
+          acts.appendChild(dlBtn);
+          acts.appendChild(delBtn);
+        }
+        slotsEl.appendChild(div);
+      }
+      if (cloudRows && cloudRows.length > 0) setStatus('');
+    }
+
+    function openModal() {
+      const cfg = getCloudConfig();
+      urlInput.value = cfg.url;
+      keyInput.value = cfg.key;
+      deviceIdEl.textContent = getDeviceKey();
+      overlay.classList.add('open');
+      refreshSlots();
+    }
+    function closeModal() {
+      saveCloudConfig(urlInput.value.trim(), keyInput.value.trim());
+      overlay.classList.remove('open');
+    }
+
+    document.getElementById('btn-cloud').addEventListener('click', openModal);
+    document.getElementById('btn-cloud-close').addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+    // Re-fetch when URL/key changes
+    let cfgDebounce;
+    [urlInput, keyInput].forEach(inp => inp.addEventListener('input', () => {
+      clearTimeout(cfgDebounce);
+      cfgDebounce = setTimeout(() => {
+        saveCloudConfig(urlInput.value.trim(), keyInput.value.trim());
+        if (urlInput.value.trim() && keyInput.value.trim()) refreshSlots();
+      }, 800);
+    }));
+  })();
+
   /* ── Init ── */
 
   // Restore background selection
   (function() {
     const savedBg = loadBg();
-    document.querySelectorAll('.bg-btn').forEach(b => {
+    document.querySelectorAll('.bg-btn[data-bg]').forEach(b => {
       b.classList.toggle('active', (b.dataset.bg ?? '') === savedBg);
     });
     canvasEl.classList.remove('bg-dark', 'bg-medium', 'bg-light');
