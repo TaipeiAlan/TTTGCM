@@ -774,6 +774,7 @@
       <button class="zoom-btn" id="btn-zoom-out" title="縮小">−</button>
       <button class="zoom-btn" id="btn-zoom-fit" title="適合視窗" style="font-size:0.65rem">FIT</button>
       <button class="zoom-btn" id="btn-zoom-reset" title="重置" style="font-size:0.65rem">1:1</button>
+      <button class="zoom-btn" id="btn-zoom-edit" title="進行編輯" style="font-size:1rem">✎</button>
     </div>
   </div>
 
@@ -1358,6 +1359,9 @@
   });
   document.getElementById('btn-zoom-fit').addEventListener('click', fitTransform);
   document.getElementById('btn-zoom-reset').addEventListener('click', resetTransform);
+  document.getElementById('btn-zoom-edit').addEventListener('click', () => {
+    if (activeId && !isEditMode) enterEditMode();
+  });
 
   // Wheel zoom
   canvasEl.addEventListener('wheel', e => {
@@ -1466,7 +1470,7 @@
     renderTabs();
     renderSvg();
     closeModal();
-    enterEditMode();
+    requestAnimationFrame(fitTransform);
   }
 
   function autoName() {
@@ -1723,6 +1727,8 @@
     isEditMode = editingSet.has(activeId);
     document.body.classList.toggle('edit-mode', isEditMode);
     if (btnEditMode) btnEditMode.style.display = isEditMode ? 'none' : '';
+    const btnZoomEdit = document.getElementById('btn-zoom-edit');
+    if (btnZoomEdit) btnZoomEdit.style.display = isEditMode ? 'none' : '';
   }
 
   /* ── SVG record parse / generate ── */
