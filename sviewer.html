@@ -428,8 +428,18 @@
     }
     .bg-btn:hover { color: #e0e0e0; border-color: #3b82f6; }
     .bg-btn.active { background: #0f3460; color: #e0e0e0; border-color: #3b82f6; }
-    #canvas.bg-dark  { background: #0f172a !important; }
-    #canvas.bg-light { background: #e8ecf0 !important; }
+    #canvas.bg-dark   { background: #0f172a !important; }
+    #canvas.bg-medium {
+      background-color: #7b96aa !important;
+      background-image: repeating-linear-gradient(
+        45deg,
+        rgba(0,0,0,0.07) 0,
+        rgba(0,0,0,0.07) 1px,
+        transparent 0,
+        transparent 14px
+      ) !important;
+    }
+    #canvas.bg-light  { background: #e8ecf0 !important; }
 
     /* sidebar */
     /* Canvas handles its own touch — disable browser pan/zoom there */
@@ -694,18 +704,18 @@
       }
 
       /* 工具 section: 2-column grid so all 5 buttons fit in 130px sidebar height */
-      body.edit-mode #edit-sidebar > .esec:first-child {
+      body.edit-mode #tool-section {
         display: flex;
         flex-wrap: wrap;
         align-content: flex-start;
         gap: 3px;
         min-width: 132px;
       }
-      body.edit-mode #edit-sidebar > .esec:first-child > h3 {
+      body.edit-mode #tool-section > h3 {
         flex-basis: 100%;
         margin-bottom: 0;
       }
-      body.edit-mode #edit-sidebar > .esec:first-child > .tool-btn {
+      body.edit-mode #tool-section > .tool-btn {
         flex: 0 0 calc(50% - 2px);
         min-width: 0;
         margin-bottom: 0;
@@ -734,9 +744,9 @@
 <div id="topbar">
   <h1>SVG Viewer</h1>
   <button class="btn btn-primary" id="btn-add">+ 新增</button>
-  <button class="btn btn-secondary" id="btn-edit-mode">✎ 編修模式</button>
   <span id="bg-label" style="color:#334155;font-size:0.72rem;margin-left:6px;white-space:nowrap">背景</span>
   <button class="bg-btn" data-bg="">無</button>
+  <button class="bg-btn" data-bg="bg-medium">中</button>
   <button class="bg-btn" data-bg="bg-dark">深色</button>
   <button class="bg-btn active" data-bg="bg-light">淺色</button>
   <button class="bg-btn" id="btn-cloud" title="雲端備份">☁</button>
@@ -770,7 +780,16 @@
   <!-- ── Edit Sidebar ── -->
   <div id="edit-sidebar">
 
-    <div class="esec">
+    <div class="esec" id="edit-action-section">
+      <div style="display:flex;gap:5px;">
+        <button class="btn btn-primary" id="btn-edit-save"
+                style="flex:1;font-size:0.8rem;padding:5px">儲存</button>
+        <button class="btn btn-secondary" id="btn-edit-leave"
+                style="flex:1;font-size:0.8rem;padding:5px">離開</button>
+      </div>
+    </div>
+
+    <div class="esec" id="tool-section">
       <h3>工具</h3>
       <button class="tool-btn active" data-tool="select"><i class="tool-icon">▶</i>選取</button>
       <button class="tool-btn" data-tool="room"><i class="tool-icon">□</i>房</button>
@@ -901,6 +920,7 @@
     <div class="esec" id="selected-section" style="display:none">
       <h3>選取元素</h3>
       <div id="selected-info"></div>
+      <div id="sel-dim-area"></div>
       <button class="btn btn-danger" id="btn-delete-selected"
               style="width:100%;margin-top:8px;font-size:0.8rem;padding:5px">刪除</button>
     </div>
@@ -981,6 +1001,7 @@
     </div>
 
     <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-modal-blank" style="margin-right:auto">從空白開始</button>
       <button class="btn btn-secondary" id="btn-modal-cancel">取消</button>
       <button class="btn btn-primary" id="btn-modal-save">儲存</button>
     </div>
@@ -1074,7 +1095,7 @@
   function saveRecords(r) { localStorage.setItem(STORAGE_KEY, JSON.stringify(r)); }
 
   function saveBg(bg)    { localStorage.setItem(BG_KEY, bg); }
-  function loadBg()      { return localStorage.getItem(BG_KEY) ?? 'bg-light'; }
+  function loadBg()      { return localStorage.getItem(BG_KEY) ?? 'bg-medium'; }
 
   function saveMode(on)  { localStorage.setItem(MODE_KEY, on ? '1' : '0'); }
   function loadMode()    { return localStorage.getItem(MODE_KEY) === '1'; }
@@ -1363,7 +1384,7 @@
   document.getElementById('btn-add').addEventListener('click', openModal);
 
   function openModal() {
-    nameInput.value = '';
+    nameInput.value = autoName();
     svgTextarea.value = '';
     pendingFileContent = null;
     switchModalPanel('paste');
@@ -1383,6 +1404,19 @@
 
   document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
   modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+
+  document.getElementById('btn-modal-blank').addEventListener('click', () => {
+    const id   = Date.now().toString();
+    const name = nameInput.value.trim() || autoName();
+    const blankSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1300" width="1600" height="1300" data-tttgcm-version="1"><desc id="tttgcm-data">[]</desc></svg>`;
+    records.push({ id, name, svg: blankSvg, createdAt: Date.now() });
+    saveRecords(records);
+    activeId = id;
+    renderTabs();
+    renderSvg();
+    closeModal();
+    enterEditMode();
+  });
 
   // Modal panel switching
   document.querySelectorAll('.modal-tab-btn').forEach(btn => {
@@ -1424,10 +1458,14 @@
     enterEditMode();
   }
 
-  let autoCounter = 0;
   function autoName() {
-    autoCounter++;
-    return `SVG #${records.length + 1}`;
+    const now = new Date();
+    const Y = now.getFullYear();
+    const M = String(now.getMonth() + 1).padStart(2, '0');
+    const D = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    return `${Y}${M}${D}_${h}${m}`;
   }
 
   /* ── File open (drop zone) ── */
@@ -1568,6 +1606,7 @@
   const epSnap           = document.getElementById('ep-snap');
 
   let isEditMode      = false;    // mirrors editingSet.has(activeId)
+  let editDirty       = false;    // true when there are unsaved changes in edit mode
   let currentBgMarkup = null;     // SVG markup shown as bg in edit mode
   const editingSet   = new Set(); // IDs whose edit mode is active
   const editStateMap = new Map(); // id → { elems[], bgMarkup } working snapshots
@@ -1672,8 +1711,7 @@
   function updateEditModeUI() {
     isEditMode = editingSet.has(activeId);
     document.body.classList.toggle('edit-mode', isEditMode);
-    btnEditMode.classList.toggle('active', isEditMode);
-    btnEditMode.textContent = isEditMode ? '✕ 離開編修' : '✎ 編修模式';
+    btnEditMode.style.display = isEditMode ? 'none' : '';
   }
 
   /* ── SVG record parse / generate ── */
@@ -1693,13 +1731,161 @@
       const bgEl  = doc.getElementById('tttgcm-bg');
       const bgMarkup = (bgEl && bgEl.innerHTML.trim()) || null;
       return { elems, bgMarkup };
-    } else {
-      // External SVG: whole thing becomes a background image
-      const b64 = btoa(unescape(encodeURIComponent(svgStr)));
-      const bgMarkup = `<image href="data:image/svg+xml;base64,${b64}" x="0" y="0" width="1600" height="1300" preserveAspectRatio="xMidYMid meet"/>`;
-      return { elems: [], bgMarkup };
     }
+
+    // Try to recover elements from visual shapes (SVGs made before metadata was embedded)
+    const recovered = tryRecoverElems(doc);
+    if (recovered.length > 0) return { elems: recovered, bgMarkup: null };
+
+    // External SVG: whole thing becomes a background image
+    const b64 = btoa(unescape(encodeURIComponent(svgStr)));
+    const bgMarkup = `<image href="data:image/svg+xml;base64,${b64}" x="0" y="0" width="1600" height="1300" preserveAspectRatio="xMidYMid meet"/>`;
+    return { elems: [], bgMarkup };
   }
+
+  /* ── Recover elements from a visually-rendered (no-metadata) SVG ── */
+  // Element type naming convention: all tttgcm element types use the "sv_" prefix
+  // (sv_room, sv_vwall, sv_hwall, sv_reserved, sv_door, ...).
+  // Future element types must also use the "sv_" prefix.
+  function tryRecoverElems(doc) {
+    // Method 1: data-type="sv_*" attributes (new format — direct, no pattern matching needed)
+    const svTypedElems = [...doc.querySelectorAll('[data-type]')]
+      .filter(e => e.getAttribute('data-type').startsWith('sv_'));
+    if (svTypedElems.length > 0) {
+      const elems = [];
+      let nid = Date.now();
+      for (const el of svTypedElems) {
+        const type = el.getAttribute('data-type').slice(3); // strip "sv_" prefix
+        if (type === 'room' || type === 'reserved' || type === 'vwall' || type === 'hwall') {
+          const x = +el.getAttribute('x'), y = +el.getAttribute('y');
+          const w = +el.getAttribute('width'), h = +el.getAttribute('height');
+          elems.push({ id: String(++nid), type, x, y, w, h });
+        } else if (type === 'door') {
+          const x     = +el.getAttribute('x'), y = +el.getAttribute('y');
+          const w     = +(el.getAttribute('data-w')    || el.getAttribute('width'));
+          const dir   =   el.getAttribute('data-dir')   || 'h';
+          const hinge =   el.getAttribute('data-hinge') || 'L';
+          const swing =   el.getAttribute('data-swing') || 'in';
+          elems.push({ id: String(++nid), type: 'door', x, y, w, h: 3, dir, hinge, swing });
+        }
+      }
+      if (elems.length > 0) return elems;
+    }
+
+    // Method 2: visual signature matching (legacy SVGs without data-type attributes)
+    const allRects = [...doc.querySelectorAll('rect')];
+    const allPaths = [...doc.querySelectorAll('path')];
+
+    // Signature check — bail early for truly external SVGs
+    const looks =
+      allRects.some(r => r.getAttribute('fill') === 'white'   && r.getAttribute('stroke') === '#222' && r.getAttribute('stroke-width') === '10') ||
+      allRects.some(r => r.getAttribute('fill') === '#b8c8d4' && r.getAttribute('stroke') === '#222') ||
+      allRects.some(r => { const w = +r.getAttribute('width'), h = +r.getAttribute('height'); return r.getAttribute('fill') === '#222' && (Math.round(w) === 10 || Math.round(h) === 10); }) ||
+      allPaths.some(p => p.getAttribute('stroke') === '#222'  && p.getAttribute('stroke-width') === '2.2');
+    if (!looks) return [];
+
+    const elems = [];
+    const used  = new Set();
+    let   nid   = Date.now();
+
+    // 1. Reserved (must be before rooms — same stroke/color signature)
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') === '#b8c8d4' &&
+          r.getAttribute('stroke') === '#222' &&
+          r.getAttribute('stroke-width') === '10') {
+        const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+        const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+        used.add(r);
+        for (const r2 of allRects) { // consume companion hatch rect
+          if (!used.has(r2) && r2.getAttribute('fill') === 'url(#hatch)' &&
+              Math.abs(+r2.getAttribute('x') - x) < 0.5 &&
+              Math.abs(+r2.getAttribute('y') - y) < 0.5) { used.add(r2); break; }
+        }
+        elems.push({ id: String(++nid), type: 'reserved', x, y, w, h });
+      }
+    }
+
+    // 2. Rooms
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') === 'white' &&
+          r.getAttribute('stroke') === '#222' &&
+          r.getAttribute('stroke-width') === '10') {
+        const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+        const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'room', x, y, w, h });
+      }
+    }
+
+    // 3. Walls (thin dark rects — width≈10 → vwall, height≈10 → hwall)
+    for (const r of allRects) {
+      if (used.has(r)) continue;
+      if (r.getAttribute('fill') !== '#222') continue;
+      const stroke = r.getAttribute('stroke');
+      if (stroke && stroke !== 'none') continue;
+      const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+      const w = +r.getAttribute('width'), h = +r.getAttribute('height');
+      if (Math.round(w) === 10) {
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'vwall', x, y, w: 10, h });
+      } else if (Math.round(h) === 10) {
+        used.add(r);
+        elems.push({ id: String(++nid), type: 'hwall', x, y, w, h: 10 });
+      }
+    }
+
+    // 4. Doors — identify by the quarter-circle arc path, then consume panel + jambs
+    for (const path of allPaths) {
+      if (used.has(path)) continue;
+      if (path.getAttribute('stroke') !== '#222' || path.getAttribute('stroke-width') !== '2.2') continue;
+      const door = parseDoorArc(path.getAttribute('d') || '');
+      if (!door) continue;
+      used.add(path);
+      // panel rect (white, no stroke, at door.x/y)
+      for (const r of allRects) {
+        if (used.has(r)) continue;
+        if (r.getAttribute('fill') === 'white' && r.getAttribute('stroke') === 'none' &&
+            Math.abs(+r.getAttribute('x') - door.x) < 0.5 &&
+            Math.abs(+r.getAttribute('y') - door.y) < 0.5) { used.add(r); break; }
+      }
+      // jamb rects (fill #444, up to 2, within door.w+15 cm of door origin)
+      let jc = 0;
+      for (const r of allRects) {
+        if (used.has(r) || jc >= 2) break;
+        if (r.getAttribute('fill') === '#444' &&
+            Math.abs(+r.getAttribute('x') - door.x) < door.w + 15 &&
+            Math.abs(+r.getAttribute('y') - door.y) < door.w + 15) { used.add(r); jc++; }
+      }
+      elems.push({ id: String(++nid), type: 'door', ...door });
+    }
+
+    return elems;
+  }
+
+  /* ── Parse a tttgcm quarter-circle door arc path back to element params ── */
+  function parseDoorArc(d) {
+    // Format: M x1,y1 A r,r 0 0,sw x2,y2
+    const m = d.match(/M\s*([-\d.]+)[,\s]([-\d.]+)\s+A\s*([-\d.]+)[,\s][-\d.]+\s+0\s+0[,\s]([01])\s+([-\d.]+)[,\s]([-\d.]+)/);
+    if (!m) return null;
+    const x1 = +m[1], y1 = +m[2], r = +m[3], sw = +m[4], x2 = +m[5], y2 = +m[6];
+    const ir  = Math.round(r);
+    const idx = Math.round(x2 - x1), idy = Math.round(y2 - y1);
+
+    // Each (sign(dx), sign(dy), sweep) combination maps to exactly one door configuration.
+    //   dir='h' → panel horizontal; dir='v' → panel vertical
+    if (idx === -ir && idy === -ir && sw === 0) return { x: x2, y: y1, w: ir, h: 3, dir: 'h', hinge: 'L', swing: 'in'  };
+    if (idx === -ir && idy === -ir && sw === 1) return { x: x1, y: y2, w: ir, h: 3, dir: 'v', hinge: 'L', swing: 'in'  };
+    if (idx === -ir && idy ===  ir && sw === 1) return { x: x2, y: y1, w: ir, h: 3, dir: 'h', hinge: 'L', swing: 'out' };
+    if (idx === -ir && idy ===  ir && sw === 0) return { x: x1, y: y1, w: ir, h: 3, dir: 'v', hinge: 'R', swing: 'in'  };
+    if (idx ===  ir && idy === -ir && sw === 1) return { x: x1, y: y1, w: ir, h: 3, dir: 'h', hinge: 'R', swing: 'in'  };
+    if (idx ===  ir && idy === -ir && sw === 0) return { x: x1, y: y2, w: ir, h: 3, dir: 'v', hinge: 'L', swing: 'out' };
+    if (idx ===  ir && idy ===  ir && sw === 0) return { x: x1, y: y1, w: ir, h: 3, dir: 'h', hinge: 'R', swing: 'out' };
+    if (idx ===  ir && idy ===  ir && sw === 1) return { x: x1, y: y1, w: ir, h: 3, dir: 'v', hinge: 'R', swing: 'out' };
+    return null;
+  }
+
 
   function renderBgLayer() {
     epBg.innerHTML = currentBgMarkup || '';
@@ -1713,18 +1899,20 @@
     const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
       if (el.type === 'room')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
-      if (el.type === 'vwall' || el.type === 'hwall')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+        return `  <rect data-type="sv_room" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
+      if (el.type === 'vwall')
+        return `  <rect data-type="sv_vwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      if (el.type === 'hwall')
+        return `  <rect data-type="sv_hwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
       if (el.type === 'door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
         const jambs = doorJambRects(el)
           .map(j => `  <rect x="${j.x}" y="${j.y}" width="${j.w}" height="${j.h}" fill="#444"/>`)
           .join('\n');
-        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
+        return `  <rect data-type="sv_door" data-w="${el.w}" data-dir="${el.dir}" data-hinge="${el.hinge}" data-swing="${el.swing}" x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
       }
-      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
+      return `  <rect data-type="sv_reserved" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
 
     const bgPart   = currentBgMarkup ? `\n  <g id="tttgcm-bg">\n    ${currentBgMarkup}\n  </g>` : '';
@@ -1738,6 +1926,7 @@
     if (!rec) return;
     rec.svg = generateRecordSvg();
     saveRecords(records);
+    editDirty = false;
     renderSvg();
     showToast(`已更新「${rec.name}」`);
   }
@@ -1766,6 +1955,7 @@
     const { elems, bgMarkup } = rec ? parseSvgRecord(rec.svg) : { elems: [], bgMarkup: null };
     editElems       = elems;
     currentBgMarkup = bgMarkup;
+    editDirty       = false;
     editingSet.add(activeId);
     saveEditingSet();
     editStateMap.set(activeId, { elems: [...elems], bgMarkup });
@@ -1780,14 +1970,7 @@
   }
 
   btnEditMode.addEventListener('click', () => {
-    if (!isEditMode) {
-      enterEditMode();
-    } else {
-      // Show save-or-discard dialog before exiting
-      const rec = records.find(r => r.id === activeId);
-      document.getElementById('exit-edit-name').textContent = rec ? rec.name : '';
-      document.getElementById('exit-edit-overlay').classList.add('open');
-    }
+    if (!isEditMode) enterEditMode();
   });
 
   document.getElementById('btn-exit-save').addEventListener('click', () => {
@@ -1801,6 +1984,20 @@
   });
   document.getElementById('btn-exit-cancel').addEventListener('click', () => {
     document.getElementById('exit-edit-overlay').classList.remove('open');
+  });
+
+  /* ── Sidebar 儲存 / 離開 buttons ── */
+  document.getElementById('btn-edit-save').addEventListener('click', () => {
+    saveEditToRecord();
+  });
+  document.getElementById('btn-edit-leave').addEventListener('click', () => {
+    if (!editDirty) {
+      exitEditMode();
+    } else {
+      const rec = records.find(r => r.id === activeId);
+      document.getElementById('exit-edit-name').textContent = rec ? rec.name : '';
+      document.getElementById('exit-edit-overlay').classList.add('open');
+    }
   });
 
   /* ── Fit / transform ── */
@@ -1986,21 +2183,101 @@
     lRow.style.display = isRect ? 'none' : '';
   }
 
+  let _lastSelId = null; // track when selection actually changes vs drag-update
+
   function updateSelectedSection() {
-    const sec  = document.getElementById('selected-section');
-    const info = document.getElementById('selected-info');
-    if (!selectedId) { sec.style.display = 'none'; return; }
+    const sec = document.getElementById('selected-section');
+    if (!selectedId) { sec.style.display = 'none'; _lastSelId = null; return; }
     const el = editElems.find(e => e.id === selectedId);
-    if (!el) { sec.style.display = 'none'; return; }
+    if (!el)         { sec.style.display = 'none'; _lastSelId = null; return; }
     sec.style.display = '';
-    const label = { room:'房', vwall:'垂直牆', hwall:'橫向牆', reserved:'保留', door:'門' }[el.type];
-    if (el.type === 'door') {
-      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>寬：${el.w} cm<br>${el.dir==='h'?'橫':'直'}・${el.hinge==='L'?'左':'右'}鉸・${el.swing==='in'?'內':'外'}開`;
-    } else if (el.type === 'vwall' || el.type === 'hwall') {
-      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>長度：${el.type==='vwall'?el.h:el.w} cm`;
+    if (selectedId !== _lastSelId) {
+      _lastSelId = selectedId;
+      buildSelectedUI(el);
     } else {
-      info.innerHTML = `類型：${label}<br>位置：(${el.x}, ${el.y}) cm<br>尺寸：${el.w} × ${el.h} cm`;
+      // Drag in progress — only refresh position text, don't rebuild inputs
+      const posEl = document.getElementById('sel-pos');
+      if (posEl) posEl.textContent = `(${el.x}, ${el.y})`;
     }
+  }
+
+  function buildSelectedUI(el) {
+    const info    = document.getElementById('selected-info');
+    const dimArea = document.getElementById('sel-dim-area');
+    const LABEL   = { room:'房', vwall:'垂直牆', hwall:'橫向牆', reserved:'保留', door:'門' };
+    const doorExtra = el.type === 'door'
+      ? `<br>${el.dir==='h'?'橫':'直'}・${el.hinge==='L'?'左':'右'}鉸・${el.swing==='in'?'內':'外'}開`
+      : '';
+    info.innerHTML =
+      `${LABEL[el.type]}　<span id="sel-pos">(${el.x}, ${el.y})</span> cm${doorExtra}`;
+
+    dimArea.innerHTML = '';
+    const dims =
+      (el.type === 'room' || el.type === 'reserved')
+        ? [{ lbl:'W', key:'w', val:el.w, min:10 },
+           { lbl:'H', key:'h', val:el.h, min:10 }]
+      : el.type === 'vwall'
+        ? [{ lbl:'L', key:'h', val:el.h, min:10 }]
+      : el.type === 'hwall'
+        ? [{ lbl:'L', key:'w', val:el.w, min:10 }]
+      : el.type === 'door'
+        ? [{ lbl:'W', key:'w', val:el.w, min:30 }]
+      : [];
+
+    const capturedId = el.id; // safe even if selectedId changes later
+    for (const d of dims) {
+      const row = document.createElement('div');
+      row.className = 'dim-row';
+      row.style.marginTop = '4px';
+
+      const lbl = document.createElement('label');
+      lbl.textContent = d.lbl;
+
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.className = 'dim-input';
+      inp.value = d.val;   inp.min = d.min; inp.step = 1;
+
+      const unit = document.createElement('span');
+      unit.className = 'dim-unit'; unit.textContent = 'cm';
+
+      const commit = () => {
+        const v = Math.max(d.min, parseInt(inp.value) || d.min);
+        inp.value = v;
+        resizeElement(capturedId, d.key, v);
+      };
+      inp.addEventListener('focus',   () => { inp.dataset.orig = inp.value; });
+      inp.addEventListener('change',  commit);
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { commit(); inp.blur(); }
+        if (e.key === 'Escape') { inp.value = inp.dataset.orig ?? d.val; inp.blur(); }
+        e.stopPropagation(); // keep Delete/Backspace from deleting the element
+      });
+
+      row.append(lbl, inp, unit);
+      dimArea.appendChild(row);
+    }
+  }
+
+  function resizeElement(id, key, value) {
+    const el = editElems.find(e => e.id === id);
+    if (!el || el[key] === value) return;
+    el[key] = value;
+    // Clamp so element stays within canvas after resize
+    if (key === 'w') {
+      // vertical doors extend in Y direction; all others extend in X
+      if (el.type === 'door' && el.dir === 'v') {
+        if (el.y + value > 1300) el.y = Math.max(0, 1300 - value);
+      } else {
+        if (el.x + value > 1600) el.x = Math.max(0, 1600 - value);
+      }
+    } else { // key === 'h'
+      if (el.y + value > 1300) el.y = Math.max(0, 1300 - value);
+    }
+    editDirty = true;
+    saveEditElems(editElems);
+    renderEditElements();
+    const posEl = document.getElementById('sel-pos');
+    if (posEl) posEl.textContent = `(${el.x}, ${el.y})`;
   }
 
   /* ── Delete (with one-shot undo) ── */
@@ -2012,6 +2289,7 @@
     if (!el) return;
     lastDeleted = { ...el };
     editElems = editElems.filter(e => e.id !== id);
+    editDirty = true;
     saveEditElems(editElems);
     selectedId = null;
     renderEditElements();
@@ -2027,6 +2305,7 @@
   document.getElementById('btn-undo-delete').addEventListener('click', () => {
     if (!lastDeleted) return;
     editElems.push(lastDeleted);
+    editDirty = true;
     saveEditElems(editElems);
     lastDeleted = null;
     renderEditElements();
@@ -2038,6 +2317,7 @@
     if (!editElems.length) return;
     if (!confirm('確定清空畫布？此操作無法復原。')) return;
     editElems = []; selectedId = null; lastDeleted = null;
+    editDirty = true;
     saveEditElems(editElems);
     renderEditElements(); updateSelectedSection();
     undoSection.style.display = 'none';
@@ -2331,6 +2611,7 @@
   /* ── Commit a new element ── */
   function placeElement(x, y, w, h, type, extra = {}) {
     editElems.push({ id: Date.now().toString(), type, x, y, w, h, ...extra });
+    editDirty = true;
     saveEditElems(editElems);
     renderEditElements();
     epPreview.innerHTML = '';
@@ -2589,7 +2870,7 @@
 
   editSvgEl.addEventListener('pointerup', e => {
     if (!isEditMode || e.pointerType === 'mouse') return;
-    if (isDragging) { isDragging = false; dragId = null; saveEditElems(editElems); }
+    if (isDragging) { isDragging = false; dragId = null; editDirty = true; saveEditElems(editElems); }
     dragGroup = null;
     if (ePanning)   { ePanning = false; }
 
@@ -2674,22 +2955,24 @@
     const sorted = [...editElems].sort((a, b) => (Z[a.type] ?? 0) - (Z[b.type] ?? 0));
     const shapes = sorted.map(el => {
       if (el.type === 'room')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
-      if (el.type === 'vwall' || el.type === 'hwall')
-        return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+        return `  <rect data-type="sv_room" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="white" stroke="#222" stroke-width="10"/>`;
+      if (el.type === 'vwall')
+        return `  <rect data-type="sv_vwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
+      if (el.type === 'hwall')
+        return `  <rect data-type="sv_hwall" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#222"/>`;
       if (el.type === 'door') {
         const dw = el.dir === 'h' ? el.w : el.h;
         const dh = el.dir === 'h' ? el.h : el.w;
         const jambs = doorJambRects(el)
           .map(j => `  <rect x="${j.x}" y="${j.y}" width="${j.w}" height="${j.h}" fill="#444"/>`)
           .join('\n');
-        return `  <rect x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
+        return `  <rect data-type="sv_door" data-w="${el.w}" data-dir="${el.dir}" data-hinge="${el.hinge}" data-swing="${el.swing}" x="${el.x}" y="${el.y}" width="${dw}" height="${dh}" fill="white" stroke="none"/>\n${jambs}\n  <path d="${doorArcPath(el)}" fill="none" stroke="#222" stroke-width="2.2"/>`;
       }
       // reserved — opaque background + hatch overlay
-      return `  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
+      return `  <rect data-type="sv_reserved" x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="#b8c8d4" stroke="#222" stroke-width="10"/>\n  <rect x="${el.x}" y="${el.y}" width="${el.w}" height="${el.h}" fill="url(#hatch)" stroke="none"/>`;
     }).join('\n');
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${vw} ${vh}" width="${vw}" height="${vh}">${defs}\n${shapes}\n</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${vw} ${vh}" width="${vw}" height="${vh}" data-tttgcm-version="1">\n  <desc id="tttgcm-data">${JSON.stringify(editElems)}</desc>${defs}\n${shapes}\n</svg>`;
   }
 
   /* ── 另存新圖 ── */
@@ -2703,6 +2986,7 @@
     records.push({ id, name, svg: xml, createdAt: Date.now() });
     saveRecords(records);
     saveEditElemsForId(id, editElems); // carry current elements to new record
+    editDirty = false;
     activeId = id;
     renderTabs();
     renderSvg();
@@ -2749,7 +3033,7 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.bg-btn[data-bg]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      canvasEl.classList.remove('bg-dark', 'bg-light');
+      canvasEl.classList.remove('bg-dark', 'bg-medium', 'bg-light');
       if (btn.dataset.bg) canvasEl.classList.add(btn.dataset.bg);
       saveBg(btn.dataset.bg ?? '');
     });
@@ -2877,35 +3161,8 @@
     document.querySelectorAll('.bg-btn[data-bg]').forEach(b => {
       b.classList.toggle('active', (b.dataset.bg ?? '') === savedBg);
     });
-    canvasEl.classList.remove('bg-dark', 'bg-light');
+    canvasEl.classList.remove('bg-dark', 'bg-medium', 'bg-light');
     if (savedBg) canvasEl.classList.add(savedBg);
-  })();
-
-  // ── Migration: convert existing per-SVG editElems → "auto" records ──
-  (function migrateEditElemsToRecords() {
-    const map = _loadElemsMap();
-    const entries = Object.entries(map).filter(([, elems]) => elems && elems.length > 0);
-    if (!entries.length) return;
-
-    let count = 0;
-    entries.forEach(([, elems]) => {
-      // Temporarily set state to generate a tttgcm SVG from these elems
-      editElems       = elems;
-      currentBgMarkup = null;
-      const xml = generateRecordSvg();
-      count++;
-      const autoName = entries.length === 1 ? 'auto' : `auto ${count}`;
-      const newId = (Date.now() + count).toString();
-      records.push({ id: newId, name: autoName, svg: xml, createdAt: Date.now() });
-    });
-
-    editElems       = [];
-    currentBgMarkup = null;
-    saveRecords(records);
-    localStorage.removeItem(EDIT_ELEMS_MAP_KEY);
-    activeId = records[records.length - 1].id;
-    saveActiveId(activeId);
-    showToast(`已將編修資料另存為 ${entries.length === 1 ? '"auto"' : `${entries.length} 筆 auto`} 紀錄`);
   })();
 
   /* ── Restore edit mode state from previous session ── */
