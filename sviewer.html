@@ -1130,6 +1130,39 @@
     catch { return []; }
   }
 
+
+  function sanitizeSvgMarkup(svgStr) {
+    try {
+      const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
+      const root = doc.documentElement;
+      if (!root || root.tagName.toLowerCase() !== 'svg' || root.querySelector('parsererror')) return null;
+
+      root.querySelectorAll('script, foreignObject, iframe, object, embed').forEach(el => el.remove());
+
+      const walker = doc.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+      const nodes = [root];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+
+      for (const el of nodes) {
+        for (const attr of [...el.attributes]) {
+          const n = attr.name.toLowerCase();
+          const v = (attr.value || '').trim().toLowerCase();
+          if (n.startsWith('on')) { el.removeAttribute(attr.name); continue; }
+          if ((n === 'href' || n === 'xlink:href') && v.startsWith('javascript:')) {
+            el.removeAttribute(attr.name); continue;
+          }
+          if (n === 'style' && /javascript:|expression\s*\(/i.test(attr.value || '')) {
+            el.removeAttribute('style');
+          }
+        }
+      }
+
+      return new XMLSerializer().serializeToString(root);
+    } catch {
+      return null;
+    }
+  }
+
   /* ── Cloud helpers ── */
   function getDeviceKey() {
     let k = localStorage.getItem(CLOUD_DEVICE_KEY);
@@ -1284,7 +1317,13 @@
       return;
     }
     emptyHint.style.display = 'none';
-    svgContainer.innerHTML = rec.svg;
+    const safeSvg = sanitizeSvgMarkup(rec.svg);
+    if (!safeSvg) {
+      svgContainer.innerHTML = '';
+      showToast('SVG 內容無效或包含不支援的標記');
+      return;
+    }
+    svgContainer.innerHTML = safeSvg;
     // ensure svg fills container naturally
     const svgEl = svgContainer.querySelector('svg');
     if (svgEl) {
@@ -1462,9 +1501,12 @@
       showToast('內容似乎不是有效的 SVG'); return;
     }
 
+    const sanitized = sanitizeSvgMarkup(svgStr);
+    if (!sanitized) { showToast('SVG 內容無效或包含不支援的標記'); return; }
+
     const id = Date.now().toString();
     const name = nameInput.value.trim() || autoName();
-    records.push({ id, name, svg: svgStr, createdAt: Date.now() });
+    records.push({ id, name, svg: sanitized, createdAt: Date.now() });
     saveRecords(records);
     activeId = id;
     renderTabs();
@@ -2518,7 +2560,7 @@
     return { w, h };
   }
 
-  /* ── Snap: grid (0.5 cm) then edge ── */
+  /* ── Snap: use current snap unit (1cm/10cm) then edge ── */
   function snapElement(x, y, w, h, excludeId) {
     let sx = Math.round(x / snapUnit) * snapUnit;
     let sy = Math.round(y / snapUnit) * snapUnit;
@@ -2702,7 +2744,7 @@
       placeElement(s.x, s.y, dw, 3, 'door', { dir: doorDir, hinge: doorHinge, swing: doorSwing });
     } else {
       const { w, h } = getDims();
-      const s = snapElement(sp.x, sp.y, w, h);
+      const s = snapElement(sp.x - w / 2, sp.y - h / 2, w, h);
       placeElement(s.x, s.y, w, h, activeTool);
     }
   });
@@ -2791,7 +2833,7 @@
           drawPreview(s.x, s.y, dw, 3, 'door');
         } else {
           const { w, h } = getDims();
-          const s = snapElement(sp.x, sp.y, w, h);
+          const s = snapElement(sp.x - w / 2, sp.y - h / 2, w, h);
           drawPreview(s.x, s.y, w, h, activeTool);
         }
       } else {
@@ -2807,10 +2849,10 @@
         const x0 = Math.min(selBox.x0, selBox.x1), x1 = Math.max(selBox.x0, selBox.x1);
         const y0 = Math.min(selBox.y0, selBox.y1), y1 = Math.max(selBox.y0, selBox.y1);
         const hits = editElems.filter(el => {
-          const ex = el.x, ey = el.y;
-          const ew = el.type === 'sv_door' ? doorBounds(el).bw : el.w;
-          const eh = el.type === 'sv_door' ? doorBounds(el).bh : el.h;
-          return ex >= x0 && ey >= y0 && (ex + ew) <= x1 && (ey + eh) <= y1;
+          const b = el.type === 'sv_door'
+            ? doorBounds(el)
+            : { bx: el.x, by: el.y, bw: el.w, bh: el.h };
+          return b.bx >= x0 && b.by >= y0 && (b.bx + b.bw) <= x1 && (b.by + b.bh) <= y1;
         });
         selectedIds = new Set(hits.map(el => el.id));
         if (selectedIds.size === 1) {
@@ -3119,7 +3161,9 @@
             try {
               const data = await cloudDownload(s);
               if (!data) { setStatus('找不到資料', true); return; }
-              const newRec = { id: Date.now().toString(), name: data.name + ' (雲端)', svg: data.svg_content, createdAt: Date.now() };
+              const safeCloudSvg = sanitizeSvgMarkup(data.svg_content || '');
+              if (!safeCloudSvg) { setStatus('下載內容不是有效 SVG', true); return; }
+              const newRec = { id: Date.now().toString(), name: data.name + ' (雲端)', svg: safeCloudSvg, createdAt: Date.now() };
               records.push(newRec);
               saveRecords(records);
               switchTo(newRec.id);
