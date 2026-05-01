@@ -64,6 +64,8 @@
         <div class="controls">
           <label class="btn" for="fileInput">開啟 XLS/XLSX</label>
           <input id="fileInput" type="file" accept=".xls,.xlsx" hidden>
+          <label class="btn" for="csvInput">開啟 CSV</label>
+          <input id="csvInput" type="file" accept=".csv" hidden>
           <label class="btn" style="display:inline-flex;align-items:center;gap:6px;">
             <input id="priceToggle" type="checkbox" checked>
             與車位一起計算單坪價格
@@ -394,6 +396,95 @@
     }
 
     function setSize(s){document.body.classList.remove('size-l','size-m','size-s');document.body.classList.add(`size-${s}`);sizeBtns.forEach(b=>b.classList.toggle('active',b.dataset.size===s));localStorage.setItem(SIZE_KEY,s)}
+
+    // ── CSV support ──────────────────────────────────────────────────────────
+    const csvInput=document.getElementById('csvInput');
+    function parseCsvLine(line){
+      const out=[];let cur='',inQ=false;
+      for(let i=0;i<line.length;i++){
+        const c=line[i];
+        if(inQ){if(c==='"'&&line[i+1]==='"'){cur+='"';i++;}else if(c==='"'){inQ=false;}else cur+=c;}
+        else if(c==='"'){inQ=true;}
+        else if(c===','){out.push(cur.trim());cur='';}
+        else cur+=c;
+      }
+      out.push(cur.trim());return out;
+    }
+    function extractUnitFromAddr(addr){
+      const s=String(addr||'').trim();
+      let m=s.match(/([A-Za-z]?\d+之?\d*號)\s*$/);if(m)return m[1];
+      m=s.match(/棟([A-Za-z\d]+)/);if(m)return `棟${m[1]}`;
+      return s.split(/[市縣區道路街巷弄]/).filter(Boolean).pop()||s;
+    }
+    function extractFloorFromAddr(addr){const m=String(addr||'').match(/(\d+)\s*樓/);return m?Number(m[1]):null;}
+    function parseCsvData(text){
+      text=text.replace(/^﻿/,'');
+      const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim());
+      if(lines.length<2)throw new Error('CSV 資料不足（需有標題列與資料列）');
+      const header=parseCsvLine(lines[0]);
+      const col=Object.fromEntries(header.map((h,i)=>[h.trim(),i]));
+      const g=(row,field)=>col[field]!==undefined?String(row[col[field]]||'').trim():'';
+      const gv=(row,field)=>{const v=g(row,field);return(v&&v!=='undefined')?v:'';};
+      const gn=(row,field)=>{const v=parseFloat(g(row,field));return Number.isFinite(v)?v:null;};
+      const records=[];let skipped=0,dataDate='';
+      for(let i=1;i<lines.length;i++){
+        const row=parseCsvLine(lines[i]);
+        if(!row.length||!row.some(c=>c))continue;
+        const addr=gv(row,'建物座落(門牌地址)');if(!addr)continue;
+        if(!dataDate){const ym=g(row,'申報年月').replace(/[^\d]/g,'');if(ym.length>=5)dataDate=`${ym.slice(0,ym.length-2)}年${ym.slice(-2)}月`;}
+        const 樓層概況=gv(row,'樓層概況');
+        let floor=null;
+        if(樓層概況){const m=樓層概況.match(/(-?\d+)\s*樓/);if(m)floor=Number(m[1]);}
+        if(floor===null)floor=extractFloorFromAddr(addr);
+        if(floor===null){skipped++;continue;}
+        const unit=extractUnitFromAddr(addr);
+        const totalYuan=gn(row,'總價');
+        const totalWan=totalYuan!==null?totalYuan/10000:null;
+        const unitPrice=gn(row,'每坪單價(萬)');
+        const bldgSqm=gn(row,'建物移轉平方公尺');
+        const totalPing=bldgSqm!==null&&bldgSqm>0?bldgSqm/3.30578:null;
+        const landSqm=gn(row,'土地移轉平方公尺');
+        const landPing=landSqm!==null&&landSqm>0?landSqm/3.30578:null;
+        const rooms=gv(row,'房').replace(/[^\d]/g,'');
+        const halls=gv(row,'廳').replace(/[^\d]/g,'');
+        const baths=gv(row,'衛').replace(/[^\d]/g,'');
+        const layout=[rooms&&`${rooms}房`,halls&&`${halls}廳`,baths&&`${baths}衛`].filter(Boolean).join('');
+        const ym=g(row,'交易年月').replace(/[^\d]/g,'');
+        const txDate=ym.length>=5?`${ym.slice(0,ym.length-2)}年${ym.slice(-2)}月`:ym;
+        const 物件數=gv(row,'物件數');
+        const hasParking=物件數.includes('車位')&&!/車位0/.test(物件數);
+        records.push({
+          編號:String(i),建物坐落:addr,棟及號:unit,
+          建案名稱:gv(row,'行政區')+gv(row,'地段'),
+          交易日期:txDate,總價:totalWan,單價:unitPrice,
+          總面積:totalPing,室內坪數:'',陽台坪數:'',車位坪數:'',土地坪數:landPing,
+          主建物佔比:'',型態:gv(row,'型態'),
+          樓別樓高:`${floor}樓`,樓層:floor,
+          交易標的:物件數,交易筆棟數:物件數,建物格局:layout,
+          車位總價:null,車位數量:hasParking?1:0,
+          主要用途:gv(row,'申報用途'),主要建材:gv(row,'結構'),備註:gv(row,'車位類型'),
+          土地明細:[],建物明細:[],車位明細:[],房屋總面積:totalPing
+        });
+      }
+      if(!records.length)throw new Error(`CSV 中沒有可解析的記錄${skipped?`（${skipped} 筆因缺少樓層資訊被略過）`:''}`);
+      return{records,skipped,dataDate:dataDate||new Date().toISOString().slice(0,10)};
+    }
+    csvInput.addEventListener('change',async e=>{
+      const f=e.target.files[0];if(!f)return;
+      statusEl.textContent=`讀取中：${f.name}`;
+      try{
+        const text=await f.text();
+        const{records,skipped,dataDate}=parseCsvData(text);
+        saveCache(records,dataDate);
+        currentRecords=records;
+        renderTable(records,{dataDate,cachedAt:new Date().toISOString()});
+        if(skipped)statusEl.textContent+=` （${skipped} 筆無樓層資訊略過）`;
+      }catch(err){
+        statusEl.textContent=`CSV 解析失敗：${err.message}`;
+      }
+      e.target.value='';
+    });
+    // ─────────────────────────────────────────────────────────────────────────
 
     fileInput.addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;statusEl.textContent=`讀取中：${f.name}`;try{await handleUpload(f)}catch(err){statusEl.textContent=`解析失敗：${err.message}`;gridWrap.innerHTML=''}});
     sizeBtns.forEach(btn=>btn.addEventListener('click',()=>setSize(btn.dataset.size)));
