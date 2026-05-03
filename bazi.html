@@ -297,11 +297,38 @@ main { max-width: 960px; margin: 0 auto; padding: 20px 16px 60px; }
 .liuyear-table tr.current-year td:first-child { border-left: 3px solid var(--gold); font-weight: 600; }
 .ly-jiazi { font-family: 'Noto Serif TC', serif; font-size: 1.1rem; font-weight: 600; }
 
-/* ── Interpretation ── */
+/* ── Interpretation Enhanced ── */
 .interp-block { margin-bottom: 14px; }
-.interp-block h4 { color: var(--gold); font-size: 13px; margin-bottom: 6px; letter-spacing: 0.08em; font-family: 'Noto Serif TC', serif; }
-.interp-block p { font-size: 13px; color: var(--text); line-height: 1.8; }
-.interp-divider { height: 1px; background: var(--border); margin: 14px 0; }
+.interp-block h4 { color: var(--gold); font-size: 13px; margin-bottom: 8px; letter-spacing: 0.08em; font-family: 'Noto Serif TC', serif; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.interp-block p { font-size: 13px; color: var(--text); line-height: 1.9; }
+.interp-divider { height: 1px; background: var(--border); margin: 16px 0; }
+.interp-domain { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
+.domain-card { background: var(--surface2); border-radius: 8px; padding: 12px 14px; border-left: 3px solid var(--border2); }
+.domain-card.good    { border-left-color: var(--green); }
+.domain-card.caution { border-left-color: var(--red); }
+.domain-title { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.06em; }
+.domain-rating { font-size: 11px; padding: 2px 8px; border-radius: 10px; display: inline-block; }
+.rating-good    { background: rgba(92,184,122,0.2); color: var(--green); border: 1px solid rgba(92,184,122,0.4); }
+.rating-ok      { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+.rating-caution { background: rgba(224,92,92,0.15); color: var(--red); border: 1px solid rgba(224,92,92,0.3); }
+.verdict-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; }
+.verdict-good { background: rgba(92,184,122,0.2); color: var(--green); }
+.verdict-ok   { background: rgba(201,168,76,0.15); color: var(--gold); }
+.verdict-bad  { background: rgba(224,92,92,0.15); color: var(--red); }
+.tg-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 8px; margin-top: 10px; }
+.tg-legend-item { display: flex; gap: 8px; padding: 9px 11px; background: var(--surface2); border-radius: 7px; align-items: flex-start; border: 1px solid var(--border); }
+.tg-legend-name { font-family: 'Noto Serif TC', serif; font-size: 1.05rem; font-weight: 700; flex-shrink: 0; width: 30px; }
+.tg-legend-body { flex: 1; min-width: 0; }
+.tg-legend-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.tg-legend-desc { font-size: 12px; line-height: 1.6; color: var(--text); }
+.interp-list { list-style: none; padding: 0; margin: 6px 0; }
+.interp-list li { padding: 3px 0; font-size: 13px; line-height: 1.8; }
+.interp-list li::before { content: '▸ '; color: var(--gold-dim); }
+.luck-good { background: rgba(92,184,122,0.2); color: var(--green); padding: 1px 7px; border-radius: 8px; font-size: 11px; }
+.luck-ok   { background: rgba(201,168,76,0.12); color: var(--gold); padding: 1px 7px; border-radius: 8px; font-size: 11px; }
+.luck-bad  { background: rgba(224,92,92,0.15); color: var(--red); padding: 1px 7px; border-radius: 8px; font-size: 11px; }
+.el-block { padding: 9px 12px; background: var(--surface2); border-radius: 7px; border-left: 3px solid; }
+.el-desc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin-top: 12px; }
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
@@ -553,6 +580,29 @@ const DAY_MASTER_DESC = {
 };
 
 const SEASON_EL_NAME = { 木:'春木旺', 火:'夏火旺', 金:'秋金旺', 水:'冬水旺', 土:'四季土旺' };
+
+// Ten God comprehensive info
+const TENGOD_INFO = {
+  比肩: { life:'兄弟姐妹、朋友、競爭對手', pos:'助身補力、增加合作與分擔', neg:'競爭財富、意見相左、財散', career:'合夥、同業競爭、業務' },
+  劫財: { life:'兄弟姐妹（陰陽異）、合夥人', pos:'行動力強、弱身時有力', neg:'破財之星、合夥糾紛、情感不穩', career:'衝勁強、適合自主創業' },
+  食神: { life:'才能表達、子女（男命）、壽元', pos:'樂觀多才、衣食豐足、制殺護身', neg:'被偏印壓制則才能受阻', career:'文藝、餐飲、教育、表演、創作' },
+  傷官: { life:'才藝聲名、子女（男命）', pos:'才華出眾、突破創新、制官殺', neg:'易損官緣、衝剋上司、多是非官司', career:'技術、藝術、法律、自由職業' },
+  偏財: { life:'父親（男命）、橫財、社交財', pos:'人緣廣、意外之財、廣結善緣', neg:'感情不專一、財來財去', career:'業務、投資、公關、銷售' },
+  正財: { life:'妻子（男命）、正當收入', pos:'勤勉實際、財運穩健、婚緣佳（男）', neg:'身弱時財多壓身、反成負擔', career:'穩定職業、金融、會計、財務' },
+  七殺: { life:'壓力來源、上司、丈夫（女強型）', pos:'有制則魄力十足、成就非凡', neg:'無制則壓力大、多是非糾紛、健康受損', career:'軍警、競技、管理高層、競爭激烈的行業' },
+  正官: { life:'名譽地位、丈夫（女命）、規範', pos:'守法重義、仕途順遂、好名聲、婚緣佳（女）', neg:'被傷官衝剋則官位難保、多是非', career:'公職、管理、教育、法律、行政' },
+  偏印: { life:'繼母象徵、另類學習、直覺', pos:'獨立思考、研究鑽研、靈感豐富', neg:'孤立內向、拖延、奪食神之力（奪食）', career:'研究、宗教、哲學、藝術創作' },
+  正印: { life:'母親、文書、貴人、學歷', pos:'得貴人助、文職通達、學習力強', neg:'過多則依賴心重、行動力不足', career:'學術、文職、行政、師資、公務' },
+};
+
+// Element life domain meanings
+const ELEMENT_MEANING = {
+  木: { domain:'生命力、成長、仁心、木業', excess:'執著固執、難妥協、過度理想化', lack:'缺乏方向感與同情心', body:'肝、膽、筋、眼', color:'var(--wood)' },
+  火: { domain:'熱情、名聲、禮儀、文化', excess:'衝動急躁、虎頭蛇尾、易傷身', lack:'缺乏自信與名氣，人際較冷淡', body:'心、小腸、血液', color:'var(--fire)' },
+  土: { domain:'穩定、信用、包容、農地', excess:'保守頑固、行動遲緩、不易接受變化', lack:'缺乏安全感、容易情緒波動', body:'胃、脾、肌肉', color:'var(--earth)' },
+  金: { domain:'決斷、義氣、紀律、金屬', excess:'過於嚴苛、冷酷、追求完美傷自身', lack:'優柔寡斷、缺乏魄力與執行力', body:'肺、大腸、皮膚、鼻', color:'var(--metal)' },
+  水: { domain:'智慧、溝通、靈活、流動', excess:'多慮不定、過於流動缺乏根基', lack:'思路保守、缺乏靈活度與洞察力', body:'腎、膀胱、骨、耳', color:'var(--water)' },
+};
 
 // ─── Solar Term Engine ────────────────────────────────────────────────────────
 
@@ -909,61 +959,252 @@ function computeLiuNian(baziYear, dayunCycles, masterStemIdx, currentYear) {
 
 // ─── Pattern Analysis ─────────────────────────────────────────────────────────
 
-function detectPatterns(pillars, masterStemIdx, tenGods) {
-  const notes = [];
+function detectPatterns(pillars, masterStemIdx, tenGods, strengthData) {
   const tgCounts = {};
   tenGods.forEach(tg => { tgCounts[tg.god] = (tgCounts[tg.god] || 0) + 1; });
+  const { strength, favEl, avoidEl } = strengthData;
 
-  // Check for 正官格
-  if (tgCounts['正官'] >= 1) notes.push('命中有正官，官星有力，宜從事公職或管理職位。');
-  if (tgCounts['七殺'] >= 2) notes.push('七殺重疊，宜有制殺之神方能發揮才能。');
-  if (tgCounts['食神'] >= 1 && !tgCounts['傷官']) notes.push('食神格，個性樂觀，才藝豐富，衣食不愁。');
-  if (tgCounts['傷官'] >= 1) notes.push('傷官格，個性聰明好勝，才華洋溢，但須注意不宜衝剋官星。');
-  if (tgCounts['正印'] >= 1 || tgCounts['偏印'] >= 1) notes.push('印星有力，學習能力強，貴人緣佳，利於學術與文職。');
-  if (tgCounts['正財'] >= 1 || tgCounts['偏財'] >= 1) notes.push('財星顯現，具有理財能力，財運較佳。');
-  if (tgCounts['比肩'] >= 2 || tgCounts['劫財'] >= 2) notes.push('比劫重疊，競爭心強，兄弟緣深，惟需注意財散之象。');
-  if (notes.length === 0) notes.push('命盤格局平衡，諸星調和，宜依大運流年把握時機。');
-  return notes;
+  // Pattern notes
+  const notes = [];
+  if (tgCounts['正官'] >= 1 && !tgCounts['傷官'])
+    notes.push({ t:'good',   s:'正官格：規矩守法，仕途順遂，適合公職、管理，上司緣佳，名譽好。' });
+  if (tgCounts['七殺'] >= 1 && (tgCounts['食神'] >= 1 || tgCounts['正印'] >= 1 || tgCounts['偏印'] >= 1))
+    notes.push({ t:'good',   s:'七殺有制（食神制殺或印化殺）：魄力強且方向明確，壓力轉化為動力，成就顯著。' });
+  if (tgCounts['七殺'] >= 2 && !tgCounts['食神'] && !tgCounts['正印'] && !tgCounts['偏印'])
+    notes.push({ t:'caution',s:'七殺重疊且無制化：壓力、是非較多，需行印運或食神運方能化解，切忌逞強冒進。' });
+  if (tgCounts['食神'] >= 1 && !tgCounts['傷官'])
+    notes.push({ t:'good',   s:'食神格：個性樂觀，才藝出眾，衣食豐足，長壽之象，有制殺護身之功。' });
+  if (tgCounts['傷官'] >= 1 && tgCounts['正官'] >= 1)
+    notes.push({ t:'caution',s:'傷官見官：才華洋溢但易得罪上司，官司是非較多，宜自行創業或技術型職業。' });
+  if (tgCounts['傷官'] >= 1 && (tgCounts['正財'] >= 1 || tgCounts['偏財'] >= 1))
+    notes.push({ t:'good',   s:'傷官生財：憑才智創造財富，財運活躍，適合業務、創業或自由職業。' });
+  if ((tgCounts['正財'] >= 1 || tgCounts['偏財'] >= 1) && strength === 'strong')
+    notes.push({ t:'good',   s:'身強有財：有能力掌握財富，財運佳，事業財富兩得。' });
+  if ((tgCounts['正財'] >= 1 || tgCounts['偏財'] >= 1) && strength === 'weak')
+    notes.push({ t:'caution',s:'財多身弱：財源不少但難以留住，宜先增強自身能量（行印運、比劫運）再求財。' });
+  if ((tgCounts['正印'] || 0) + (tgCounts['偏印'] || 0) >= 2)
+    notes.push({ t:'ok',     s:'印星旺：學習力強，貴人緣好，靠腦力或學術取得成就，行動力需主動加強。' });
+  if ((tgCounts['比肩'] || 0) + (tgCounts['劫財'] || 0) >= 2)
+    notes.push({ t:'caution',s:'比劫過旺：競爭心強，須防財散及合夥糾紛，個性需避免過於自我。' });
+  if (notes.length === 0)
+    notes.push({ t:'ok',     s:'命盤諸星調和，格局穩正，宜依大運流年把握時機，穩步前進。' });
+
+  const lblMap = { good:'吉', ok:'平', caution:'注意' };
+  const noteHtml = notes.map(n =>
+    `<div style="display:flex;align-items:flex-start;gap:8px;margin:6px 0;font-size:13px;line-height:1.7">
+      <span class="luck-${n.t === 'caution' ? 'bad' : n.t}" style="flex-shrink:0;margin-top:2px">${lblMap[n.t]}</span>
+      <span>${n.s}</span>
+    </div>`
+  ).join('');
+
+  // Ten Gods legend with favor/avoid badges
+  let legendHtml = '<div style="margin-bottom:6px;font-size:11px;color:var(--text-muted);letter-spacing:0.05em">各柱十神說明（<span class="verdict-good verdict-badge">喜</span> 對命主有利　<span class="verdict-bad verdict-badge">忌</span> 對命主不利　<span class="verdict-ok verdict-badge">平</span> 中性）</div>';
+  legendHtml += '<div class="tg-legend">';
+  tenGods.filter(tg => tg.god !== '日主').forEach(tg => {
+    const info = TENGOD_INFO[tg.god];
+    if (!info) return;
+    const stemEl = STEMS[tg.stemIdx].element;
+    const verdict = favEl.includes(stemEl) ? 'good' : avoidEl.includes(stemEl) ? 'bad' : 'ok';
+    const vLabel  = verdict === 'good' ? '喜' : verdict === 'bad' ? '忌' : '平';
+    const mainText = verdict === 'bad' ? info.neg : info.pos;
+    legendHtml += `<div class="tg-legend-item">
+      <div class="tg-legend-name ${TENGOD_CLASS[tg.god] || ''}">${tg.god}</div>
+      <div class="tg-legend-body">
+        <div class="tg-legend-meta">
+          <span>${tg.pos}</span>
+          <span class="verdict-badge verdict-${verdict}">${vLabel}</span>
+          <span style="color:var(--text-faint)">· ${info.life}</span>
+        </div>
+        <div class="tg-legend-desc">${mainText}</div>
+      </div>
+    </div>`;
+  });
+  legendHtml += '</div>';
+
+  return `<div style="margin-bottom:14px">${noteHtml}</div>${legendHtml}`;
 }
 
 // ─── Interpretation ───────────────────────────────────────────────────────────
 
-function generateInterpretation(pillars, masterStemIdx, strength, favEl, avoidEl, dayunInfo) {
+function generateInterpretation(pillars, masterStemIdx, strengthData, dayunInfo, gender) {
   const master = STEMS[masterStemIdx];
+  const { strength, label: strLabel, favEl, avoidEl } = strengthData;
+  const favSpan = el => `<span class="el-${el}">${el}</span>`;
+  const favElStr = favEl.map(favSpan).join('、');
+  const avoElStr = avoidEl.length ? avoidEl.map(favSpan).join('、') : '（無特定）';
+
+  // Collect ten god weights
+  const tgW = {};
+  [pillars.year, pillars.month, pillars.hour].filter(Boolean).forEach(p => {
+    const tg = getTenGod(masterStemIdx, p.stemIdx);
+    tgW[tg] = (tgW[tg] || 0) + 1;
+    const btg = getBranchTenGod(masterStemIdx, p.branchIdx);
+    tgW[btg] = (tgW[btg] || 0) + 0.5;
+  });
+  const dayBtg = getBranchTenGod(masterStemIdx, pillars.day.branchIdx);
+  tgW[dayBtg] = (tgW[dayBtg] || 0) + 0.5;
+
+  // ── 1. 日主性格
+  const PE = {
+    甲:{ s:['領導力強、目標明確、開拓進取','做事有始有終、重承諾、具說服力'], w:['固執己見、難妥協','壓力大時容易硬撐不求援'], a:'學會如藤般彎曲，方能在風中不折。' },
+    乙:{ s:['柔韌適應、人際圓融、藝術天賦','溫柔體貼、善於傾聽'], w:['優柔寡斷、缺乏主見','易受周遭情緒影響'], a:'確立自身核心價值，勿隨他人意志起伏。' },
+    丙:{ s:['熱情陽光、行動力強、感染力十足','樂觀開朗、不記仇、大方'], w:['過於急躁、缺乏耐心','容易言多必失'], a:'靜心思考後再行動，熱情需配合智慧。' },
+    丁:{ s:['細膩溫和、直覺敏銳、文藝氣質','有耐心、善於觀察細節'], w:['多慮敏感、易悶在心','不擅主動表達'], a:'適時說出想法，別讓深思成為行動的阻礙。' },
+    戊:{ s:['誠實可靠、包容力強、責任心重','冷靜沉穩、有擔當'], w:['行事緩慢、思想保守','不擅應變、難接受新事物'], a:'保持穩重之餘，主動嘗試突破舒適圈。' },
+    己:{ s:['謹慎細心、善於謀略、實事求是','理財能力強、處世圓滑'], w:['疑心較重、過度算計','有時過分保守而錯失機會'], a:'學會相信直覺，過度分析有時反而誤事。' },
+    庚:{ s:['果斷剛毅、正義感強、行動力佳','重情義、講原則'], w:['不夠圓滑、言詞易傷人','衝動時難以自控'], a:'剛柔並濟，保留原則的同時學習委婉表達。' },
+    辛:{ s:['聰慧靈巧、審美高雅、注重品質','精於計算、善謀略'], w:['過於敏感脆弱、得失心重','時常注重外表形象多於實質'], a:'放下完美主義，接受過程中必要的不完整。' },
+    壬:{ s:['智慧廣博、思維靈活、適應力強','善於溝通、好奇心旺盛'], w:['缺乏定性、易分心','言多行少、廣而不精'], a:'選定方向後專注執行，廣度與深度兼顧。' },
+    癸:{ s:['細膩深刻、直覺力強、情感豐富','善於反思、重精神層面'], w:['多愁善感、過度解讀他人意圖','疑心較重、容易鑽牛角尖'], a:'學會相信他人，勿將自己困在憂慮的迷宮中。' },
+  };
+  const pe = PE[master.char] || { s:[], w:[], a:'' };
+  const personalityHtml = `
+    <p style="font-size:13px;line-height:1.8;margin-bottom:10px">${DAY_MASTER_DESC[master.char] || ''}</p>
+    <div class="interp-domain">
+      <div class="domain-card good">
+        <div class="domain-title">✦ 優勢特質</div>
+        <ul class="interp-list">${pe.s.map(s=>`<li>${s}</li>`).join('')}</ul>
+      </div>
+      <div class="domain-card caution">
+        <div class="domain-title">⚠ 需留意的傾向</div>
+        <ul class="interp-list">${pe.w.map(s=>`<li>${s}</li>`).join('')}</ul>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:8px;font-style:italic">命理提示：「${pe.a}」</p>`;
+
+  // ── 2. 身強弱說明
   const monthBranchEl = pillars.month.branch.element;
-  const elNames = { 木:'木', 火:'火', 土:'土', 金:'金', 水:'水' };
-  const favStr  = favEl.map(e => `<span class="el-${e}">${e}</span>`).join('、');
-  const avoStr  = avoidEl.map(e => `<span class="el-${e}">${e}</span>`).join('、');
-
   const seasonName = SEASON_EL_NAME[monthBranchEl] || '';
+  const strengthHtml = {
+    strong: `<p style="font-size:13px;line-height:1.9">日主 <span class="el-${master.element}">${master.char}（${master.element}）</span>身強，代表自我意識強、能量充沛。${seasonName ? `月令${seasonName}，得時令之助。` : ''}<br>
+      <br>▸ <strong style="color:var(--green)">好在哪裡</strong>：身強能承受財富（財星）帶來的壓力，也能頂住職場挑戰（官殺），更有餘力發揮才能（食傷）。<br>
+      ▸ <strong style="color:var(--red)">要注意</strong>：能量過旺若無出口，容易固執、爭強好勝、強出頭。需靠<strong>食傷洩秀</strong>（表達才能）、<strong>財星</strong>（掌握財富）或<strong>官殺</strong>（接受挑戰磨練）來平衡。<br>
+      ▸ <strong>喜用之神</strong>：${favElStr}—逢此五行旺盛之年運，諸事順遂。<br>
+      ▸ <strong>忌神</strong>：${avoElStr}—逢此五行當令之期，宜保守守成，避免冒進。</p>`,
+    weak: `<p style="font-size:13px;line-height:1.9">日主 <span class="el-${master.element}">${master.char}（${master.element}）</span>身弱，代表自身能量不足，在人生中較容易受外界影響或壓力。${seasonName ? `月令${seasonName}，未能得令。` : ''}<br>
+      <br>▸ <strong style="color:var(--green)">好在哪裡</strong>：謙遜、善於借力，重視合作，能虛心向他人學習。<br>
+      ▸ <strong style="color:var(--red)">要注意</strong>：身弱時若財星太重（財多身弱），雖有財源機會但難以守住；若官殺太旺（官殺過強），壓力過大可能影響健康與心理。<br>
+      ▸ <strong>喜用之神</strong>：${favElStr}—印星護身（貴人助力）、比劫助身（同伴支持）。<br>
+      ▸ <strong>忌神</strong>：${avoElStr}—逢此五行當令之年，宜低調、守成、休養。</p>`,
+    neutral: `<p style="font-size:13px;line-height:1.9">日主 <span class="el-${master.element}">${master.char}（${master.element}）</span>身強弱中和，命局較為均衡，彈性大，順逆皆能應對。${seasonName ? `月令${seasonName}。` : ''}<br>
+      <br>▸ <strong style="color:var(--green)">好在哪裡</strong>：不偏不倚，適應力強，隨大運流年靈活調整方向。<br>
+      ▸ <strong>喜用之神</strong>：${favElStr}—行此五行旺盛之運，整體運勢向好。</p>`,
+  };
 
-  const parts = [];
+  // ── 3. 財帛分析
+  const hasCai = (tgW['正財'] || 0) + (tgW['偏財'] || 0);
+  let wR, wHtml;
+  if (hasCai > 0 && strength === 'strong') {
+    wR = 'good';
+    wHtml = `<p style="font-size:13px;line-height:1.9">命中財星有力，加上日主身強，<strong style="color:var(--green)">財運佳，能掌握財富</strong>。<br><br>
+      ${(tgW['正財']||0) > 0 ? '▸ <strong>正財</strong>（男命為妻星）：正當薪資、穩定收入，理財踏實，勤有所獲。<br>' : ''}
+      ${(tgW['偏財']||0) > 0 ? '▸ <strong>偏財</strong>（父緣、業務、橫財）：人際廣泛帶來機會，適合業務、投資，有意外之財機緣。<br>' : ''}
+      行喜用大運時，財運更上一層樓，宜積極把握理財與投資機會。</p>`;
+  } else if (hasCai > 0 && strength === 'weak') {
+    wR = 'caution';
+    wHtml = `<p style="font-size:13px;line-height:1.9">命中財星存在，但日主身弱，形成<strong>「財多身弱」</strong>格局。<br><br>
+      ▸ <strong style="color:var(--red)">現象</strong>：雖有財源機會，卻難以穩固守住——賺得多、消耗也多，或容易為財操勞傷身。<br>
+      ▸ <strong style="color:var(--green)">建議</strong>：先行印運（貴人助力）或比劫運（增強自身），打穩根基後再大力求財，效果更佳。</p>`;
+  } else if (hasCai === 0) {
+    wR = 'ok';
+    wHtml = `<p style="font-size:13px;line-height:1.9">命中財星不明顯，需靠才能（食傷）間接生財，或等待大運流年財星旺盛時才有較大財運機會。<br><br>
+      ▸ 財富非天生，靠後天努力、技能積累與時機配合。<br>
+      ▸ 行${favElStr}旺盛之大運，財運方能顯現，宜居安思危，平時多儲蓄。</p>`;
+  } else {
+    wR = 'ok';
+    wHtml = `<p style="font-size:13px;line-height:1.9">財運需搭配大運流年來看。逢${favElStr}旺盛之年，財運較佳；逢${avoElStr}當令之年，宜守成為主。</p>`;
+  }
 
-  parts.push({
-    title: `日主 ${master.char}（${master.element}）`,
-    text: DAY_MASTER_DESC[master.char] || '',
-  });
+  // ── 4. 事業分析
+  const zG = tgW['正官'] || 0, qS = tgW['七殺'] || 0;
+  const sS = tgW['食神'] || 0, sgG = tgW['傷官'] || 0;
+  const yiG = (tgW['正印'] || 0) + (tgW['偏印'] || 0);
+  let cR, cHtml;
+  if (zG > 0 && !sgG) {
+    cR = 'good';
+    cHtml = `<p style="font-size:13px;line-height:1.9">命中有<strong>正官</strong>，適合<strong style="color:var(--green)">公職、管理、教育、行政</strong>等有制度的職業。<br><br>
+      ▸ 仕途順遂，上司緣好，重視名譽，守規守法。<br>
+      ▸ 名正言順才能發揮，宜在體制內穩步晉升，走正途。</p>`;
+  } else if (qS > 0 && (sS > 0 || yiG > 0)) {
+    cR = 'good';
+    cHtml = `<p style="font-size:13px;line-height:1.9">命中<strong>七殺有制</strong>（食神制殺或印化殺），魄力強且有方向，<strong style="color:var(--green)">適合競爭激烈的行業、管理高層、創業</strong>。<br><br>
+      ▸ 壓力能轉化為動力，愈挫愈勇，成就顯著。<br>
+      ▸ 從事挑戰性工作能激發潛能，切忌過於安逸。</p>`;
+  } else if (qS > 0 && sS === 0 && yiG === 0) {
+    cR = 'caution';
+    cHtml = `<p style="font-size:13px;line-height:1.9">命中<strong>七殺</strong>在命但制化不足，工作壓力大，多挑戰與競爭，有時感覺身不由己。<br><br>
+      ▸ <strong style="color:var(--red)">需注意</strong>：選擇競爭過於激烈的環境恐消耗過多，宜量力而為。<br>
+      ▸ <strong style="color:var(--green)">建議</strong>：行食神運、印運時方能化壓力為成就，不宜在忌神大運時強行衝刺。</p>`;
+  } else if (sS > 0 || sgG > 0) {
+    cR = 'good';
+    cHtml = `<p style="font-size:13px;line-height:1.9">命中<strong>食傷</strong>旺，才華出眾、表達能力強，<strong style="color:var(--green)">適合技術、藝術、自由業、業務、創業</strong>。<br><br>
+      ▸ 靠自身才能闖出一片天，不宜過多受體制束縛。<br>
+      ▸ ${sgG > 0 ? '傷官在命，宜避免直屬上司多的職場，自主空間大的工作最能發揮。' : '食神旺，衣食豐足，才藝帶財。'}</p>`;
+  } else {
+    cR = 'ok';
+    cHtml = `<p style="font-size:13px;line-height:1.9">事業格局依大運流年而定。逢官殺、財星旺盛之年，宜積極進取；逢比劫、印星運，則宜穩健鞏固已有成就。<br>
+      ▸ 喜用（${favElStr}）旺盛的大運，是職場發展最佳時機。</p>`;
+  }
 
-  parts.push({
-    title: '身強弱分析',
-    text: `此命命主日主為${master.char}（${master.element}），月令${seasonName ? '正逢' + seasonName + '，' : ''}綜合評估命局為<strong>${strength.label}</strong>。`
-      + (favEl.length ? `喜用之神為${favStr}，` : '')
-      + (avoidEl.length ? `忌神為${avoStr}。` : '。')
-      + `行運逢喜用之五行旺盛之年，諸事較為順遂；逢忌神當令之期，宜謹慎保守，守成為要。`,
-  });
+  // ── 5. 感情婚姻
+  let lR, lHtml;
+  if (gender === 'male') {
+    const zCai = tgW['正財'] || 0, pCai = tgW['偏財'] || 0;
+    if (zCai > 0) {
+      lR = 'good';
+      lHtml = `<p style="font-size:13px;line-height:1.9">男命<strong>正財為妻星</strong>，命中有正財，<strong style="color:var(--green)">婚緣佳</strong>。<br><br>
+        ▸ 易遇誠懇穩重、顧家負責的另一半。<br>
+        ▸ 感情態度認真，重視婚姻與家庭，傾向長期穩定關係。</p>`;
+    } else if (pCai > 0) {
+      lR = 'ok';
+      lHtml = `<p style="font-size:13px;line-height:1.9">男命<strong>偏財</strong>在命，異性緣佳、桃花較旺。<br><br>
+        ▸ 感情生活豐富，易吸引異性，但感情態度較隨性。<br>
+        ▸ 需主動建立承諾，避免感情多而不穩。</p>`;
+    } else {
+      lR = 'ok';
+      lHtml = `<p style="font-size:13px;line-height:1.9">男命財星在命中較不顯，感情緣分需靠大運流年財星旺盛之年把握，或行財運時婚緣才會開展。<br>
+        ▸ 感情發展宜慢熱，建立好友誼再深化，不宜過於急進。</p>`;
+    }
+  } else {
+    const zGuan = tgW['正官'] || 0, qiSha2 = tgW['七殺'] || 0;
+    if (zGuan > 0) {
+      lR = 'good';
+      lHtml = `<p style="font-size:13px;line-height:1.9">女命<strong>正官為夫星</strong>，命中有正官，<strong style="color:var(--green)">婚緣佳</strong>。<br><br>
+        ▸ 易遇品格端正、負責任的另一半。<br>
+        ▸ 感情穩定，重視長久關係，婚後家庭和諧。</p>`;
+    } else if (qiSha2 > 0) {
+      lR = 'ok';
+      lHtml = `<p style="font-size:13px;line-height:1.9">女命<strong>七殺</strong>為另一種夫星，另一半個性強勢、有魄力、充滿挑戰性。<br><br>
+        ▸ <strong style="color:var(--red)">需注意</strong>：感情容易有強烈衝突，雙方都需磨合。<br>
+        ▸ <strong style="color:var(--green)">若命中有食神或正印</strong>（制化七殺），則相處和諧，伴侶有魄力且能互相激勵。</p>`;
+    } else {
+      lR = 'ok';
+      lHtml = `<p style="font-size:13px;line-height:1.9">女命官星在命中較不顯，感情緣分需待大運流年官殺旺盛時，緣分方能自然到來。<br>
+        ▸ 感情宜順其自然，不必強求，時機到來時珍惜把握。</p>`;
+    }
+  }
 
-  parts.push({
-    title: '大運提示',
-    text: `命主於${dayunInfo.years}歲${dayunInfo.months > 0 ? dayunInfo.months + '個月' : ''}起運，行${dayunInfo.direction === 'forward' ? '順' : '逆'}行大運，每柱管十年。`
-      + `大運代表人生各階段的整體運勢走向，需配合流年干支綜合判斷吉凶。`,
-  });
+  // ── 6. 行運說明
+  const runHtml = `<p style="font-size:13px;line-height:1.9">命主於 <strong>${dayunInfo.years}歲${dayunInfo.months > 0 ? dayunInfo.months + '個月' : ''}</strong> 起運，行<strong>${dayunInfo.direction === 'forward' ? '順' : '逆'}行</strong>大運，每柱管十年。</p>
+    <p style="font-size:13px;margin-top:10px;margin-bottom:6px"><strong>如何看大運流年好壞？</strong></p>
+    <ul class="interp-list">
+      <li>大運或流年的天干地支五行屬於 <strong style="color:var(--green)">喜用（${favElStr}）</strong> → 整體運勢向好，宜積極進取、把握機遇、投資、求職晉升</li>
+      <li>大運或流年五行屬於 <strong style="color:var(--red)">忌神（${avoElStr}）</strong> → 運勢較阻，宜低調守成、避免冒進、謹慎理財、注意健康</li>
+      <li>好大運 × 好流年 → 雙重加乘，<strong>人生最佳時機</strong>，可放手一搏</li>
+      <li>壞大運 × 壞流年 → 需特別謹慎，<strong>量力而為</strong>，忍耐等待時機</li>
+      <li>好大運 × 壞流年（或反之） → 互相牽制，以穩健為主，仍有局部機會</li>
+    </ul>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:10px">表格中大運欄位標有 <span class="luck-good">吉</span>/<span class="luck-ok">平</span>/<span class="luck-bad">注意</span> 供快速參考。</p>`;
 
-  parts.push({
-    title: '注意事項',
-    text: '八字命理為中國傳統術數，僅供參考，不代表命運絕對。命由己造，境隨心轉，積極正向的心態與努力，才是改變命運的根本。',
-  });
-
-  return parts;
+  return [
+    { title: `日主 ${master.char}（${master.element}）— 性格特質`, html: personalityHtml },
+    { title: `命局強弱：${strLabel}`, html: strengthHtml[strength] },
+    { title: '財帛運勢', rating: wR, html: wHtml },
+    { title: '事業格局', rating: cR, html: cHtml },
+    { title: gender === 'male' ? '感情婚姻（男命）' : '感情婚姻（女命）', rating: lR, html: lHtml },
+    { title: '大運流年判斷指引', html: runHtml },
+    { title: '命理說明', html: `<p style="font-size:12px;color:var(--text-muted);line-height:1.8">八字命理為中國傳統術數，以統計與哲學為基礎，僅供參考，不代表命運絕對。<br>命由己造，境隨心轉——積極正向的心態與持續的努力，才是掌握命運的根本。</p>` },
+  ];
 }
 
 // ─── Render Functions ─────────────────────────────────────────────────────────
@@ -1057,13 +1298,53 @@ function renderWuxing(pillars, masterStemIdx) {
   const favSpan  = sa.favEl.map(e => `<span class="tag tag-fav">${e}（喜）</span>`).join(' ');
   const avoSpan  = sa.avoidEl.map(e => `<span class="tag tag-avoid">${e}（忌）</span>`).join(' ');
   const strTag   = `<span class="tag ${sa.strength === 'strong' ? 'tag-strong' : sa.strength === 'weak' ? 'tag-weak' : 'tag-strong'}">${sa.label}</span>`;
+
+  // Element description grid
+  let elDescHtml = '<div class="el-desc-grid">';
+  ELEMENT_ORDER.forEach(el => {
+    const cnt = counts[el] || 0;
+    const m = ELEMENT_MEANING[el];
+    const isExcess = cnt >= 3;
+    const isLack = cnt < 0.5;
+    const vCls = (isExcess || isLack) ? 'verdict-bad' : 'verdict-ok';
+    const vLbl = isExcess ? '偏多' : isLack ? '偏少' : '適中';
+    const implication = isExcess ? `⚠ ${m.excess}` : isLack ? `△ ${m.lack}` : `✓ ${m.domain}`;
+    elDescHtml += `<div class="el-block" style="border-left-color:${m.color}">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span class="el-${el}" style="font-family:'Noto Serif TC',serif;font-size:1.05rem;font-weight:700">${el}</span>
+        <span class="verdict-badge ${vCls}">${vLbl}</span>
+        <span style="font-size:10px;color:var(--text-faint)">${m.body}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5">${implication}</div>
+    </div>`;
+  });
+  elDescHtml += '</div>';
+
   document.getElementById('wuxing-summary').innerHTML =
-    `日主強弱：${strTag}&nbsp;&nbsp;${favSpan} ${avoSpan}`;
+    `<div style="margin-bottom:10px">日主強弱：${strTag}&nbsp;&nbsp;${favSpan} ${avoSpan}</div>${elDescHtml}`;
 
   return sa;
 }
 
-function renderPattern(pillars, masterStemIdx) {
+// Determine luck level for an element relative to favEl/avoidEl
+function elLuck(el, favEl, avoidEl) {
+  if (favEl.includes(el)) return 'good';
+  if (avoidEl.includes(el)) return 'bad';
+  return 'ok';
+}
+// Combined luck for a stem+branch pair
+function pillarLuck(stemEl, branchEl, favEl, avoidEl) {
+  const s = elLuck(stemEl, favEl, avoidEl);
+  const b = elLuck(branchEl, favEl, avoidEl);
+  if (s === 'good' && b !== 'bad') return 'good';
+  if (s === 'bad'  && b !== 'good') return 'bad';
+  if (b === 'good' && s !== 'bad') return 'good';
+  if (b === 'bad'  && s !== 'good') return 'bad';
+  return 'ok';
+}
+const LUCK_LBL = { good:'吉', ok:'平', bad:'注意' };
+
+function renderPattern(pillars, masterStemIdx, strengthData) {
   const allCols = [
     { pos:'年干', stemIdx: pillars.year.stemIdx },
     { pos:'年支', stemIdx: pillars.year.branch.hidden[0] },
@@ -1075,34 +1356,25 @@ function renderPattern(pillars, masterStemIdx) {
     allCols.push({ pos:'時干', stemIdx: pillars.hour.stemIdx });
     allCols.push({ pos:'時支', stemIdx: pillars.hour.branch.hidden[0] });
   }
-
   const tenGods = allCols.map(c => ({ pos: c.pos, god: getTenGod(masterStemIdx, c.stemIdx), stemIdx: c.stemIdx }));
-  const notes = detectPatterns(pillars, masterStemIdx, tenGods);
-
-  let html = '<div class="pattern-row">';
-  tenGods.forEach(tg => {
-    html += `<div class="tg-chip ${TENGOD_CLASS[tg.god] || ''}">
-      ${tg.god}<span class="tg-pos">（${tg.pos}）</span>
-    </div>`;
-  });
-  html += '</div>';
-  html += '<div class="pattern-note">' + notes.map(n => '• ' + n).join('<br>') + '</div>';
-  document.getElementById('pattern-content').innerHTML = html;
+  document.getElementById('pattern-content').innerHTML = detectPatterns(pillars, masterStemIdx, tenGods, strengthData);
   return tenGods;
 }
 
-function renderDayun(dayunCycles, masterStemIdx, startAgeData, direction, currentYear, birthGYear) {
+function renderDayun(dayunCycles, masterStemIdx, startAgeData, direction, currentYear, birthGYear, favEl, avoidEl) {
   const currentAge = currentYear - birthGYear;
-  let html = `<div class="start-age-note">起運：<strong>${startAgeData.years}歲${startAgeData.months > 0 ? startAgeData.months + '個月' : ''}</strong>起運，行<strong>${direction === 'forward' ? '順' : '逆'}</strong>行大運，每柱管十年。</div>`;
+  let html = `<div class="start-age-note">起運：<strong>${startAgeData.years}歲${startAgeData.months > 0 ? startAgeData.months + '個月' : ''}</strong>起運，行<strong>${direction === 'forward' ? '順' : '逆'}</strong>行大運，每柱管十年。<span style="color:var(--text-muted);margin-left:10px;font-size:12px">▶ 標示 <span class="luck-good">吉</span>/<span class="luck-ok">平</span>/<span class="luck-bad">注意</span> 依喜忌五行判斷</span></div>`;
   html += `<table class="dayun-table">
     <thead><tr>
-      <th>大運干支</th><th>天干</th><th>地支</th><th>納音</th><th>十神</th><th>年齡</th><th>年份</th>
+      <th>運勢</th><th>大運干支</th><th>天干</th><th>地支</th><th>納音</th><th>十神（干）</th><th>年齡</th><th>年份</th>
     </tr></thead><tbody>`;
 
   dayunCycles.forEach(c => {
     const isActive = currentAge >= c.ageStart && currentAge <= c.ageEnd;
     const tg = getTenGod(masterStemIdx, c.stemIdx);
+    const luck = pillarLuck(c.stem.element, c.branch.element, favEl, avoidEl);
     html += `<tr class="${isActive ? 'active-cycle' : ''}">
+      <td><span class="luck-${luck}">${LUCK_LBL[luck]}</span></td>
       <td><span class="dayun-big el-${c.stem.element}">${c.stem.char}</span><span class="dayun-big el-${c.branch.element}">${c.branch.char}</span></td>
       <td class="${elClass(c.stem.element)}">${c.stem.char}</td>
       <td class="${elClass(c.branch.element)}">${c.branch.char}</td>
@@ -1116,13 +1388,15 @@ function renderDayun(dayunCycles, masterStemIdx, startAgeData, direction, curren
   document.getElementById('dayun-content').innerHTML = html;
 }
 
-function renderLiuNian(liuNianData, masterStemIdx) {
+function renderLiuNian(liuNianData, masterStemIdx, favEl, avoidEl) {
   let html = `<thead><tr>
-    <th>年份</th><th>干支</th><th>納音</th><th>年齡</th><th>年干十神</th><th>年支十神</th><th>所在大運</th>
+    <th>運勢</th><th>年份</th><th>干支</th><th>納音</th><th>年齡</th><th>年干十神</th><th>年支十神</th><th>所在大運</th>
   </tr></thead><tbody>`;
 
   liuNianData.forEach(ly => {
+    const luck = pillarLuck(ly.stem.element, ly.branch.element, favEl, avoidEl);
     html += `<tr class="${ly.isCurrent ? 'current-year' : ''}">
+      <td><span class="luck-${luck}">${LUCK_LBL[luck]}</span></td>
       <td>${ly.year}${ly.isCurrent ? ' ◀' : ''}</td>
       <td><span class="ly-jiazi el-${ly.stem.element}">${ly.stem.char}</span><span class="ly-jiazi el-${ly.branch.element}">${ly.branch.char}</span></td>
       <td class="el-${ly.nayin.element}">${ly.nayin.name}</td>
@@ -1137,10 +1411,17 @@ function renderLiuNian(liuNianData, masterStemIdx) {
 }
 
 function renderInterpretation(parts) {
+  const ratingCls = { good:'rating-good', ok:'rating-ok', caution:'rating-caution' };
+  const ratingLbl = { good:'較佳', ok:'平穩', caution:'需注意' };
   let html = '';
   parts.forEach((p, i) => {
     if (i > 0) html += '<div class="interp-divider"></div>';
-    html += `<div class="interp-block"><h4>${p.title}</h4><p>${p.text}</p></div>`;
+    const badge = p.rating
+      ? `<span class="domain-rating ${ratingCls[p.rating]}">${ratingLbl[p.rating]}</span> ` : '';
+    html += `<div class="interp-block">
+      <h4>${badge}${p.title}</h4>
+      ${p.html || `<p>${p.text || ''}</p>`}
+    </div>`;
   });
   document.getElementById('interpret-content').innerHTML = html;
 }
@@ -1211,25 +1492,24 @@ function calculate() {
   const strengthData = renderWuxing(pillars, masterStemIdx);
 
   // Pattern
-  const tenGods = renderPattern(pillars, masterStemIdx);
+  const tenGods = renderPattern(pillars, masterStemIdx, strengthData);
 
   // Dayun
   const direction = getDayunDirection(pillars.year.stemIdx, gender);
   const startAgeData = getDayunStartAge(pillars.birthDate, direction);
   const dayunCycles = computeDayun(pillars.month, direction, startAgeData, pillars.baziYear);
-  renderDayun(dayunCycles, masterStemIdx, startAgeData, direction, currentYear, pillars.baziYear);
+  renderDayun(dayunCycles, masterStemIdx, startAgeData, direction, currentYear, pillars.baziYear, strengthData.favEl, strengthData.avoidEl);
 
   // Liuyear
   const liuNian = computeLiuNian(pillars.baziYear, dayunCycles, masterStemIdx, currentYear);
   liuNian._dayunLabels = dayunCycles.map(c => c.stem.char + c.branch.char);
-  renderLiuNian(liuNian, masterStemIdx);
+  renderLiuNian(liuNian, masterStemIdx, strengthData.favEl, strengthData.avoidEl);
 
   // Interpretation
   const interpParts = generateInterpretation(
-    pillars, masterStemIdx,
-    strengthData,
-    strengthData.favEl, strengthData.avoidEl,
-    { years: startAgeData.years, months: startAgeData.months, direction }
+    pillars, masterStemIdx, strengthData,
+    { years: startAgeData.years, months: startAgeData.months, direction },
+    gender
   );
   renderInterpretation(interpParts);
 
