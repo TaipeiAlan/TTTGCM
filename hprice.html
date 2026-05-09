@@ -563,33 +563,57 @@
       const sortedYms=withMonthFull.map(r=>r.ym).sort();
       const minYm=sortedYms[0],maxYm=sortedYms[sortedYms.length-1];
       const allMonths=[];let cur=minYm;while(cur<=maxYm){allMonths.push(cur);cur=nextMonth(cur);}
-      const lastIdx=allMonths.length-1;
 
       const units=[...new Set(records.map(r=>r.棟及號))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      const unitColors=units.map((_,i)=>TREND_COLORS[i%TREND_COLORS.length]);
+      let hoveredIdx=-1;
+
       const datasets=units.map((unit,i)=>{
-        const color=TREND_COLORS[i%TREND_COLORS.length];
+        const color=unitColors[i];
         const detailData=allMonths.map(ym=>withMonthFull.filter(r=>r.unit===unit&&r.ym===ym).map(r=>r.record));
-        return{
-          label:unit,data:detailData.map(d=>d.length),detailData,
-          borderColor:color,backgroundColor:color+'33',
-          pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,
-          datalabels:{
-            display:ctx=>ctx.dataIndex===lastIdx,
-            formatter:(_,ctx)=>ctx.dataset.label,
-            anchor:'end',align:'right',
-            color,font:{size:11,weight:'bold'},clip:false,
-          },
-        };
+        return{label:unit,data:detailData.map(d=>d.length),detailData,borderColor:color,backgroundColor:color+'33',pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false};
       });
+
+      // 線尾直接繪製棟及號標籤
+      const endLabelPlugin={
+        id:'endLabel',
+        afterDraw(chart){
+          const c=chart.ctx;c.save();
+          chart.data.datasets.forEach((ds,i)=>{
+            const meta=chart.getDatasetMeta(i);
+            if(meta.hidden||!meta.data.length)return;
+            const pt=meta.data[meta.data.length-1];
+            const faded=hoveredIdx>=0&&hoveredIdx!==i;
+            c.globalAlpha=faded?0.2:1;
+            c.fillStyle=unitColors[i];
+            c.font=`bold 11px -apple-system,sans-serif`;
+            c.textAlign='left';c.textBaseline='middle';
+            c.fillText(ds.label,pt.x+6,pt.y);
+          });
+          c.restore();
+        }
+      };
 
       if(trendChartInst)trendChartInst.destroy();
       trendChartInst=new Chart(canvas.getContext('2d'),{
         type:'line',
         data:{labels:allMonths,datasets},
+        plugins:[endLabelPlugin],
         options:{
           responsive:true,maintainAspectRatio:false,
-          layout:{padding:{right:72}},
-          interaction:{mode:'nearest',intersect:true},
+          layout:{padding:{right:80}},
+          interaction:{mode:'nearest',intersect:false,axis:'xy'},
+          onHover:(_,active,chart)=>{
+            const idx=active.length?active[0].datasetIndex:-1;
+            if(idx===hoveredIdx)return;
+            hoveredIdx=idx;
+            chart.data.datasets.forEach((ds,i)=>{
+              if(idx<0){ds.borderColor=unitColors[i];ds.borderWidth=2;}
+              else if(i===idx){ds.borderColor=unitColors[i];ds.borderWidth=3;}
+              else{ds.borderColor=unitColors[i]+'33';ds.borderWidth=1;}
+            });
+            chart.update('none');
+          },
           scales:{
             x:{title:{display:true,text:'月份'},ticks:{maxRotation:45}},
             y:{title:{display:true,text:'交易戶數'},ticks:{stepSize:1,callback:v=>Number.isInteger(v)?v:null},beginAtZero:true},
