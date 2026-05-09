@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Generate Icons — Netflix Dual Subtitles</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background: #222;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      padding: 32px;
+    }
+    h1 { color: #e50914; }
+    p { color: #aaa; font-size: 13px; max-width: 500px; text-align: center; }
+    .row { display: flex; gap: 32px; align-items: flex-end; }
+    .icon-box { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    canvas { border: 1px solid #444; }
+    a.btn {
+      display: inline-block;
+      padding: 6px 14px;
+      background: #e50914;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    label { font-size: 11px; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>中EN Icon Generator</h1>
+  <p>
+    Click each "Download" button to save the PNG, then put them in the
+    <code>icons/</code> folder of the extension.
+  </p>
+
+  <div class="row" id="icons-row"></div>
+
+  <script>
+    const sizes = [16, 48, 128];
+
+    function drawIcon(size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      // Background
+      ctx.fillStyle = '#141414';
+      ctx.fillRect(0, 0, size, size);
+
+      // Subtle border/rounded feel via slight padding
+      const pad = Math.max(1, size * 0.04);
+
+      if (size <= 16) {
+        // 16px: single compact layout, "中E" (no room for N)
+        ctx.fillStyle = '#e50914';
+        ctx.font = `bold ${Math.floor(size * 0.55)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('中', size * 0.3, size * 0.45);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.floor(size * 0.42)}px Arial`;
+        ctx.fillText('EN', size * 0.72, size * 0.58);
+      } else {
+        // 48px and 128px: left half "中" in red, right half "EN" in white
+        const mid = size / 2;
+        const fontSize = Math.floor(size * 0.42);
+        const smallFont = Math.floor(size * 0.32);
+
+        // Divider line
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = Math.max(1, size * 0.015);
+        ctx.beginPath();
+        ctx.moveTo(mid, pad * 3);
+        ctx.lineTo(mid, size - pad * 3);
+        ctx.stroke();
+
+        // "中" — red, left half
+        ctx.fillStyle = '#e50914';
+        ctx.font = `bold ${fontSize}px Arial, '微軟正黑體', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('中', mid * 0.5, size * 0.5);
+
+        // "EN" — white, right half
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${smallFont}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('EN', mid + mid * 0.5, size * 0.5);
+      }
+
+      return canvas;
+    }
+
+    const row = document.getElementById('icons-row');
+
+    sizes.forEach(size => {
+      const canvas = drawIcon(size);
+      const box = document.createElement('div');
+      box.className = 'icon-box';
+
+      const lbl = document.createElement('label');
+      lbl.textContent = `${size}×${size}`;
+
+      const a = document.createElement('a');
+      a.className = 'btn';
+      a.textContent = `Download icon${size}.png`;
+      a.download = `icon${size}.png`;
+      a.href = canvas.toDataURL('image/png');
+
+      box.appendChild(canvas);
+      box.appendChild(lbl);
+      box.appendChild(a);
+      row.appendChild(box);
+    });
+  </script>
+</body>
+</html>
