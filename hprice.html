@@ -109,7 +109,7 @@
           <button id="closeChartModal" class="close-btn" style="margin-left:4px">×</button>
         </div>
       </div>
-      <p style="font-size:12px;color:#999;margin:4px 0 8px">X 軸：交易日期　Y 軸：單價（萬/坪）　每個點代表一筆成交記錄</p>
+      <p style="font-size:12px;color:#999;margin:4px 0 8px">X 軸：棟及號　Y 軸：交易戶數　依分組顯示各戶別累計交易筆數</p>
       <div style="position:relative;height:440px"><canvas id="trendChart"></canvas></div>
     </div>
   </div>
@@ -550,60 +550,50 @@
     let currentTrendGroup='layout';
 
     function buildTrendChart(records,groupBy){
-      const pts=records.map(r=>{
-        const iso=rocToISO(r.交易日期);if(!iso)return null;
-        const ts=new Date(iso).getTime();if(Number.isNaN(ts))return null;
-        const price=calcUnitPrice(r,withParkingPrice);if(price===null||price<=0)return null;
-        const group=groupBy==='floor'?floorBand(r.樓層):(r.建物格局||'未知格局');
-        return{x:ts,y:price,group};
-      }).filter(Boolean);
-
       const canvas=document.getElementById('trendChart');
-      if(!pts.length){
+      if(!records.length){
         if(trendChartInst){trendChartInst.destroy();trendChartInst=null;}
         const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.save();ctx.fillStyle='#999';ctx.font='14px sans-serif';ctx.textAlign='center';
-        ctx.fillText('無法解析交易日期或單價資料',canvas.width/2,canvas.height/2);ctx.restore();
+        ctx.fillText('無資料',canvas.width/2,canvas.height/2);ctx.restore();
         return;
       }
 
-      const groups={};
-      pts.forEach(p=>{if(!groups[p.group])groups[p.group]=[];groups[p.group].push({x:p.x,y:p.y});});
-      Object.values(groups).forEach(g=>g.sort((a,b)=>a.x-b.x));
-      const sortedKeys=Object.keys(groups).sort();
+      const units=[...new Set(records.map(r=>r.棟及號))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      const getGroup=r=>groupBy==='floor'?floorBand(r.樓層):(r.建物格局||'未知格局');
+      const sortedGroups=[...new Set(records.map(getGroup))].sort();
 
-      const datasets=sortedKeys.map((label,i)=>({
-        label,
-        data:groups[label],
-        borderColor:TREND_COLORS[i%TREND_COLORS.length],
+      const datasets=sortedGroups.map((group,i)=>({
+        label:group,
+        data:units.map(unit=>records.filter(r=>r.棟及號===unit&&getGroup(r)===group).length),
         backgroundColor:TREND_COLORS[i%TREND_COLORS.length]+'bb',
-        pointRadius:5,pointHoverRadius:8,
-        showLine:true,tension:0.15,borderWidth:1.5,
+        borderColor:TREND_COLORS[i%TREND_COLORS.length],
+        borderWidth:1,
       }));
 
       if(trendChartInst)trendChartInst.destroy();
       trendChartInst=new Chart(canvas.getContext('2d'),{
-        type:'scatter',
-        data:{datasets},
+        type:'bar',
+        data:{labels:units,datasets},
         options:{
           responsive:true,maintainAspectRatio:false,
           scales:{
             x:{
-              type:'time',
-              time:{unit:'month',displayFormats:{month:'yyyy-MM'}},
-              title:{display:true,text:'交易日期'},
+              stacked:true,
+              title:{display:true,text:'棟及號'},
               ticks:{maxRotation:45},
             },
             y:{
-              title:{display:true,text:`單價（萬/坪，${withParkingPrice?'含車位':'不含車位'}）`},
-              ticks:{callback:v=>formatAmount(v,1)},
+              stacked:true,
+              title:{display:true,text:'交易戶數'},
+              ticks:{stepSize:1,callback:v=>Number.isInteger(v)?v:null},
+              beginAtZero:true,
             },
           },
           plugins:{
             legend:{position:'top',labels:{boxWidth:12,padding:10,font:{size:12}}},
             tooltip:{callbacks:{
-              title:items=>{const d=new Date(items[0].parsed.x);return d.toISOString().slice(0,10);},
-              label:c=>`${c.dataset.label}：${formatAmount(c.parsed.y,2)} 萬/坪`,
+              label:c=>`${c.dataset.label}：${c.parsed.y} 戶`,
             }},
           },
         },
