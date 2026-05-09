@@ -112,6 +112,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script>
     const CACHE_KEY='hprice_cache_v4';
     const LEGACY_CACHE_KEYS=['hprice_cache','hprice_cache_v1','hprice_cache_v2','hprice_cache_v3'];
@@ -550,8 +551,8 @@
 
     function buildTrendChart(records){
       const canvas=document.getElementById('trendChart');
-      const withMonth=records.map(r=>{const iso=rocToISO(r.交易日期);return iso?{unit:r.棟及號,ym:iso.slice(0,7)}:null;}).filter(Boolean);
-      if(!withMonth.length){
+      const withMonthFull=records.map(r=>{const iso=rocToISO(r.交易日期);return iso?{unit:r.棟及號,ym:iso.slice(0,7),record:r}:null;}).filter(Boolean);
+      if(!withMonthFull.length){
         if(trendChartInst){trendChartInst.destroy();trendChartInst=null;}
         const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.save();ctx.fillStyle='#999';ctx.font='14px sans-serif';ctx.textAlign='center';
@@ -559,18 +560,27 @@
         return;
       }
 
-      const sortedYms=withMonth.map(r=>r.ym).sort();
+      const sortedYms=withMonthFull.map(r=>r.ym).sort();
       const minYm=sortedYms[0],maxYm=sortedYms[sortedYms.length-1];
       const allMonths=[];let cur=minYm;while(cur<=maxYm){allMonths.push(cur);cur=nextMonth(cur);}
+      const lastIdx=allMonths.length-1;
 
       const units=[...new Set(records.map(r=>r.棟及號))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
-      const datasets=units.map((unit,i)=>({
-        label:unit,
-        data:allMonths.map(ym=>withMonth.filter(r=>r.unit===unit&&r.ym===ym).length),
-        borderColor:TREND_COLORS[i%TREND_COLORS.length],
-        backgroundColor:TREND_COLORS[i%TREND_COLORS.length]+'33',
-        pointRadius:3,pointHoverRadius:6,tension:0.1,borderWidth:2,fill:false,
-      }));
+      const datasets=units.map((unit,i)=>{
+        const color=TREND_COLORS[i%TREND_COLORS.length];
+        const detailData=allMonths.map(ym=>withMonthFull.filter(r=>r.unit===unit&&r.ym===ym).map(r=>r.record));
+        return{
+          label:unit,data:detailData.map(d=>d.length),detailData,
+          borderColor:color,backgroundColor:color+'33',
+          pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,
+          datalabels:{
+            display:ctx=>ctx.dataIndex===lastIdx,
+            formatter:(_,ctx)=>ctx.dataset.label,
+            anchor:'end',align:'right',
+            color,font:{size:11,weight:'bold'},clip:false,
+          },
+        };
+      });
 
       if(trendChartInst)trendChartInst.destroy();
       trendChartInst=new Chart(canvas.getContext('2d'),{
@@ -578,13 +588,29 @@
         data:{labels:allMonths,datasets},
         options:{
           responsive:true,maintainAspectRatio:false,
+          layout:{padding:{right:72}},
+          interaction:{mode:'nearest',intersect:true},
           scales:{
             x:{title:{display:true,text:'月份'},ticks:{maxRotation:45}},
             y:{title:{display:true,text:'交易戶數'},ticks:{stepSize:1,callback:v=>Number.isInteger(v)?v:null},beginAtZero:true},
           },
           plugins:{
-            legend:{position:'top',labels:{boxWidth:12,padding:10,font:{size:12}}},
-            tooltip:{callbacks:{label:c=>`${c.dataset.label}：${c.parsed.y} 戶`}},
+            legend:{display:false},
+            datalabels:{display:false},
+            tooltip:{
+              callbacks:{
+                title:items=>`${items[0].dataset.label}　${items[0].label}`,
+                label:c=>`交易戶數：${c.parsed.y} 筆`,
+                afterBody:items=>{
+                  const details=items[0].dataset.detailData?.[items[0].dataIndex];
+                  if(!details||!details.length)return[];
+                  return['─────────────',...details.map(r=>{
+                    const up=calcUnitPrice(r,withParkingPrice);
+                    return`${r.交易日期||'-'}　${formatAmount(r.總價,0)}萬${up!==null?'　'+formatAmount(up,1)+'萬/坪':''}`;
+                  })];
+                },
+              },
+            },
           },
         },
       });
