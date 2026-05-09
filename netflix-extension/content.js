@@ -20,23 +20,7 @@
     pollInterval: null,
     lastUrl: location.href,
     currentText: '',
-    injected: false,
   };
-
-  // --- Inject page-world script ---
-
-  function injectPageScript() {
-    if (state.injected) return;
-    state.injected = true;
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL('injected.js');
-    script.onload = () => script.remove();
-    (document.head || document.documentElement).appendChild(script);
-    console.log(LOG, 'injected.js injected');
-  }
-
-  // Run immediately at document_start
-  injectPageScript();
 
   // --- Load settings from storage ---
 
@@ -202,9 +186,6 @@
         state.overlay.textContent = '';
         state.overlay.style.display = 'none';
       }
-      // Re-inject in case Netflix recreated the page context
-      state.injected = false;
-      injectPageScript();
       console.log(LOG, 'navigated to new watch page, state reset');
     } else {
       // Left the player
