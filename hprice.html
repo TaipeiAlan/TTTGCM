@@ -571,7 +571,7 @@
       const datasets=units.map((unit,i)=>{
         const color=unitColors[i];
         const detailData=allMonths.map(ym=>withMonthFull.filter(r=>r.unit===unit&&r.ym===ym).map(r=>r.record));
-        return{label:unit,data:detailData.map(d=>d.length||null),detailData,borderColor:color,backgroundColor:color+'33',pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false};
+        return{label:unit,data:detailData.map(d=>d.length||null),detailData,borderColor:color,backgroundColor:color+'33',pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,spanGaps:false};
       });
 
       // 線尾直接繪製棟及號標籤
@@ -582,7 +582,9 @@
           chart.data.datasets.forEach((ds,i)=>{
             const meta=chart.getDatasetMeta(i);
             if(meta.hidden||!meta.data.length)return;
-            const pt=meta.data[meta.data.length-1];
+            const lastNonNullIdx=ds.data.reduce((last,v,i)=>v!==null?i:last,-1);
+            if(lastNonNullIdx<0)return;
+            const pt=meta.data[lastNonNullIdx];
             const faded=hoveredIdx>=0&&hoveredIdx!==i;
             c.globalAlpha=faded?0.2:1;
             c.fillStyle=unitColors[i];
