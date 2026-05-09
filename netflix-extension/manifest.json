@@ -20,15 +20,15 @@
   "content_scripts": [
     {
       "matches": ["https://www.netflix.com/watch/*"],
+      "js": ["injected.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.netflix.com/watch/*"],
       "js": ["content.js"],
       "css": ["styles.css"],
       "run_at": "document_start"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["injected.js"],
-      "matches": ["https://www.netflix.com/*"]
     }
   ]
 }

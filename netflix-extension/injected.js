@@ -275,6 +275,26 @@
       }
     });
 
+    // Wrap getResponseHeader to silently return null for headers that aren't
+    // accessible (unexposed cross-origin headers). Without this, the browser
+    // logs "Refused to get unsafe header" for every such call (e.g. OneTrust's
+    // X-OneTrust-IsBot), even though the result is null either way.
+    const origGetAllResponseHeaders = xhr.getAllResponseHeaders.bind(xhr);
+    const origGetResponseHeader = xhr.getResponseHeader.bind(xhr);
+    xhr.getResponseHeader = function (name) {
+      try {
+        const all = origGetAllResponseHeaders() || '';
+        const lowerName = name.toLowerCase();
+        const accessible = all.split('\r\n').some(
+          line => line.toLowerCase().startsWith(lowerName + ':')
+        );
+        if (!accessible) return null;
+      } catch (_) {
+        // Fall through to native on any error
+      }
+      return origGetResponseHeader(name);
+    };
+
     return xhr;
   }
 
