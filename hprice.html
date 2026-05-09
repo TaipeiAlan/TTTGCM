@@ -105,7 +105,8 @@
         <button id="closeChartModal" class="close-btn">×</button>
       </div>
       <p style="font-size:12px;color:#999;margin:4px 0 8px">X 軸：月份（資料起迄，含無交易月份）　Y 軸：交易戶數　每條線代表一個棟及號</p>
-      <div style="position:relative;height:440px"><canvas id="trendChart"></canvas></div>
+      <div style="position:relative;height:400px"><canvas id="trendChart"></canvas></div>
+      <div id="trendDetail" style="display:none;margin-top:10px;background:#f7f1e5;border-radius:8px;padding:10px 14px;font-size:13px"></div>
     </div>
   </div>
 
@@ -574,7 +575,7 @@
         return{label:unit,data:detailData.map(d=>d.length||null),detailData,borderColor:color,backgroundColor:color+'33',pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,spanGaps:false};
       });
 
-      // 線尾直接繪製棟及號標籤
+      // 線尾直接繪製棟及號標籤（固定顏色，向上偏移避免被線遮擋）
       const endLabelPlugin={
         id:'endLabel',
         afterDraw(chart){
@@ -582,15 +583,14 @@
           chart.data.datasets.forEach((ds,i)=>{
             const meta=chart.getDatasetMeta(i);
             if(meta.hidden||!meta.data.length)return;
-            const lastNonNullIdx=ds.data.reduce((last,v,i)=>v!==null?i:last,-1);
+            const lastNonNullIdx=ds.data.reduce((last,v,idx)=>v!==null?idx:last,-1);
             if(lastNonNullIdx<0)return;
             const pt=meta.data[lastNonNullIdx];
-            const faded=hoveredIdx>=0&&hoveredIdx!==i;
-            c.globalAlpha=faded?0.2:1;
+            c.globalAlpha=1;
             c.fillStyle=unitColors[i];
             c.font=`bold 11px -apple-system,sans-serif`;
-            c.textAlign='left';c.textBaseline='middle';
-            c.fillText(ds.label,pt.x+6,pt.y);
+            c.textAlign='left';c.textBaseline='bottom';
+            c.fillText(ds.label,pt.x+6,pt.y-4);
           });
           c.restore();
         }
@@ -604,7 +604,7 @@
         options:{
           responsive:true,maintainAspectRatio:false,
           layout:{padding:{right:80}},
-          interaction:{mode:'nearest',intersect:false,axis:'xy'},
+          interaction:{mode:'nearest',intersect:true},
           onHover:(_,active,chart)=>{
             const idx=active.length?active[0].datasetIndex:-1;
             if(idx===hoveredIdx)return;
@@ -616,6 +616,40 @@
             });
             chart.update('none');
           },
+          onClick:(_,active)=>{
+            if(!active.length)return;
+            const{datasetIndex,index}=active[0];
+            const ds=trendChartInst.data.datasets[datasetIndex];
+            const month=allMonths[index];
+            const count=ds.data[index];
+            const details=ds.detailData[index]||[];
+            const detailEl=document.getElementById('trendDetail');
+            const tdStyle='padding:4px 6px;border-top:1px solid #e4dfd4';
+            const rows=details.map(r=>{
+              const up=calcUnitPrice(r,withParkingPrice);
+              return`<tr>
+                <td style="${tdStyle}">${r.交易日期||'-'}</td>
+                <td style="${tdStyle};text-align:right">${formatAmount(r.總價,0)} 萬</td>
+                <td style="${tdStyle};text-align:right">${up!==null?formatAmount(up,1)+' 萬/坪':'-'}</td>
+                <td style="${tdStyle};text-align:right">${r.總面積?formatAmount(r.總面積,1)+' 坪':'-'}</td>
+              </tr>`;
+            }).join('');
+            detailEl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span style="font-weight:800;font-size:15px;color:#2f2f2f">${ds.label}&ensp;<span style="font-weight:400;font-size:13px;color:#777">${month}</span></span>
+              <span style="color:#e8953f;font-weight:700">成交 ${count} 筆</span>
+              <button onclick="document.getElementById('trendDetail').style.display='none'" style="border:none;background:transparent;cursor:pointer;font-size:20px;color:#aaa;line-height:1">×</button>
+            </div>
+            ${rows?`<table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="color:#7f7a72">
+                <th style="text-align:left;padding:3px 6px">交易日期</th>
+                <th style="text-align:right;padding:3px 6px">總價</th>
+                <th style="text-align:right;padding:3px 6px">單坪價</th>
+                <th style="text-align:right;padding:3px 6px">坪數</th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>`:'<div style="color:#999">無交易資料</div>'}`;
+            detailEl.style.display='block';
+          },
           scales:{
             x:{title:{display:true,text:'月份'},ticks:{maxRotation:45}},
             y:{title:{display:true,text:'交易戶數'},ticks:{stepSize:1,callback:v=>Number.isInteger(v)?v:null},beginAtZero:true},
@@ -623,20 +657,7 @@
           plugins:{
             legend:{display:false},
             datalabels:{display:false},
-            tooltip:{
-              callbacks:{
-                title:items=>`${items[0].dataset.label}　${items[0].label}`,
-                label:c=>`交易戶數：${c.parsed.y} 筆`,
-                afterBody:items=>{
-                  const details=items[0].dataset.detailData?.[items[0].dataIndex];
-                  if(!details||!details.length)return[];
-                  return['─────────────',...details.map(r=>{
-                    const up=calcUnitPrice(r,withParkingPrice);
-                    return`${r.交易日期||'-'}　${formatAmount(r.總價,0)}萬${up!==null?'　'+formatAmount(up,1)+'萬/坪':''}`;
-                  })];
-                },
-              },
-            },
+            tooltip:{enabled:false},
           },
         },
       });
@@ -651,7 +672,7 @@
       chartModal.classList.add('show');
       buildTrendChart(currentRecords);
     });
-    closeChartModalBtn.addEventListener('click',()=>chartModal.classList.remove('show'));
+    closeChartModalBtn.addEventListener('click',()=>{chartModal.classList.remove('show');document.getElementById('trendDetail').style.display='none';});
     chartModal.addEventListener('click',e=>{if(e.target===chartModal)chartModal.classList.remove('show');});
     // ─────────────────────────────────────────────────────────────────────────
   </script>
