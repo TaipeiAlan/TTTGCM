@@ -54,6 +54,8 @@
     .detail th,.stats-table th,.summary-grid th{background:#f5f1e8;color:#5f513c}
 
     @media (max-width:640px){.unit-name{font-size:16px}}
+    #chartModal{align-items:center}
+    #chartModal .modal-card{width:min(880px,100%);max-height:92vh}
   </style>
 </head>
 <body class="size-l">
@@ -70,6 +72,7 @@
             <input id="priceToggle" type="checkbox" checked>
             與車位一起計算單坪價格
           </label>
+          <button id="trendBtn" class="btn">交易趨勢圖</button>
         </div>
       </div>
       <div class="top-row">
@@ -95,7 +98,25 @@
     </div>
   </div>
 
+  <div class="modal" id="chartModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 class="modal-title">交易趨勢圖</h2>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:13px;color:#777">分組：</span>
+          <button class="btn trend-group-btn active" data-group="layout">格局</button>
+          <button class="btn trend-group-btn" data-group="floor">樓層區間</button>
+          <button id="closeChartModal" class="close-btn" style="margin-left:4px">×</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;margin:4px 0 8px">X 軸：交易日期　Y 軸：單價（萬/坪）　每個點代表一筆成交記錄</p>
+      <div style="position:relative;height:440px"><canvas id="trendChart"></canvas></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script>
     const CACHE_KEY='hprice_cache_v4';
     const LEGACY_CACHE_KEYS=['hprice_cache','hprice_cache_v1','hprice_cache_v2','hprice_cache_v3'];
@@ -502,6 +523,111 @@
 
     const cached=loadCache();if(cached){currentRecords=cached.records;renderTable(cached.records,cached);}
     setSize(localStorage.getItem(SIZE_KEY)||'l');
+
+    // ── 交易趨勢圖 ──────────────────────────────────────────────────────────
+    const TREND_COLORS=['#e8953f','#d64f41','#4a90d9','#5ba85a','#9b59b6','#16a085','#f39c12','#8e44ad','#2980b9','#c0392b'];
+
+    function rocToISO(v){
+      const s=String(v||'').trim();
+      // 純數字民國日期：1131205
+      const m1=s.match(/^(\d{2,3})(\d{2})(\d{2})$/);
+      if(m1)return `${Number(m1[1])+1911}-${m1[2]}-${m1[3]}`;
+      // 文字民國日期：113年12月05日 or 113年12月
+      const m2=s.match(/(\d+)年\s*(\d+)月(?:\s*(\d+)日)?/);
+      if(m2)return `${Number(m2[1])+1911}-${m2[2].padStart(2,'0')}-${m2[3]?m2[3].padStart(2,'0'):'15'}`;
+      // 斜線/連字號：113/12/05 or 113-12-05
+      const m3=s.match(/^(\d{2,3})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+      if(m3)return `${Number(m3[1])+1911}-${m3[2].padStart(2,'0')}-${m3[3].padStart(2,'0')}`;
+      return '';
+    }
+
+    function floorBand(f){
+      const n=Number(f);
+      if(n<=5)return '1–5F';if(n<=10)return '6–10F';if(n<=15)return '11–15F';if(n<=20)return '16–20F';return '21F+';
+    }
+
+    let trendChartInst=null;
+    let currentTrendGroup='layout';
+
+    function buildTrendChart(records,groupBy){
+      const pts=records.map(r=>{
+        const iso=rocToISO(r.交易日期);if(!iso)return null;
+        const ts=new Date(iso).getTime();if(Number.isNaN(ts))return null;
+        const price=calcUnitPrice(r,withParkingPrice);if(price===null||price<=0)return null;
+        const group=groupBy==='floor'?floorBand(r.樓層):(r.建物格局||'未知格局');
+        return{x:ts,y:price,group};
+      }).filter(Boolean);
+
+      const canvas=document.getElementById('trendChart');
+      if(!pts.length){
+        if(trendChartInst){trendChartInst.destroy();trendChartInst=null;}
+        const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.save();ctx.fillStyle='#999';ctx.font='14px sans-serif';ctx.textAlign='center';
+        ctx.fillText('無法解析交易日期或單價資料',canvas.width/2,canvas.height/2);ctx.restore();
+        return;
+      }
+
+      const groups={};
+      pts.forEach(p=>{if(!groups[p.group])groups[p.group]=[];groups[p.group].push({x:p.x,y:p.y});});
+      Object.values(groups).forEach(g=>g.sort((a,b)=>a.x-b.x));
+      const sortedKeys=Object.keys(groups).sort();
+
+      const datasets=sortedKeys.map((label,i)=>({
+        label,
+        data:groups[label],
+        borderColor:TREND_COLORS[i%TREND_COLORS.length],
+        backgroundColor:TREND_COLORS[i%TREND_COLORS.length]+'bb',
+        pointRadius:5,pointHoverRadius:8,
+        showLine:true,tension:0.15,borderWidth:1.5,
+      }));
+
+      if(trendChartInst)trendChartInst.destroy();
+      trendChartInst=new Chart(canvas.getContext('2d'),{
+        type:'scatter',
+        data:{datasets},
+        options:{
+          responsive:true,maintainAspectRatio:false,
+          scales:{
+            x:{
+              type:'time',
+              time:{unit:'month',displayFormats:{month:'yyyy-MM'}},
+              title:{display:true,text:'交易日期'},
+              ticks:{maxRotation:45},
+            },
+            y:{
+              title:{display:true,text:`單價（萬/坪，${withParkingPrice?'含車位':'不含車位'}）`},
+              ticks:{callback:v=>formatAmount(v,1)},
+            },
+          },
+          plugins:{
+            legend:{position:'top',labels:{boxWidth:12,padding:10,font:{size:12}}},
+            tooltip:{callbacks:{
+              title:items=>{const d=new Date(items[0].parsed.x);return d.toISOString().slice(0,10);},
+              label:c=>`${c.dataset.label}：${formatAmount(c.parsed.y,2)} 萬/坪`,
+            }},
+          },
+        },
+      });
+    }
+
+    const chartModal=document.getElementById('chartModal');
+    const closeChartModalBtn=document.getElementById('closeChartModal');
+    const trendBtn=document.getElementById('trendBtn');
+    const trendGroupBtns=[...document.querySelectorAll('.trend-group-btn')];
+
+    trendBtn.addEventListener('click',()=>{
+      if(!currentRecords.length){alert('請先載入資料');return;}
+      chartModal.classList.add('show');
+      buildTrendChart(currentRecords,currentTrendGroup);
+    });
+    trendGroupBtns.forEach(b=>b.addEventListener('click',()=>{
+      currentTrendGroup=b.dataset.group;
+      trendGroupBtns.forEach(x=>x.classList.toggle('active',x===b));
+      if(currentRecords.length)buildTrendChart(currentRecords,currentTrendGroup);
+    }));
+    closeChartModalBtn.addEventListener('click',()=>chartModal.classList.remove('show'));
+    chartModal.addEventListener('click',e=>{if(e.target===chartModal)chartModal.classList.remove('show');});
+    // ─────────────────────────────────────────────────────────────────────────
   </script>
 </body>
 </html>
