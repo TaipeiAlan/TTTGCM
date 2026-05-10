@@ -229,6 +229,7 @@
 
     if (!enTrack) {
       console.log(LOG, 'No EN track found in manifest');
+      window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: 'manifest: no EN track' }, '*');
       return;
     }
 
@@ -237,15 +238,20 @@
     fetchedEnUrls.add(url);
 
     console.log(LOG, 'Auto-fetching EN subtitle:', url.slice(0, 80));
+    window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: `fetching EN: ${url.slice(0, 60)}` }, '*');
     fetch(url)
       .then(r => r.text())
       .then(text => handleSubtitleResponse(url, text, 'en'))
-      .catch(e => console.warn(LOG, 'EN fetch error:', e));
+      .catch(e => {
+        console.warn(LOG, 'EN fetch error:', e);
+        window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: `fetch error: ${e.message}` }, '*');
+      });
   }
 
   function handleManifestResponse(url, text) {
     try {
       const json = JSON.parse(text);
+      window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: `manifest intercepted: ${url.slice(0, 60)}` }, '*');
       extractTracksFromManifest(json);
     } catch (e) {
       // Not JSON or parse error — ignore
@@ -347,4 +353,5 @@
   window.addEventListener('popstate', () => window.dispatchEvent(new Event('nf-locationchange')));
 
   console.log(LOG, 'injected.js active — XHR/fetch patched, history patched');
+  window.postMessage({ type: 'NETFLIX_DUAL_SUB_INIT' }, '*');
 })();

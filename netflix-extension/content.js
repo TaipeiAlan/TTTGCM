@@ -22,6 +22,9 @@
     pollInterval: null,
     lastUrl: location.href,
     currentText: '',
+    testMode: false,
+    injectedSeen: false,
+    lastEvent: '',
   };
 
   // --- Load settings from storage ---
@@ -117,6 +120,18 @@
 
   function onPoll() {
     if (!state.overlay) return;
+
+    if (state.testMode) {
+      const now = new Date();
+      const hms = now.toTimeString().slice(0, 8);
+      const video = document.querySelector('video');
+      const vt = video ? video.currentTime.toFixed(2) + 's' : 'no video';
+      const text = `TEST ${hms}  video=${vt}  cues=${state.enCues.length}`;
+      state.overlay.textContent = text;
+      state.overlay.style.display = 'block';
+      return;
+    }
+
     if (!state.enabled) {
       if (state.overlay.style.display !== 'none') state.overlay.style.display = 'none';
       return;
@@ -139,20 +154,29 @@
   // --- Message listener from injected.js ---
 
   window.addEventListener('message', (e) => {
-    if (e.data?.type === MSG_TYPE) console.log(LOG, 'msg received, source match:', e.source === window);
     if (e.source !== window) return;
-    if (!e.data || e.data.type !== MSG_TYPE) return;
+    if (!e.data) return;
 
+    if (e.data.type === 'NETFLIX_DUAL_SUB_INIT') {
+      state.injectedSeen = true;
+      return;
+    }
+
+    if (e.data.type === 'NETFLIX_DUAL_SUB_STATUS') {
+      state.lastEvent = e.data.event || '';
+      return;
+    }
+
+    if (e.data.type !== MSG_TYPE) return;
+
+    console.log(LOG, 'msg received, source match:', e.source === window);
     const { lang, cues } = e.data.payload;
     if (!Array.isArray(cues) || !cues.length) return;
 
     if (/^en/i.test(lang)) {
       state.enCues = cues;
       console.log(LOG, 'EN cues loaded:', cues.length);
-
-      // Notify popup about loaded cue count
       chrome.runtime.sendMessage({ type: 'EN_CUES_LOADED', count: cues.length }).catch(() => {});
-
       ensureOverlay();
     }
   });
@@ -161,13 +185,27 @@
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === 'GET_STATUS') {
+      const video = document.querySelector('video');
       sendResponse({
         enCueCount: state.enCues.length,
         enabled: state.enabled,
         hasOverlay: !!state.overlay,
+        pollActive: !!state.pollInterval,
+        testMode: state.testMode,
+        injectedSeen: state.injectedSeen,
+        lastEvent: state.lastEvent,
+        videoPresent: !!video,
+        videoTime: video ? video.currentTime.toFixed(2) : null,
         currentText: state.currentText,
-        url: location.href.slice(0, 80),
+        url: location.href,
       });
+    } else if (msg.type === 'SET_TEST_MODE') {
+      state.testMode = !!msg.enabled;
+      if (state.testMode) {
+        ensureOverlay();
+        startPolling();
+      }
+      sendResponse({ ok: true });
     } else if (msg.type === 'RESET_SUBTITLES') {
       state.enCues = [];
       state.currentText = '';
