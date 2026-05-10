@@ -6,6 +6,7 @@
   const posSection = document.getElementById('position-section');
   const posButtons = document.querySelectorAll('.pos-btn');
   const resetBtn = document.getElementById('reset-btn');
+  const refetchBtn = document.getElementById('refetch-btn');
   const debugInfo = document.getElementById('debug-info');
   const debugActions = document.getElementById('debug-actions');
   const testOverlayBtn = document.getElementById('test-overlay-btn');
@@ -118,6 +119,21 @@
 
   window.addEventListener('unload', () => {
     if (refreshTimer) clearInterval(refreshTimer);
+  });
+
+  // --- Re-fetch button ---
+
+  refetchBtn.addEventListener('click', () => {
+    if (activeTabId === null) return;
+    refetchBtn.textContent = '⟳ Fetching…';
+    refetchBtn.disabled = true;
+    chrome.tabs.sendMessage(activeTabId, { type: 'REFETCH_SUBTITLES' }, () => {
+      setTimeout(() => {
+        refetchBtn.textContent = '⟳ Re-fetch EN';
+        refetchBtn.disabled = false;
+        fetchStatus();
+      }, 2000);
+    });
   });
 
   // --- Reset button ---

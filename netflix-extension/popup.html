@@ -318,7 +318,10 @@
   <!-- Debug panel -->
   <div class="section">
     <div class="section-label">Debug 除錯</div>
-    <button id="reset-btn" class="reset-btn">↺ Reset Subtitles</button>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <button id="reset-btn" class="reset-btn" style="flex:1">↺ Reset</button>
+      <button id="refetch-btn" class="reset-btn" style="flex:1">⟳ Re-fetch EN</button>
+    </div>
     <div id="debug-info" class="debug-info" style="display:none"></div>
     <div class="debug-actions" id="debug-actions" style="display:none">
       <button id="test-overlay-btn">▶ Test Overlay</button>
