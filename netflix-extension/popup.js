@@ -7,6 +7,11 @@
   const posButtons = document.querySelectorAll('.pos-btn');
   const resetBtn = document.getElementById('reset-btn');
   const debugInfo = document.getElementById('debug-info');
+  const debugActions = document.getElementById('debug-actions');
+  const testOverlayBtn = document.getElementById('test-overlay-btn');
+  const copyBtn = document.getElementById('copy-btn');
+
+  let testModeOn = false;
 
   // --- Load saved preferences ---
 
@@ -70,13 +75,23 @@
       }
 
       if (resp) {
+        testModeOn = !!resp.testMode;
+        testOverlayBtn.textContent = testModeOn ? '■ Stop Test' : '▶ Test Overlay';
+        testOverlayBtn.classList.toggle('active', testModeOn);
+
         debugInfo.style.display = 'block';
+        debugActions.style.display = 'flex';
         debugInfo.textContent =
-          `cues: ${resp.enCueCount}\n` +
-          `enabled: ${resp.enabled}\n` +
-          `overlay: ${resp.hasOverlay}\n` +
-          `now: "${(resp.currentText || '').slice(0, 40)}"\n` +
-          `url: ${(resp.url || '').slice(0, 60)}`;
+          `cues:         ${resp.enCueCount}\n` +
+          `enabled:      ${resp.enabled}\n` +
+          `test mode:    ${resp.testMode}\n` +
+          `overlay:      ${resp.hasOverlay}\n` +
+          `poll active:  ${resp.pollActive}\n` +
+          `injected.js:  ${resp.injectedSeen ? 'active' : 'NOT SEEN'}\n` +
+          `last event:   ${resp.lastEvent || '(none)'}\n` +
+          `video:        ${resp.videoPresent ? `yes (t=${resp.videoTime}s)` : 'NOT FOUND'}\n` +
+          `now:          "${(resp.currentText || '').slice(0, 40)}"\n` +
+          `url:          ${resp.url || ''}`;
       }
     });
   });
@@ -89,6 +104,33 @@
       statusEl.textContent = 'Reset — waiting for next subtitle load.';
       statusEl.className = 'status waiting';
       debugInfo.style.display = 'none';
+      debugActions.style.display = 'none';
+    });
+  });
+
+  // --- Test overlay button ---
+
+  testOverlayBtn.addEventListener('click', () => {
+    if (activeTabId === null) return;
+    testModeOn = !testModeOn;
+    chrome.tabs.sendMessage(activeTabId, { type: 'SET_TEST_MODE', enabled: testModeOn }, () => {
+      testOverlayBtn.textContent = testModeOn ? '■ Stop Test' : '▶ Test Overlay';
+      testOverlayBtn.classList.toggle('active', testModeOn);
+    });
+  });
+
+  // --- Copy debug text ---
+
+  copyBtn.addEventListener('click', () => {
+    const text = debugInfo.textContent;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.textContent = '✓ Copied';
+      copyBtn.classList.add('copied');
+      setTimeout(() => {
+        copyBtn.textContent = '⎘ Copy';
+        copyBtn.classList.remove('copied');
+      }, 1500);
     });
   });
 
