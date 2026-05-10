@@ -15,7 +15,7 @@
     },
     "default_title": "Netflix Dual Subtitles"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab"],
   "host_permissions": ["https://www.netflix.com/*"],
   "content_scripts": [
     {

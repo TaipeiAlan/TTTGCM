@@ -5,6 +5,8 @@
   const statusEl = document.getElementById('status-msg');
   const posSection = document.getElementById('position-section');
   const posButtons = document.querySelectorAll('.pos-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const debugInfo = document.getElementById('debug-info');
 
   // --- Load saved preferences ---
 
@@ -38,18 +40,21 @@
     });
   });
 
-  // --- Status: listen for EN cue count from content script ---
+  // --- Status: query content script for EN cue count + debug info ---
+
+  let activeTabId = null;
 
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs.length) return;
     const tab = tabs[0];
+    activeTabId = tab.id;
+
     if (!tab.url || !tab.url.includes('netflix.com/watch')) {
       statusEl.textContent = 'Open a Netflix title to activate.';
       statusEl.className = 'status';
       return;
     }
 
-    // Ask the content script for the current EN cue count
     chrome.tabs.sendMessage(tab.id, { type: 'GET_STATUS' }, (resp) => {
       if (chrome.runtime.lastError) {
         statusEl.textContent = 'Content script not ready yet.';
@@ -63,6 +68,27 @@
         statusEl.textContent = 'Waiting — play a title and select subtitles.';
         statusEl.className = 'status waiting';
       }
+
+      if (resp) {
+        debugInfo.style.display = 'block';
+        debugInfo.textContent =
+          `cues: ${resp.enCueCount}\n` +
+          `enabled: ${resp.enabled}\n` +
+          `overlay: ${resp.hasOverlay}\n` +
+          `now: "${(resp.currentText || '').slice(0, 40)}"\n` +
+          `url: ${(resp.url || '').slice(0, 60)}`;
+      }
+    });
+  });
+
+  // --- Reset button ---
+
+  resetBtn.addEventListener('click', () => {
+    if (activeTabId === null) return;
+    chrome.tabs.sendMessage(activeTabId, { type: 'RESET_SUBTITLES' }, () => {
+      statusEl.textContent = 'Reset — waiting for next subtitle load.';
+      statusEl.className = 'status waiting';
+      debugInfo.style.display = 'none';
     });
   });
 
