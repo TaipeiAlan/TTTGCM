@@ -198,21 +198,22 @@
     const newId = extractWatchId(newUrl);
     state.lastUrl = newUrl;
 
-    // Netflix updates query params (trackId, tctx, etc.) during playback via
-    // replaceState — if the watch ID hasn't changed, this is not a real navigation.
-    if (newId && newId === oldId) return;
-
-    if (/\/watch\//i.test(newUrl)) {
-      // New title — reset subtitle data, keep overlay structure
-      state.enCues = [];
-      state.currentText = '';
-      if (state.overlay) {
-        state.overlay.textContent = '';
-        state.overlay.style.display = 'none';
+    if (newId) {
+      // Staying in the player. Only reset cues when the title actually changes
+      // (watch/A → watch/B). Navigating from a non-watch page (title page,
+      // browse, etc.) to a watch page does NOT reset — cues may already have
+      // been fetched for this title before the URL settled.
+      if (oldId && oldId !== newId) {
+        state.enCues = [];
+        state.currentText = '';
+        if (state.overlay) {
+          state.overlay.textContent = '';
+          state.overlay.style.display = 'none';
+        }
+        console.log(LOG, 'navigated to new title, cues reset');
       }
-      console.log(LOG, 'navigated to new watch page, state reset');
     } else {
-      // Left the player
+      // Left the player entirely
       destroyOverlay();
       console.log(LOG, 'left player, overlay destroyed');
     }
