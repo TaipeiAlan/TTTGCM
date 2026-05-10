@@ -331,5 +331,20 @@
     return response;
   };
 
-  console.log(LOG, 'injected.js active — XHR/fetch patched');
+  // --- SPA navigation: must run in MAIN world to intercept Netflix's history calls ---
+  // Dispatches 'nf-locationchange' on window; content.js listens for it.
+
+  function patchNavMethod(method) {
+    const orig = history[method];
+    history[method] = function (...args) {
+      const result = orig.apply(this, args);
+      window.dispatchEvent(new Event('nf-locationchange'));
+      return result;
+    };
+  }
+  patchNavMethod('pushState');
+  patchNavMethod('replaceState');
+  window.addEventListener('popstate', () => window.dispatchEvent(new Event('nf-locationchange')));
+
+  console.log(LOG, 'injected.js active — XHR/fetch patched, history patched');
 })();

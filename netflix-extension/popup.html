@@ -192,6 +192,38 @@
     .hint a {
       color: #888;
     }
+
+    .reset-btn {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1.5px solid #444;
+      border-radius: 6px;
+      background: transparent;
+      color: #aaa;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .reset-btn:hover {
+      border-color: #888;
+      color: #e5e5e5;
+    }
+
+    .debug-info {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #1a1a1a;
+      border-radius: 6px;
+      font-size: 10px;
+      color: #666;
+      font-family: monospace;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -245,6 +277,15 @@
     On Netflix: select your language subtitle, then the English track loads automatically.
     <br><br>
     在 Netflix 選擇您的語言字幕，英文字幕會自動載入。
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Debug panel -->
+  <div class="section">
+    <div class="section-label">Debug 除錯</div>
+    <button id="reset-btn" class="reset-btn">↺ Reset Subtitles</button>
+    <div id="debug-info" class="debug-info" style="display:none"></div>
   </div>
 
   <script src="popup.js"></script>

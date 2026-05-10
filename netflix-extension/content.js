@@ -38,6 +38,10 @@
       if (state.overlay) {
         if (!state.enabled) {
           state.overlay.style.display = 'none';
+        } else {
+          // Force re-render on next poll cycle; without this the overlay stays
+          // hidden when re-enabled while the same cue is still showing.
+          state.currentText = '';
         }
       }
     }
@@ -157,24 +161,29 @@
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.type === 'GET_STATUS') {
-      sendResponse({ enCueCount: state.enCues.length });
+      sendResponse({
+        enCueCount: state.enCues.length,
+        enabled: state.enabled,
+        hasOverlay: !!state.overlay,
+        currentText: state.currentText,
+        url: location.href.slice(0, 80),
+      });
+    } else if (msg.type === 'RESET_SUBTITLES') {
+      state.enCues = [];
+      state.currentText = '';
+      if (state.overlay) {
+        state.overlay.textContent = '';
+        state.overlay.style.display = 'none';
+      }
+      console.log(LOG, 'subtitle state reset by popup');
+      sendResponse({ ok: true });
     }
     return false;
   });
 
   // --- SPA navigation (Netflix is a React SPA) ---
-
-  function patchHistoryMethod(method) {
-    const orig = history[method];
-    history[method] = function (...args) {
-      const result = orig.apply(this, args);
-      window.dispatchEvent(new Event('nf-locationchange'));
-      return result;
-    };
-  }
-  patchHistoryMethod('pushState');
-  patchHistoryMethod('replaceState');
-  window.addEventListener('popstate', () => window.dispatchEvent(new Event('nf-locationchange')));
+  // 'nf-locationchange' is dispatched from injected.js (MAIN world) which is the
+  // only place that can intercept Netflix's own pushState/replaceState calls.
 
   window.addEventListener('nf-locationchange', () => {
     const newUrl = location.href;
