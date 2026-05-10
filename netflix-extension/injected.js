@@ -219,14 +219,16 @@
     if (!candidates.length) return;
 
     const tracks = candidates[0];
+    // Netflix manifest tracks may use either `bcp47` or `language` for the locale.
+    const langOf = t => (t.bcp47 || t.language || '').toLowerCase();
+
     // Find English track; skip CC/SDH if a plain EN exists
-    let enTrack = tracks.find(t => t.bcp47 === 'en' && !t.isForcedNarrative);
-    if (!enTrack) enTrack = tracks.find(t => /^en/i.test(t.bcp47) && !t.isForcedNarrative);
-    if (!enTrack) enTrack = tracks.find(t => /^en/i.test(t.bcp47));
+    let enTrack = tracks.find(t => langOf(t) === 'en' && !t.isForcedNarrative);
+    if (!enTrack) enTrack = tracks.find(t => /^en/.test(langOf(t)) && !t.isForcedNarrative);
+    if (!enTrack) enTrack = tracks.find(t => /^en/.test(langOf(t)));
 
     if (!enTrack) {
-      console.log(LOG, 'No EN track found in manifest. Available tracks:',
-        tracks.map(t => `${t.bcp47 || t.language || '?'}(forced=${t.isForcedNarrative})`).join(', '));
+      console.log(LOG, 'No EN track found in manifest');
       return;
     }
 
