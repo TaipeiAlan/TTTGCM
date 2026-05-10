@@ -154,7 +154,7 @@
 
   const processedUrls = new Set();
 
-  function handleSubtitleResponse(url, text) {
+  function handleSubtitleResponse(url, text, forcedLang) {
     if (!text || processedUrls.has(url)) return;
     processedUrls.add(url);
 
@@ -172,7 +172,7 @@
 
     if (!result || !result.cues.length) return;
 
-    const lang = detectLangFromUrl(url) || result.lang || '';
+    const lang = forcedLang || detectLangFromUrl(url) || result.lang || '';
     console.log(LOG, 'subtitle loaded:', lang, result.cues.length, 'cues', url.slice(0, 80));
 
     window.postMessage({
@@ -239,7 +239,7 @@
     console.log(LOG, 'Auto-fetching EN subtitle:', url.slice(0, 80));
     fetch(url)
       .then(r => r.text())
-      .then(text => handleSubtitleResponse(url, text))
+      .then(text => handleSubtitleResponse(url, text, 'en'))
       .catch(e => console.warn(LOG, 'EN fetch error:', e));
   }
 
