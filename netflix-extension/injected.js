@@ -225,7 +225,8 @@
     if (!enTrack) enTrack = tracks.find(t => /^en/i.test(t.bcp47));
 
     if (!enTrack) {
-      console.log(LOG, 'No EN track found in manifest');
+      console.log(LOG, 'No EN track found in manifest. Available tracks:',
+        tracks.map(t => `${t.bcp47 || t.language || '?'}(forced=${t.isForcedNarrative})`).join(', '));
       return;
     }
 
