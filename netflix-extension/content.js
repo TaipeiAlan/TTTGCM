@@ -10,6 +10,8 @@
   const OVERLAY_ID = 'netflix-dual-sub-overlay';
   const MSG_TYPE = 'NETFLIX_DUAL_SUB_DATA';
 
+  console.log(LOG, 'content.js active', location.href.slice(0, 60));
+
   // --- State ---
 
   const state = {
@@ -133,6 +135,7 @@
   // --- Message listener from injected.js ---
 
   window.addEventListener('message', (e) => {
+    if (e.data?.type === MSG_TYPE) console.log(LOG, 'msg received, source match:', e.source === window);
     if (e.source !== window) return;
     if (!e.data || e.data.type !== MSG_TYPE) return;
 
