@@ -185,10 +185,22 @@
   // 'nf-locationchange' is dispatched from injected.js (MAIN world) which is the
   // only place that can intercept Netflix's own pushState/replaceState calls.
 
+  function extractWatchId(url) {
+    const m = url.match(/\/watch\/(\d+)/i);
+    return m ? m[1] : null;
+  }
+
   window.addEventListener('nf-locationchange', () => {
     const newUrl = location.href;
     if (newUrl === state.lastUrl) return;
+
+    const oldId = extractWatchId(state.lastUrl);
+    const newId = extractWatchId(newUrl);
     state.lastUrl = newUrl;
+
+    // Netflix updates query params (trackId, tctx, etc.) during playback via
+    // replaceState — if the watch ID hasn't changed, this is not a real navigation.
+    if (newId && newId === oldId) return;
 
     if (/\/watch\//i.test(newUrl)) {
       // New title — reset subtitle data, keep overlay structure
