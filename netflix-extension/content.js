@@ -199,6 +199,10 @@
         currentText: state.currentText,
         url: location.href,
       });
+    } else if (msg.type === 'REFETCH_SUBTITLES') {
+      // Cross isolated-world boundary: dispatch a DOM event that injected.js listens for
+      window.dispatchEvent(new Event('nf-refetch-request'));
+      sendResponse({ ok: true });
     } else if (msg.type === 'SET_TEST_MODE') {
       state.testMode = !!msg.enabled;
       if (state.testMode) {

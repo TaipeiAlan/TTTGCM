@@ -150,9 +150,16 @@
     return { lang: '', cues };
   }
 
+  // --- Status helper ---
+
+  function postStatus(msg) {
+    window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: msg }, '*');
+  }
+
   // --- Handle subtitle response ---
 
   const processedUrls = new Set();
+  let lastKnownEnUrl = null;
 
   function handleSubtitleResponse(url, text, forcedLang) {
     if (!text || processedUrls.has(url)) return;
@@ -236,27 +243,91 @@
     const url = getFirstSubtitleUrl(enTrack.ttDownloadables);
     if (!url || fetchedEnUrls.has(url)) return;
     fetchedEnUrls.add(url);
+    lastKnownEnUrl = url;
 
     console.log(LOG, 'Auto-fetching EN subtitle:', url.slice(0, 80));
-    window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: `fetching EN: ${url.slice(0, 60)}` }, '*');
+    postStatus(`fetching EN: ${url.slice(0, 60)}`);
     fetch(url)
       .then(r => r.text())
       .then(text => handleSubtitleResponse(url, text, 'en'))
       .catch(e => {
         console.warn(LOG, 'EN fetch error:', e);
-        window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: `fetch error: ${e.message}` }, '*');
+        postStatus(`fetch error: ${e.message}`);
       });
   }
 
   function handleManifestResponse(url, text) {
     try {
       const json = JSON.parse(text);
-      window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: `manifest intercepted: ${url.slice(0, 60)}` }, '*');
+      postStatus(`manifest intercepted: ${url.slice(0, 60)}`);
       extractTracksFromManifest(json);
     } catch (e) {
       // Not JSON or parse error — ignore
     }
   }
+
+  // --- Re-fetch via Netflix player API (for mid-session extension reload) ---
+
+  function fetchEnFromUrl(url) {
+    processedUrls.delete(url);
+    fetchedEnUrls.delete(url);
+    postStatus(`re-fetching: ${url.slice(0, 60)}`);
+    fetch(url)
+      .then(r => r.text())
+      .then(text => handleSubtitleResponse(url, text, 'en'))
+      .catch(e => postStatus(`re-fetch error: ${e.message}`));
+  }
+
+  function tryPlayerAPI() {
+    try {
+      const vp = window.netflix?.appContext?.state?.playerApp?.getAPI?.()?.videoPlayer;
+      if (!vp) { postStatus('player API: window.netflix.appContext unavailable'); return false; }
+
+      const ids = vp.getAllPlayerSessionIds?.();
+      if (!ids?.length) { postStatus('player API: no active sessions'); return false; }
+
+      const player = vp.getVideoPlayerBySessionId(ids[0]);
+      const tracks = player?.getTimedTextTrackList?.();
+      if (!tracks) { postStatus('player API: getTimedTextTrackList unavailable'); return false; }
+
+      const langOf = t => (t.bcp47 || t.language || '').toLowerCase();
+      const trackArr = Array.from(tracks);
+      let enTrack = trackArr.find(t => langOf(t) === 'en' && !t.isForcedNarrative);
+      if (!enTrack) enTrack = trackArr.find(t => /^en/.test(langOf(t)));
+      if (!enTrack) { postStatus(`player API: no EN track (found: ${trackArr.map(t => langOf(t)).join(',')})`); return false; }
+
+      const url = getFirstSubtitleUrl(enTrack.ttDownloadables);
+      if (!url) { postStatus('player API: no downloadable URL for EN track'); return false; }
+
+      lastKnownEnUrl = url;
+      fetchEnFromUrl(url);
+      return true;
+    } catch (e) {
+      postStatus(`player API error: ${e.message}`);
+      return false;
+    }
+  }
+
+  function doRefetch() {
+    if (lastKnownEnUrl) {
+      fetchEnFromUrl(lastKnownEnUrl);
+    } else {
+      postStatus('refetch: no cached URL, trying player API...');
+      tryPlayerAPI();
+    }
+  }
+
+  // content.js dispatches this DOM event to cross the isolated-world boundary
+  window.addEventListener('nf-refetch-request', doRefetch);
+
+  // Auto-refetch on startup if a video is already playing (extension reloaded mid-video)
+  setTimeout(() => {
+    const video = document.querySelector('video');
+    if (video && video.currentTime > 1 && !lastKnownEnUrl) {
+      postStatus('startup: video already playing, trying player API...');
+      tryPlayerAPI();
+    }
+  }, 1500);
 
   // --- XHR interception ---
 
@@ -354,4 +425,5 @@
 
   console.log(LOG, 'injected.js active — XHR/fetch patched, history patched');
   window.postMessage({ type: 'NETFLIX_DUAL_SUB_INIT' }, '*');
+  postStatus('injected.js ready');
 })();
