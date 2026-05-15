@@ -3,7 +3,7 @@
 #netflix-dual-sub-overlay {
   /* Positioning: fixed at top of viewport so it never overlaps native subtitle */
   position: fixed;
-  top: 8%;
+  top: 5%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2147483647; /* max z-index */
@@ -13,11 +13,11 @@
   max-width: 80%;
   text-align: center;
 
-  /* Typography — match Netflix subtitle appearance */
+  /* Typography */
   font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 1.8vw;
+  font-size: 1.4vw;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.5;
   color: #ffffff;
 
   /* Netflix-style outline shadow for readability on any background */
@@ -34,11 +34,25 @@
   /* Prevent accidental text selection */
   user-select: none;
   -webkit-user-select: none;
+}
 
-  /* Preserve multi-line subtitle cues */
+/* Each subtitle line in the sliding window */
+#netflix-dual-sub-overlay .sub-line {
+  display: block;
   white-space: pre-wrap;
   word-break: break-word;
+  transition: opacity 0.15s ease;
+  padding: 1px 0;
+}
 
-  /* Subtle transition when text changes */
-  transition: opacity 0.08s ease;
+/* Context lines (before / after current) */
+#netflix-dual-sub-overlay .sub-prev,
+#netflix-dual-sub-overlay .sub-next {
+  opacity: 0.38;
+  font-size: 0.85em;
+}
+
+/* Current active line */
+#netflix-dual-sub-overlay .sub-current {
+  opacity: 1;
 }
