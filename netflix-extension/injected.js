@@ -328,6 +328,47 @@
       .catch(e => postStatus(`re-fetch error: ${e.message}`));
   }
 
+  // When we programmatically switch to EN track, flag the next CDN subtitle fetch as EN.
+  let _expectingEnSwitch = false;
+
+  function tryPlayerAPISwitch(player, enTrack) {
+    // Capture current track to restore afterwards
+    let currentTrack = null;
+    try {
+      currentTrack = typeof player.getTimedTextTrack === 'function'
+        ? player.getTimedTextTrack()
+        : null;
+    } catch (_) {}
+
+    // Try known method names for switching subtitle track
+    const switched =
+      typeof player.setTimedTextTrack === 'function'     ? (player.setTimedTextTrack(enTrack), true) :
+      typeof player.changeTimedTextTrack === 'function'  ? (player.changeTimedTextTrack(enTrack), true) :
+      false;
+
+    if (!switched) {
+      postStatus('player API: no track-switch method available');
+      return false;
+    }
+
+    _expectingEnSwitch = true;
+    postStatus('player API: switched to EN track to trigger fetch, will restore...');
+
+    // Restore original track after EN subtitle file has been fetched (~2 s)
+    setTimeout(() => {
+      _expectingEnSwitch = false;
+      try {
+        if (currentTrack) {
+          if (typeof player.setTimedTextTrack === 'function') player.setTimedTextTrack(currentTrack);
+          else if (typeof player.changeTimedTextTrack === 'function') player.changeTimedTextTrack(currentTrack);
+          postStatus('player API: restored original track');
+        }
+      } catch (e) {}
+    }, 2000);
+
+    return true;
+  }
+
   function tryPlayerAPI() {
     try {
       const vp = window.netflix?.appContext?.state?.playerApp?.getAPI?.()?.videoPlayer;
@@ -343,20 +384,21 @@
       const langOf = t => (t.bcp47 || t.language || '').toLowerCase();
       const trackArr = Array.from(tracks);
       let enTrack = trackArr.find(t => langOf(t) === 'en' && !t.isForcedNarrative);
+      if (!enTrack) enTrack = trackArr.find(t => /^en/.test(langOf(t)) && !t.isForcedNarrative);
       if (!enTrack) enTrack = trackArr.find(t => /^en/.test(langOf(t)));
       if (!enTrack) { postStatus(`player API: no EN track (found: ${trackArr.map(t => langOf(t)).join(',')})`); return false; }
 
+      // Try direct URL first (works in some Netflix versions)
       const url = extractUrlFromTrack(enTrack);
-      if (!url) {
-        const keys = Object.keys(enTrack).join(',');
-        const dlKeys = enTrack.ttDownloadables ? Object.keys(enTrack.ttDownloadables).join(',') : 'none';
-        postStatus(`player API: no downloadable URL for EN track (keys:${keys} ttDL:${dlKeys})`);
-        return false;
+      if (url) {
+        lastKnownEnUrl = url;
+        fetchEnFromUrl(url);
+        return true;
       }
 
-      lastKnownEnUrl = url;
-      fetchEnFromUrl(url);
-      return true;
+      // URL not embedded in track object — switch to EN briefly to trigger Netflix's CDN fetch.
+      // Our fetch interceptor will capture the response.
+      return tryPlayerAPISwitch(player, enTrack);
     } catch (e) {
       postStatus(`player API error: ${e.message}`);
       return false;
@@ -374,6 +416,20 @@
 
   // content.js dispatches this DOM event to cross the isolated-world boundary
   window.addEventListener('nf-refetch-request', doRefetch);
+
+  // Auto-trigger when navigating to a new watch URL (covers mid-session title changes)
+  window.addEventListener('nf-locationchange', () => {
+    if (/\/watch\/\d+/.test(location.href)) {
+      processedUrls.clear();
+      lastKnownEnUrl = null;
+      setTimeout(() => {
+        if (!lastKnownEnUrl) {
+          postStatus('navigation: auto-fetching EN subtitles...');
+          tryPlayerAPI();
+        }
+      }, 4000);
+    }
+  });
 
   // Auto-refetch on startup if a video is already playing (extension reloaded mid-video)
   setTimeout(() => {
@@ -408,8 +464,9 @@
           // CDN URL without file extension (Netflix's new format) — sniff content
           const ct = origGetResponseHeader('content-type') || '';
           const body = xhr.responseText;
+          const forcedLang = _expectingEnSwitch ? 'en' : undefined;
           if (/xml|ttml|vtt/i.test(ct) || looksLikeSubtitle(body)) {
-            handleSubtitleResponse(_url, body);
+            handleSubtitleResponse(_url, body, forcedLang);
           }
         }
       } catch (e) {
@@ -464,13 +521,14 @@
         }).catch(() => {});
       } else if (NETFLIX_CDN_RE.test(url) && !/\/range\//.test(url)) {
         // CDN URL without file extension — check content-type then sniff body
+        const forcedLang = _expectingEnSwitch ? 'en' : undefined;
         const ct = response.headers.get('content-type') || '';
         if (/xml|ttml|vtt/i.test(ct)) {
-          response.clone().text().then(text => handleSubtitleResponse(url, text)).catch(() => {});
+          response.clone().text().then(text => handleSubtitleResponse(url, text, forcedLang)).catch(() => {});
         } else {
           // No useful content-type; peek at body
           response.clone().text().then(text => {
-            if (looksLikeSubtitle(text)) handleSubtitleResponse(url, text);
+            if (looksLikeSubtitle(text)) handleSubtitleResponse(url, text, forcedLang);
           }).catch(() => {});
         }
       }
