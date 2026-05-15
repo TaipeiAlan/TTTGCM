@@ -106,9 +106,8 @@
 
       if (start === null || end === null) return;
 
-      // Extract text content, preserving <br/> as newline
-      let text = extractTTMLText(p);
-      text = text.trim();
+      // Extract text content; <br/> is collapsed to a space
+      let text = extractTTMLText(p).replace(/\s+/g, ' ').trim();
       if (text) {
         cues.push({ start, end, text });
       }
@@ -124,7 +123,7 @@
       if (child.nodeType === Node.TEXT_NODE) {
         result += child.textContent;
       } else if (name === 'br') {
-        result += '\n';
+        result += ' ';
       } else if (name === 'span') {
         result += extractTTMLText(child);
       }
