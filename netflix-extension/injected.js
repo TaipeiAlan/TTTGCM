@@ -91,13 +91,17 @@
       if (!beginAttr || !endAttr) return;
 
       let start, end;
-      // Tick-based timing: no colon, no dot → pure integer ticks
-      if (tickRate && !/[:.]/.test(beginAttr)) {
+      // 't' suffix = TTML tick unit (e.g. "84667916t"); default 10 MHz if no ttp:tickRate
+      if (/^\d+t$/.test(beginAttr)) {
+        const rate = tickRate || 10000000;
+        start = parseInt(beginAttr) / rate;
+        end   = parseInt(endAttr)   / rate;
+      } else if (tickRate && !/[:.]/.test(beginAttr)) {
         start = parseInt(beginAttr) / tickRate;
-        end = parseInt(endAttr) / tickRate;
+        end   = parseInt(endAttr)   / tickRate;
       } else {
         start = parseTime(beginAttr);
-        end = parseTime(endAttr);
+        end   = parseTime(endAttr);
       }
 
       if (start === null || end === null) return;
@@ -154,6 +158,15 @@
 
   function postStatus(msg) {
     window.postMessage({ type: 'NETFLIX_DUAL_SUB_STATUS', event: msg }, '*');
+  }
+
+  // --- Subtitle body sniffing (for CDN URLs without file extension) ---
+
+  function looksLikeSubtitle(text) {
+    if (!text) return false;
+    const head = text.trimStart().slice(0, 200);
+    return head.startsWith('<?xml') || head.startsWith('<tt') ||
+           head.startsWith('WEBVTT') || /<tt[\s>]/i.test(head);
   }
 
   // --- Handle subtitle response ---
@@ -391,6 +404,13 @@
           handleManifestResponse(_url, xhr.responseText);
         } else if (isSubtitleUrl(_url)) {
           handleSubtitleResponse(_url, xhr.responseText);
+        } else if (NETFLIX_CDN_RE.test(_url) && !/\/range\//.test(_url)) {
+          // CDN URL without file extension (Netflix's new format) — sniff content
+          const ct = origGetResponseHeader('content-type') || '';
+          const body = xhr.responseText;
+          if (/xml|ttml|vtt/i.test(ct) || looksLikeSubtitle(body)) {
+            handleSubtitleResponse(_url, body);
+          }
         }
       } catch (e) {
         // Never crash the page
@@ -442,6 +462,17 @@
             handleSubtitleResponse(url, text);
           }
         }).catch(() => {});
+      } else if (NETFLIX_CDN_RE.test(url) && !/\/range\//.test(url)) {
+        // CDN URL without file extension — check content-type then sniff body
+        const ct = response.headers.get('content-type') || '';
+        if (/xml|ttml|vtt/i.test(ct)) {
+          response.clone().text().then(text => handleSubtitleResponse(url, text)).catch(() => {});
+        } else {
+          // No useful content-type; peek at body
+          response.clone().text().then(text => {
+            if (looksLikeSubtitle(text)) handleSubtitleResponse(url, text);
+          }).catch(() => {});
+        }
       }
     } catch (e) {
       // Never crash the page
