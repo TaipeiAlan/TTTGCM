@@ -16,6 +16,7 @@
 
   const state = {
     enabled: true,
+    hideAnnotations: true,
     enCues: [],
     overlay: null,
     pollInterval: null,
@@ -28,8 +29,9 @@
 
   // --- Load settings from storage ---
 
-  chrome.storage.sync.get({ enabled: true }, (prefs) => {
+  chrome.storage.sync.get({ enabled: true, hideAnnotations: true }, (prefs) => {
     state.enabled = prefs.enabled;
+    state.hideAnnotations = prefs.hideAnnotations;
   });
 
   chrome.storage.onChanged.addListener((changes) => {
@@ -39,11 +41,13 @@
         if (!state.enabled) {
           state.overlay.style.display = 'none';
         } else {
-          // Force re-render on next poll cycle; without this the overlay stays
-          // hidden when re-enabled while the same cue is still showing.
           state.currentText = '';
         }
       }
+    }
+    if (changes.hideAnnotations !== undefined) {
+      state.hideAnnotations = changes.hideAnnotations.newValue;
+      state.currentText = ''; // force re-render
     }
   });
 
@@ -66,6 +70,21 @@
       state.overlay = null;
     }
     state.currentText = '';
+  }
+
+  // --- Annotation filter ---
+  // Returns true when every non-empty line is a bracket annotation, e.g. [Music].
+
+  function isAnnotationOnly(text) {
+    if (!text) return false;
+    return text.trim().split('\n')
+      .filter(l => l.trim())
+      .every(l => /^\[.*\]$/i.test(l.trim()));
+  }
+
+  function visibleCues() {
+    if (!state.hideAnnotations) return state.enCues;
+    return state.enCues.filter(c => !isAnnotationOnly(c.text));
   }
 
   // --- Sliding subtitle window ---
@@ -166,7 +185,7 @@
     const video = document.querySelector('video');
     if (!video) return;
 
-    renderOverlay(getContextCues(state.enCues, video.currentTime));
+    renderOverlay(getContextCues(visibleCues(), video.currentTime));
   }
 
   // --- Message listener from injected.js ---
@@ -194,7 +213,6 @@
     if (/^en/i.test(lang)) {
       state.enCues = cues;
       console.log(LOG, 'EN cues loaded:', cues.length);
-      chrome.runtime.sendMessage({ type: 'EN_CUES_LOADED', count: cues.length }).catch(() => {});
       ensureOverlay();
     }
   });

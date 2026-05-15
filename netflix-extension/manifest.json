@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Netflix Dual Subtitles 雙語字幕",
-  "version": "1.3.8",
+  "version": "1.4.0",
   "description": "Show English subtitles alongside your selected language on Netflix / 在 Netflix 同時顯示英文與所選語言字幕",
   "icons": {
     "16": "icons/icon16.png",

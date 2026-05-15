@@ -2,6 +2,7 @@
   'use strict';
 
   const toggle = document.getElementById('enabled-toggle');
+  const annotationsToggle = document.getElementById('hide-annotations-toggle');
   const statusEl = document.getElementById('status-msg');
   const resetBtn = document.getElementById('reset-btn');
   const refetchBtn = document.getElementById('refetch-btn');
@@ -19,14 +20,19 @@
 
   // --- Load saved preferences ---
 
-  chrome.storage.sync.get({ enabled: true }, (prefs) => {
+  chrome.storage.sync.get({ enabled: true, hideAnnotations: true }, (prefs) => {
     toggle.checked = prefs.enabled;
+    annotationsToggle.checked = prefs.hideAnnotations;
   });
 
   // --- Enable/disable toggle ---
 
   toggle.addEventListener('change', () => {
     chrome.storage.sync.set({ enabled: toggle.checked });
+  });
+
+  annotationsToggle.addEventListener('change', () => {
+    chrome.storage.sync.set({ hideAnnotations: annotationsToggle.checked });
   });
 
   // --- Status: query content script for EN cue count + debug info ---
@@ -106,6 +112,7 @@
     refetchBtn.textContent = '⟳ Fetching…';
     refetchBtn.disabled = true;
     chrome.tabs.sendMessage(activeTabId, { type: 'REFETCH_SUBTITLES' }, () => {
+      void chrome.runtime.lastError;
       setTimeout(() => {
         refetchBtn.textContent = '⟳ Re-fetch EN';
         refetchBtn.disabled = false;
@@ -119,6 +126,7 @@
   resetBtn.addEventListener('click', () => {
     if (activeTabId === null) return;
     chrome.tabs.sendMessage(activeTabId, { type: 'RESET_SUBTITLES' }, () => {
+      void chrome.runtime.lastError;
       statusEl.textContent = 'Reset — waiting for next subtitle load.';
       statusEl.className = 'status waiting';
       debugInfo.style.display = 'none';
@@ -132,6 +140,7 @@
     if (activeTabId === null) return;
     testModeOn = !testModeOn;
     chrome.tabs.sendMessage(activeTabId, { type: 'SET_TEST_MODE', enabled: testModeOn }, () => {
+      void chrome.runtime.lastError;
       testOverlayBtn.textContent = testModeOn ? '■ Stop Test' : '▶ Test Overlay';
       testOverlayBtn.classList.toggle('active', testModeOn);
     });
