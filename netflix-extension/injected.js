@@ -146,7 +146,7 @@
       const start = parseVttTime(tm[1]);
       const end = parseVttTime(tm[2]);
       // Strip VTT cue tags like <c.colorFFFFFF>, </c>, <00:00:00.000>
-      const text = lines.slice(timingIdx + 1).join('\n').replace(/<[^>]+>/g, '').trim();
+      const text = lines.slice(timingIdx + 1).join(' ').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
       if (text && !isNaN(start) && !isNaN(end)) {
         cues.push({ start, end, text });
       }

@@ -138,12 +138,7 @@
     for (const { cue, type } of contextCues) {
       const div = document.createElement('div');
       div.className = `sub-line sub-${type}`;
-      // Render multi-line cues safely without innerHTML
-      const lines = cue.text.split('\n');
-      lines.forEach((line, i) => {
-        if (i > 0) div.appendChild(document.createElement('br'));
-        div.appendChild(document.createTextNode(line));
-      });
+      div.appendChild(document.createTextNode(cue.text));
       state.overlay.appendChild(div);
     }
     state.overlay.style.display = 'block';
