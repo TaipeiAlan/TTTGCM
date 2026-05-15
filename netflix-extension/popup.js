@@ -3,8 +3,6 @@
 
   const toggle = document.getElementById('enabled-toggle');
   const statusEl = document.getElementById('status-msg');
-  const posSection = document.getElementById('position-section');
-  const posButtons = document.querySelectorAll('.pos-btn');
   const resetBtn = document.getElementById('reset-btn');
   const refetchBtn = document.getElementById('refetch-btn');
   const debugInfo = document.getElementById('debug-info');
@@ -21,34 +19,14 @@
 
   // --- Load saved preferences ---
 
-  chrome.storage.sync.get({ enabled: true, position: 'below' }, (prefs) => {
+  chrome.storage.sync.get({ enabled: true }, (prefs) => {
     toggle.checked = prefs.enabled;
-    posSection.style.opacity = prefs.enabled ? '1' : '0.4';
-    setActivePos(prefs.position);
   });
 
   // --- Enable/disable toggle ---
 
   toggle.addEventListener('change', () => {
-    const enabled = toggle.checked;
-    chrome.storage.sync.set({ enabled });
-    posSection.style.opacity = enabled ? '1' : '0.4';
-  });
-
-  // --- Position buttons ---
-
-  function setActivePos(pos) {
-    posButtons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.pos === pos);
-    });
-  }
-
-  posButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const pos = btn.dataset.pos;
-      chrome.storage.sync.set({ position: pos });
-      setActivePos(pos);
-    });
+    chrome.storage.sync.set({ enabled: toggle.checked });
   });
 
   // --- Status: query content script for EN cue count + debug info ---

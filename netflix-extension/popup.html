@@ -114,49 +114,6 @@
       transform: translateX(18px);
     }
 
-    /* Position selector */
-    .position-options {
-      display: flex;
-      gap: 8px;
-    }
-
-    .pos-btn {
-      flex: 1;
-      padding: 7px 4px;
-      border: 1.5px solid #444;
-      border-radius: 6px;
-      background: transparent;
-      color: #aaa;
-      font-size: 11px;
-      font-weight: 500;
-      cursor: pointer;
-      text-align: center;
-      transition: border-color 0.15s, color 0.15s, background 0.15s;
-      line-height: 1.3;
-    }
-
-    .pos-btn:hover {
-      border-color: #666;
-      color: #ddd;
-    }
-
-    .pos-btn.active {
-      border-color: #e50914;
-      color: #fff;
-      background: rgba(229, 9, 20, 0.12);
-    }
-
-    .pos-btn .pos-diagram {
-      display: block;
-      font-size: 9px;
-      color: #666;
-      margin-top: 2px;
-    }
-
-    .pos-btn.active .pos-diagram {
-      color: #e50914;
-    }
-
     /* Status bar */
     .status {
       padding: 8px 10px;
@@ -278,23 +235,6 @@
         <input type="checkbox" id="enabled-toggle" checked>
         <span class="slider"></span>
       </label>
-    </div>
-  </div>
-
-  <!-- Position selector -->
-  <div class="section" id="position-section">
-    <div class="section-label">Position 位置</div>
-    <div class="position-options">
-      <button class="pos-btn" id="pos-above" data-pos="above">
-        English
-        <span class="pos-diagram">── ↑ above ──</span>
-        Primary
-      </button>
-      <button class="pos-btn active" id="pos-below" data-pos="below">
-        Primary
-        <span class="pos-diagram">── ↓ below ──</span>
-        English
-      </button>
     </div>
   </div>
 
