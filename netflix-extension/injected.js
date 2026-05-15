@@ -331,39 +331,59 @@
   // When we programmatically switch to EN track, flag the next CDN subtitle fetch as EN.
   let _expectingEnSwitch = false;
 
-  function tryPlayerAPISwitch(player, enTrack) {
-    // Capture current track to restore afterwards
+  // Returns true if the track is CC/SDH/assistive (closed captions for hearing impaired).
+  function isAssistiveTrack(t) {
+    const type = (t.rawTrackType || t.trackType || t.type || '').toLowerCase();
+    return /assistive|closedcaption|sdh/i.test(type) || !!t.isAssistive;
+  }
+
+  function callTrackSwitch(player, track) {
+    for (const m of ['setTimedTextTrack', 'changeTimedTextTrack']) {
+      if (typeof player[m] === 'function') {
+        try { player[m](track); return true; } catch (_) {}
+      }
+    }
+    return false;
+  }
+
+  function tryPlayerAPISwitch(player, enTrack, trackArr) {
+    // Capture current track via multiple possible API methods, then fall back to
+    // finding the first non-EN track in the list (covers the common case where
+    // getTimedTextTrack / getActiveTimedTextTrack don't exist).
     let currentTrack = null;
-    try {
-      currentTrack = typeof player.getTimedTextTrack === 'function'
-        ? player.getTimedTextTrack()
-        : null;
-    } catch (_) {}
+    for (const m of ['getTimedTextTrack', 'getCurrentTimedTextTrack', 'getActiveTimedTextTrack']) {
+      if (typeof player[m] === 'function') {
+        try { currentTrack = player[m](); } catch (_) {}
+        if (currentTrack) break;
+      }
+    }
+    if (!currentTrack) {
+      // Try track.isActive / track.active property
+      currentTrack = trackArr.find(t => t.isActive || t.active) || null;
+    }
+    if (!currentTrack) {
+      // Last resort: first non-EN track
+      const langOf = t => (t.bcp47 || t.language || '').toLowerCase();
+      currentTrack = trackArr.find(t => !/^en/i.test(langOf(t))) || null;
+    }
 
-    // Try known method names for switching subtitle track
-    const switched =
-      typeof player.setTimedTextTrack === 'function'     ? (player.setTimedTextTrack(enTrack), true) :
-      typeof player.changeTimedTextTrack === 'function'  ? (player.changeTimedTextTrack(enTrack), true) :
-      false;
-
-    if (!switched) {
+    if (!callTrackSwitch(player, enTrack)) {
       postStatus('player API: no track-switch method available');
       return false;
     }
 
     _expectingEnSwitch = true;
-    postStatus('player API: switched to EN track to trigger fetch, will restore...');
+    postStatus('player API: switched to EN, will restore in 2s...');
 
-    // Restore original track after EN subtitle file has been fetched (~2 s)
     setTimeout(() => {
       _expectingEnSwitch = false;
-      try {
-        if (currentTrack) {
-          if (typeof player.setTimedTextTrack === 'function') player.setTimedTextTrack(currentTrack);
-          else if (typeof player.changeTimedTextTrack === 'function') player.changeTimedTextTrack(currentTrack);
-          postStatus('player API: restored original track');
-        }
-      } catch (e) {}
+      if (!currentTrack) {
+        postStatus('player API: nothing to restore (currentTrack unknown)');
+        return;
+      }
+      if (callTrackSwitch(player, currentTrack)) {
+        postStatus('player API: restored original track');
+      }
     }, 2000);
 
     return true;
@@ -383,10 +403,18 @@
 
       const langOf = t => (t.bcp47 || t.language || '').toLowerCase();
       const trackArr = Array.from(tracks);
-      let enTrack = trackArr.find(t => langOf(t) === 'en' && !t.isForcedNarrative);
-      if (!enTrack) enTrack = trackArr.find(t => /^en/.test(langOf(t)) && !t.isForcedNarrative);
-      if (!enTrack) enTrack = trackArr.find(t => /^en/.test(langOf(t)));
-      if (!enTrack) { postStatus(`player API: no EN track (found: ${trackArr.map(t => langOf(t)).join(',')})`); return false; }
+
+      // Prefer plain EN over CC/SDH/assistive; fall back if no plain track exists
+      let enTrack =
+        trackArr.find(t => langOf(t) === 'en' && !t.isForcedNarrative && !isAssistiveTrack(t)) ||
+        trackArr.find(t => /^en/.test(langOf(t)) && !t.isForcedNarrative && !isAssistiveTrack(t)) ||
+        trackArr.find(t => /^en/.test(langOf(t)) && !t.isForcedNarrative) ||
+        trackArr.find(t => /^en/.test(langOf(t)));
+
+      if (!enTrack) {
+        postStatus(`player API: no EN track (found: ${trackArr.map(t => langOf(t)).join(',')})`);
+        return false;
+      }
 
       // Try direct URL first (works in some Netflix versions)
       const url = extractUrlFromTrack(enTrack);
@@ -396,9 +424,8 @@
         return true;
       }
 
-      // URL not embedded in track object — switch to EN briefly to trigger Netflix's CDN fetch.
-      // Our fetch interceptor will capture the response.
-      return tryPlayerAPISwitch(player, enTrack);
+      // URL not embedded — switch to EN briefly to trigger Netflix's CDN fetch
+      return tryPlayerAPISwitch(player, enTrack, trackArr);
     } catch (e) {
       postStatus(`player API error: ${e.message}`);
       return false;
