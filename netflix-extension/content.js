@@ -68,22 +68,66 @@
     state.currentText = '';
   }
 
-  // --- Binary search for current cue ---
+  // --- Sliding subtitle window ---
+  // Returns up to 3 entries: the cue just before t (within 2s), the active cue,
+  // and the cue coming up next (within 2s). Each entry is { cue, type }.
 
-  function binarySearchCue(cues, t) {
-    let lo = 0, hi = cues.length - 1;
-    while (lo <= hi) {
+  function getContextCues(cues, t) {
+    if (!cues.length) return [];
+    const WINDOW = 2;
+
+    // Binary search: leftmost cue whose end > t - WINDOW
+    let lo = 0, hi = cues.length;
+    while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      const c = cues[mid];
-      if (t < c.start) {
-        hi = mid - 1;
-      } else if (t >= c.end) {
-        lo = mid + 1;
-      } else {
-        return c;
-      }
+      if (cues[mid].end <= t - WINDOW) lo = mid + 1;
+      else hi = mid;
     }
-    return null;
+
+    const prev = [], curr = [], next = [];
+    for (let i = lo; i < cues.length; i++) {
+      const c = cues[i];
+      if (c.start >= t + WINDOW) break;
+      if (c.end <= t)       prev.push(c);
+      else if (c.start <= t) curr.push(c);
+      else                   next.push(c);
+    }
+
+    const result = [];
+    if (prev.length)  result.push({ cue: prev[prev.length - 1], type: 'prev' });
+    if (curr.length)  result.push({ cue: curr[0],               type: 'current' });
+    if (next.length)  result.push({ cue: next[0],               type: 'next' });
+    return result;
+  }
+
+  function renderOverlay(contextCues) {
+    if (!contextCues.length) {
+      if (state.overlay.style.display !== 'none') {
+        state.overlay.style.display = 'none';
+        state.overlay.textContent = '';
+        state.currentText = '';
+      }
+      return;
+    }
+
+    // Use a render key to skip DOM work when nothing changed
+    const key = contextCues.map(x => `${x.type}:${x.cue.start}`).join('|');
+    if (key === state.currentText) return;
+    state.currentText = key;
+
+    state.overlay.textContent = ''; // clear old children
+    for (const { cue, type } of contextCues) {
+      const div = document.createElement('div');
+      div.className = `sub-line sub-${type}`;
+      // Render multi-line cues safely without innerHTML
+      const lines = cue.text.split('\n');
+      lines.forEach((line, i) => {
+        if (i > 0) div.appendChild(document.createElement('br'));
+        div.appendChild(document.createTextNode(line));
+      });
+      state.overlay.appendChild(div);
+    }
+    state.overlay.style.display = 'block';
   }
 
   // --- Polling loop ---
@@ -122,15 +166,7 @@
     const video = document.querySelector('video');
     if (!video) return;
 
-    const t = video.currentTime;
-    const cue = binarySearchCue(state.enCues, t);
-    const text = cue ? cue.text : '';
-
-    if (text !== state.currentText) {
-      state.currentText = text;
-      state.overlay.textContent = text;
-      state.overlay.style.display = text ? 'block' : 'none';
-    }
+    renderOverlay(getContextCues(state.enCues, video.currentTime));
   }
 
   // --- Message listener from injected.js ---
