@@ -16,7 +16,6 @@
 
   const state = {
     enabled: true,
-    position: 'below',   // 'below' | 'above'
     enCues: [],
     overlay: null,
     pollInterval: null,
@@ -29,10 +28,8 @@
 
   // --- Load settings from storage ---
 
-  chrome.storage.sync.get({ enabled: true, position: 'below' }, (prefs) => {
+  chrome.storage.sync.get({ enabled: true }, (prefs) => {
     state.enabled = prefs.enabled;
-    state.position = prefs.position;
-    applyPosition();
   });
 
   chrome.storage.onChanged.addListener((changes) => {
@@ -48,86 +45,16 @@
         }
       }
     }
-    if (changes.position !== undefined) {
-      state.position = changes.position.newValue;
-      applyPosition();
-    }
   });
 
   // --- Overlay management ---
-
-  // --- Netflix native subtitle element detection ---
-
-  const NF_SUB_SELECTORS = [
-    '.player-timedtext-text-container',
-    '.player-timedtext',
-    '[class*="timedtext-text"]',
-    '[class*="PlayerTimedText"]',
-    '[class*="timedtext"]',
-  ];
-
-  function findNfSubEl() {
-    for (const s of NF_SUB_SELECTORS) {
-      try {
-        const el = document.querySelector(s);
-        if (el) return el;
-      } catch (_) {}
-    }
-    return null;
-  }
-
-  // Position our overlay relative to Netflix's native subtitle to avoid overlap.
-  // Falls back to fixed percentages when the Netflix element isn't found.
-  let _lastOverlayTop = null;
-
-  function repositionOverlay() {
-    if (!state.overlay) return;
-    const nfEl = findNfSubEl();
-    const rect = nfEl ? nfEl.getBoundingClientRect() : null;
-
-    if (!rect || rect.height === 0) {
-      // Netflix subtitle not visible — use fixed fallback
-      if (_lastOverlayTop !== null) {
-        state.overlay.style.top = '';
-        _lastOverlayTop = null;
-        applyPosition();
-      }
-      return;
-    }
-
-    const vh = window.innerHeight;
-    const ourH = state.overlay.getBoundingClientRect().height || 60;
-    let top;
-
-    if (state.position === 'above') {
-      top = Math.max(4, rect.top - ourH - 8);
-    } else {
-      top = Math.min(vh - ourH - 4, rect.bottom + 8);
-    }
-
-    // Only write to the DOM when the value actually changes (avoids layout thrashing)
-    if (top !== _lastOverlayTop) {
-      state.overlay.style.bottom = '';
-      state.overlay.style.top = top + 'px';
-      _lastOverlayTop = top;
-    }
-  }
-
-  function applyPosition() {
-    if (!state.overlay) return;
-    _lastOverlayTop = null;
-    state.overlay.style.top = '';
-    state.overlay.style.bottom = state.position === 'above' ? '20%' : '5%';
-  }
 
   function ensureOverlay() {
     if (state.overlay && document.body.contains(state.overlay)) return;
     const div = document.createElement('div');
     div.id = OVERLAY_ID;
-    div.style.bottom = state.position === 'above' ? '20%' : '5%';
     document.body.appendChild(div);
     state.overlay = div;
-    _lastOverlayTop = null;
     console.log(LOG, 'overlay created');
     startPolling();
   }
@@ -139,7 +66,6 @@
       state.overlay = null;
     }
     state.currentText = '';
-    _lastOverlayTop = null;
   }
 
   // --- Binary search for current cue ---
@@ -204,11 +130,6 @@
       state.currentText = text;
       state.overlay.textContent = text;
       state.overlay.style.display = text ? 'block' : 'none';
-    }
-
-    // Keep our overlay clear of Netflix's native subtitle every poll cycle
-    if (state.overlay.style.display !== 'none') {
-      repositionOverlay();
     }
   }
 
@@ -302,10 +223,6 @@
     state.lastUrl = newUrl;
 
     if (newId) {
-      // Staying in the player. Only reset cues when the title actually changes
-      // (watch/A → watch/B). Navigating from a non-watch page (title page,
-      // browse, etc.) to a watch page does NOT reset — cues may already have
-      // been fetched for this title before the URL settled.
       if (oldId && oldId !== newId) {
         state.enCues = [];
         state.currentText = '';
@@ -316,7 +233,6 @@
         console.log(LOG, 'navigated to new title, cues reset');
       }
     } else {
-      // Left the player entirely
       destroyOverlay();
       console.log(LOG, 'left player, overlay destroyed');
     }

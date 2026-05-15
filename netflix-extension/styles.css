@@ -1,9 +1,9 @@
 /* Netflix Dual Subtitles — overlay for the English secondary subtitle */
 
 #netflix-dual-sub-overlay {
-  /* Positioning: fixed to viewport so it works in fullscreen */
+  /* Positioning: fixed at top of viewport so it never overlaps native subtitle */
   position: fixed;
-  bottom: 5%;       /* default: below Netflix native subtitle (~10–12%) */
+  top: 8%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2147483647; /* max z-index */
