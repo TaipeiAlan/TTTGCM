@@ -329,6 +329,8 @@
 
   // When we programmatically switch to EN track, flag the next CDN subtitle fetch as EN.
   let _expectingEnSwitch = false;
+  // Prevents concurrent tryPlayerAPISwitch calls (startup + navigation can both fire).
+  let _trackSwitchInProgress = false;
 
   // Returns true if the track is CC/SDH/assistive (closed captions for hearing impaired).
   function isAssistiveTrack(t) {
@@ -346,9 +348,16 @@
   }
 
   function tryPlayerAPISwitch(player, enTrack, trackArr) {
-    // Capture current track via multiple possible API methods, then fall back to
-    // finding the first non-EN track in the list (covers the common case where
-    // getTimedTextTrack / getActiveTimedTextTrack don't exist).
+    // Prevent concurrent switches: startup (1.5 s) and navigation (4 s) can both
+    // fire tryPlayerAPI, causing a second EN switch immediately after the first restore.
+    if (_trackSwitchInProgress) {
+      postStatus('player API: switch already in progress, skip');
+      return false;
+    }
+
+    const langOf = t => (t.bcp47 || t.language || '').toLowerCase();
+
+    // Capture current track via multiple possible API methods.
     let currentTrack = null;
     for (const m of ['getTimedTextTrack', 'getCurrentTimedTextTrack', 'getActiveTimedTextTrack']) {
       if (typeof player[m] === 'function') {
@@ -356,32 +365,53 @@
         if (currentTrack) break;
       }
     }
-    if (!currentTrack) {
-      // Try track.isActive / track.active property
-      currentTrack = trackArr.find(t => t.isActive || t.active) || null;
-    }
-    if (!currentTrack) {
-      // Last resort: first non-EN track
-      const langOf = t => (t.bcp47 || t.language || '').toLowerCase();
-      currentTrack = trackArr.find(t => !/^en/i.test(langOf(t))) || null;
-    }
+    if (!currentTrack) currentTrack = trackArr.find(t => t.isActive || t.active) || null;
+    if (!currentTrack) currentTrack = trackArr.find(t => !/^en/i.test(langOf(t))) || null;
+
+    // Store identity separately — the track object may go stale after Netflix
+    // updates its internal track list (seen in recent Netflix player versions).
+    const restoreId   = currentTrack ? (currentTrack.trackId ?? currentTrack.id ?? null) : null;
+    const restoreLang = currentTrack ? langOf(currentTrack) : null;
 
     if (!callTrackSwitch(player, enTrack)) {
       postStatus('player API: no track-switch method available');
       return false;
     }
 
+    _trackSwitchInProgress = true;
     _expectingEnSwitch = true;
     postStatus('player API: switched to EN, will restore in 2s...');
 
     setTimeout(() => {
       _expectingEnSwitch = false;
-      if (!currentTrack) {
-        postStatus('player API: nothing to restore (currentTrack unknown)');
+      _trackSwitchInProgress = false;
+
+      if (!restoreLang) {
+        postStatus('player API: nothing to restore');
         return;
       }
-      if (callTrackSwitch(player, currentTrack)) {
-        postStatus('player API: restored original track');
+
+      // Re-query the track list to get fresh track objects at restore time.
+      let freshTracks = trackArr;
+      try {
+        const tl = player.getTimedTextTrackList?.();
+        if (tl) freshTracks = Array.from(tl);
+      } catch (_) {}
+
+      // Match by ID first, then by language code.
+      let restore = null;
+      if (restoreId != null) restore = freshTracks.find(t => (t.trackId ?? t.id) === restoreId) || null;
+      if (!restore) restore = freshTracks.find(t => langOf(t) === restoreLang) || null;
+      if (!restore) restore = freshTracks.find(t => !/^en/i.test(langOf(t))) || null;
+
+      if (!restore) {
+        postStatus('player API: could not find track to restore');
+        return;
+      }
+      if (callTrackSwitch(player, restore)) {
+        postStatus(`player API: restored to ${langOf(restore)}`);
+      } else {
+        postStatus('player API: restore call failed');
       }
     }, 2000);
 
