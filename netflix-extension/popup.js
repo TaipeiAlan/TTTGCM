@@ -2,6 +2,7 @@
   'use strict';
 
   const toggle = document.getElementById('enabled-toggle');
+  const annotationsToggle = document.getElementById('hide-annotations-toggle');
   const statusEl = document.getElementById('status-msg');
   const resetBtn = document.getElementById('reset-btn');
   const refetchBtn = document.getElementById('refetch-btn');
@@ -19,14 +20,19 @@
 
   // --- Load saved preferences ---
 
-  chrome.storage.sync.get({ enabled: true }, (prefs) => {
+  chrome.storage.sync.get({ enabled: true, hideAnnotations: true }, (prefs) => {
     toggle.checked = prefs.enabled;
+    annotationsToggle.checked = prefs.hideAnnotations;
   });
 
   // --- Enable/disable toggle ---
 
   toggle.addEventListener('change', () => {
     chrome.storage.sync.set({ enabled: toggle.checked });
+  });
+
+  annotationsToggle.addEventListener('change', () => {
+    chrome.storage.sync.set({ hideAnnotations: annotationsToggle.checked });
   });
 
   // --- Status: query content script for EN cue count + debug info ---
