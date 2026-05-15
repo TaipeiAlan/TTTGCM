@@ -417,18 +417,23 @@
   // content.js dispatches this DOM event to cross the isolated-world boundary
   window.addEventListener('nf-refetch-request', doRefetch);
 
-  // Auto-trigger when navigating to a new watch URL (covers mid-session title changes)
+  // Auto-trigger on title change (watch ID change only — not every replaceState during playback)
+  let _lastWatchId = (location.href.match(/\/watch\/(\d+)/) || [])[1] || null;
+
   window.addEventListener('nf-locationchange', () => {
-    if (/\/watch\/\d+/.test(location.href)) {
-      processedUrls.clear();
-      lastKnownEnUrl = null;
-      setTimeout(() => {
-        if (!lastKnownEnUrl) {
-          postStatus('navigation: auto-fetching EN subtitles...');
-          tryPlayerAPI();
-        }
-      }, 4000);
-    }
+    const m = location.href.match(/\/watch\/(\d+)/);
+    const watchId = m ? m[1] : null;
+    if (!watchId) { _lastWatchId = null; return; }
+    if (watchId === _lastWatchId) return; // same title, ignore (e.g. Netflix's own replaceState)
+    _lastWatchId = watchId;
+    processedUrls.clear();
+    lastKnownEnUrl = null;
+    setTimeout(() => {
+      if (!lastKnownEnUrl) {
+        postStatus('navigation: auto-fetching EN subtitles...');
+        tryPlayerAPI();
+      }
+    }, 4000);
   });
 
   // Auto-refetch on startup if a video is already playing (extension reloaded mid-video)
