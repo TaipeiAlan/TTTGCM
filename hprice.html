@@ -13,6 +13,16 @@
     }
     body.size-m{--cell-w:122px;--cell-h:96px;--num-size:24px;--total-size:24px;--date-size:14px;--sub-size:12px;}
     body.size-s{--cell-w:98px;--cell-h:80px;--num-size:16px;--total-size:16px;--date-size:12px;--sub-size:11px;}
+    body.size-xs{--cell-w:68px;--cell-h:40px;--total-size:13px;--date-size:10px;--sub-size:9px;}
+    body.size-xs td.cell{padding:3px 3px 2px;}
+    body.size-xs td.cell.empty{font-size:9px;}
+    body.size-xs .unit-price{display:none;}
+    body.size-xs .date{margin-bottom:1px;line-height:1.2;}
+    body.size-xs .total{line-height:1.2;}
+    body.size-xs .badge{display:none;}
+    body.size-xs td.cell[data-parking="1"]::after{content:'P';position:absolute;top:0;right:0;background:var(--accent);color:#fff;border-radius:0 0 0 4px;font-size:8px;font-weight:700;padding:1px 3px;line-height:1;}
+    body.size-xs .floor .f{font-size:13px;padding-top:5px;}
+    body.size-xs .floor .s{font-size:8px;padding-bottom:5px;}
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}
     .wrap{padding:8px}
@@ -81,6 +91,7 @@
           <button class="btn size-btn active" data-size="l">大</button>
           <button class="btn size-btn" data-size="m">中</button>
           <button class="btn size-btn" data-size="s">小</button>
+          <button class="btn size-btn" data-size="xs">迷你</button>
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
       </div>
@@ -358,6 +369,7 @@
           else{
             const hasParking=String(record.交易標的).includes('車位')||Number(record.車位總價)>0;
             const unitPrice=calcUnitPrice(record,withParkingPrice);
+            td.dataset.parking=hasParking?'1':'0';
             td.innerHTML=`<span class="badge">${hasParking?'含車位':'無車位'}</span><div class="date">${record.交易日期||'-'}</div><div class="unit-price"><span class="num">${unitPrice!==null?formatAmount(unitPrice,2):'-'}</span><span class="u">萬/坪</span></div><div class="total">${formatAmount(record.總價,0)} 萬</div>`;
             td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(record,floor,unit)})
           }
@@ -413,7 +425,7 @@
       renderTable(records,{dataDate,cachedAt:new Date().toISOString()});
     }
 
-    function setSize(s){document.body.classList.remove('size-l','size-m','size-s');document.body.classList.add(`size-${s}`);sizeBtns.forEach(b=>b.classList.toggle('active',b.dataset.size===s));localStorage.setItem(SIZE_KEY,s)}
+    function setSize(s){document.body.classList.remove('size-l','size-m','size-s','size-xs');document.body.classList.add(`size-${s}`);sizeBtns.forEach(b=>b.classList.toggle('active',b.dataset.size===s));localStorage.setItem(SIZE_KEY,s)}
 
     // ── CSV support ──────────────────────────────────────────────────────────
     const csvInput=document.getElementById('csvInput');
