@@ -64,6 +64,16 @@
     .detail th,.stats-table th,.summary-grid th{background:#f5f1e8;color:#5f513c}
 
     @media (max-width:640px){.unit-name{font-size:16px}}
+    .deadline-ctrl{display:none;align-items:center;gap:5px;user-select:none}
+    .deadline-pill{display:inline-flex;align-items:center;background:#e5f3e5;border:1.5px solid #7ab87a;border-radius:20px;overflow:hidden;font-weight:700;font-size:12px;color:#2d6b2d;line-height:1}
+    .deadline-pill .darrow{border:none;background:transparent;color:#2d6b2d;cursor:pointer;padding:4px 7px;font-size:12px;transition:.12s}
+    .deadline-pill .darrow:hover{background:#c5e8c5}
+    .deadline-pill .dlabel{padding:4px 8px;cursor:ew-resize;min-width:76px;text-align:center;touch-action:none}
+    .deadline-pill .dlabel:hover{background:#d4ecda}
+    .deadline-pill.dragging .dlabel{background:#c5e8c5}
+    .deadline-pill.all-mode{background:#f7e8cd;border-color:#c7954f;color:#79552a}
+    .deadline-pill.all-mode .darrow{color:#79552a}
+    .deadline-pill.all-mode .darrow:hover,.deadline-pill.all-mode .dlabel:hover{background:#ead4ab}
     #chartModal{align-items:center}
     #chartModal .modal-card{width:min(880px,100%);max-height:92vh}
   </style>
@@ -92,6 +102,14 @@
           <button class="btn size-btn" data-size="m">中</button>
           <button class="btn size-btn" data-size="s">小</button>
           <button class="btn size-btn" data-size="xs">迷你</button>
+        </div>
+        <div id="deadlineCtrl" class="deadline-ctrl">
+          <span style="font-size:12px;color:#7d7d7d;">截止：</span>
+          <div class="deadline-pill all-mode" id="deadlinePill">
+            <button class="darrow" id="deadlinePrev" title="往前一個月">◀</button>
+            <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊顯示全部">全部</span>
+            <button class="darrow" id="deadlineNext" title="往後一個月">▶</button>
+          </div>
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
       </div>
@@ -141,6 +159,8 @@
     const sizeBtns=[...document.querySelectorAll('.size-btn')];
     let withParkingPrice=true;
     let currentRecords=[];
+    let deadlineYM=null;
+    let deadlineMonthRange=[];
 
     function parseROCDate(v){const m=String(v||'').match(/(\d+)[^\d]+(\d+)[^\d]+(\d+)/);return m?Number(m[1])*10000+Number(m[2])*100+Number(m[3]):0}
     function cleanNumber(v){if(v===undefined||v===null||v==='')return '';const n=Number(String(v).replace(/,/g,'').trim());return Number.isNaN(n)?String(v).trim():n}
@@ -380,7 +400,8 @@
 
       table.appendChild(tbody);gridWrap.innerHTML='';gridWrap.appendChild(table);
       const dataDate=info.dataDate||'-';const cachedAt=info.cachedAt?new Date(info.cachedAt).toLocaleString('zh-TW'):new Date().toLocaleString('zh-TW');
-      statusEl.textContent=`資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}｜單價模式：${withParkingPrice?'含車位':'不含車位'}`;
+      const deadlineStr=deadlineYM?`截止：${toROCYM(deadlineYM)}｜`:'';
+      statusEl.textContent=`${deadlineStr}資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}｜單價模式：${withParkingPrice?'含車位':'不含車位'}`;
     }
 
     function saveCache(records,dataDate){localStorage.setItem(CACHE_KEY,JSON.stringify({records,dataDate,cachedAt:new Date().toISOString()}))}
@@ -422,7 +443,8 @@
       const dataDate=detectDataDate(caseRows);
       saveCache(records,dataDate);
       currentRecords=records;
-      renderTable(records,{dataDate,cachedAt:new Date().toISOString()});
+      computeDeadlineRange();updateDeadlineUI();
+      renderTable(getFilteredRecords(),{dataDate,cachedAt:new Date().toISOString()});
     }
 
     function setSize(s){document.body.classList.remove('size-l','size-m','size-s','size-xs');document.body.classList.add(`size-${s}`);sizeBtns.forEach(b=>b.classList.toggle('active',b.dataset.size===s));localStorage.setItem(SIZE_KEY,s)}
@@ -507,7 +529,8 @@
         const{records,skipped,dataDate}=parseCsvData(text);
         saveCache(records,dataDate);
         currentRecords=records;
-        renderTable(records,{dataDate,cachedAt:new Date().toISOString()});
+        computeDeadlineRange();updateDeadlineUI();
+        renderTable(getFilteredRecords(),{dataDate,cachedAt:new Date().toISOString()});
         if(skipped)statusEl.textContent+=` （${skipped} 筆無樓層資訊略過）`;
       }catch(err){
         statusEl.textContent=`CSV 解析失敗：${err.message}`;
@@ -526,11 +549,11 @@
       withParkingPrice=priceToggle.checked;
       localStorage.setItem(PRICE_MODE_KEY,withParkingPrice?'1':'0');
       const cached=loadCache();
-      if(currentRecords.length)renderTable(currentRecords,cached||{});
-      else if(cached){currentRecords=cached.records;renderTable(cached.records,cached)}
+      if(currentRecords.length)renderTable(getFilteredRecords(),cached||{});
+      else if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();renderTable(getFilteredRecords(),cached)}
     });
 
-    const cached=loadCache();if(cached){currentRecords=cached.records;renderTable(cached.records,cached);}
+    const cached=loadCache();if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();renderTable(getFilteredRecords(),cached);}
     setSize(localStorage.getItem(SIZE_KEY)||'l');
 
     // ── 交易趨勢圖 ──────────────────────────────────────────────────────────
@@ -686,6 +709,96 @@
     });
     closeChartModalBtn.addEventListener('click',()=>{chartModal.classList.remove('show');document.getElementById('trendDetail').style.display='none';});
     chartModal.addEventListener('click',e=>{if(e.target===chartModal)chartModal.classList.remove('show');});
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── 截止月份拖曳控制 ─────────────────────────────────────────────────────
+    function toROCYM(ym){const[y,m]=ym.split('-').map(Number);return `${y-1911}年${m}月`}
+
+    function computeDeadlineRange(){
+      if(!currentRecords.length){deadlineMonthRange=[];return}
+      const isos=currentRecords.map(r=>rocToISO(r.交易日期)).filter(Boolean);
+      if(!isos.length){deadlineMonthRange=[];return}
+      const yms=isos.map(d=>d.slice(0,7));
+      const minYm=yms.slice().sort()[0];
+      const today=new Date();
+      const curYm=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+      const maxDataYm=yms.slice().sort().reverse()[0];
+      const endYm=maxDataYm>curYm?maxDataYm:curYm;
+      const range=[];let cur=minYm;
+      while(cur<=endYm){range.push(cur);cur=nextMonth(cur);}
+      deadlineMonthRange=range;
+    }
+
+    function getFilteredRecords(){
+      if(!deadlineYM)return currentRecords;
+      return currentRecords.filter(r=>{const iso=rocToISO(r.交易日期);return iso?iso.slice(0,7)<=deadlineYM:true});
+    }
+
+    function updateDeadlineUI(){
+      const ctrl=document.getElementById('deadlineCtrl');
+      const pill=document.getElementById('deadlinePill');
+      const label=document.getElementById('deadlineLabel');
+      if(!currentRecords.length){ctrl.style.display='none';return}
+      ctrl.style.display='flex';
+      if(!deadlineYM){pill.classList.add('all-mode');label.textContent='全部';}
+      else{pill.classList.remove('all-mode');label.textContent=toROCYM(deadlineYM);}
+    }
+
+    function setDeadlineYM(ym){
+      deadlineYM=ym;updateDeadlineUI();
+      const cached=loadCache();
+      renderTable(getFilteredRecords(),cached||{});
+    }
+
+    (function(){
+      const PXPM=28;
+      let dragging=false,dragStartX=0,dragStartIdx=0;
+
+      function getCurrentIdx(){
+        if(!deadlineYM||!deadlineMonthRange.length)return deadlineMonthRange.length-1;
+        const i=deadlineMonthRange.indexOf(deadlineYM);
+        return i<0?deadlineMonthRange.length-1:i;
+      }
+
+      const pill=document.getElementById('deadlinePill');
+      const label=document.getElementById('deadlineLabel');
+      const prevBtn=document.getElementById('deadlinePrev');
+      const nextBtn=document.getElementById('deadlineNext');
+
+      function startDrag(clientX){
+        if(!deadlineMonthRange.length)return;
+        dragging=true;dragStartX=clientX;dragStartIdx=getCurrentIdx();
+        pill.classList.add('dragging');
+      }
+      function moveDrag(clientX){
+        if(!dragging||!deadlineMonthRange.length)return;
+        const shift=Math.round((clientX-dragStartX)/PXPM);
+        const newIdx=Math.max(0,Math.min(deadlineMonthRange.length-1,dragStartIdx+shift));
+        const newYm=deadlineMonthRange[newIdx];
+        if(newYm!==deadlineYM){deadlineYM=newYm;updateDeadlineUI();const cached=loadCache();renderTable(getFilteredRecords(),cached||{});}
+      }
+      function endDrag(){if(dragging){dragging=false;pill.classList.remove('dragging');}}
+
+      label.addEventListener('mousedown',e=>{startDrag(e.clientX);e.preventDefault();});
+      document.addEventListener('mousemove',e=>{moveDrag(e.clientX);});
+      document.addEventListener('mouseup',endDrag);
+      label.addEventListener('touchstart',e=>{startDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
+      label.addEventListener('touchmove',e=>{moveDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
+      label.addEventListener('touchend',endDrag);
+      label.addEventListener('dblclick',()=>setDeadlineYM(null));
+
+      prevBtn.addEventListener('click',()=>{
+        if(!deadlineMonthRange.length)return;
+        const i=getCurrentIdx();
+        setDeadlineYM(i>0?deadlineMonthRange[i-1]:deadlineMonthRange[0]);
+      });
+      nextBtn.addEventListener('click',()=>{
+        if(!deadlineMonthRange.length)return;
+        const i=getCurrentIdx();
+        if(i>=deadlineMonthRange.length-1)setDeadlineYM(null);
+        else setDeadlineYM(deadlineMonthRange[i+1]);
+      });
+    })();
     // ─────────────────────────────────────────────────────────────────────────
   </script>
 </body>
