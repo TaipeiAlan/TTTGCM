@@ -173,6 +173,7 @@
 
     function getByAlias(row,col,aliases){for(const a of aliases){if(col[a]!==undefined)return row[col[a]]}return ''}
     function normalizeSerial(v){const raw=String(v||'').trim();if(!raw)return '';const m=raw.match(/^(\d+)/);return m?m[1]:raw}
+    function normalizeUnit(u){return String(u||'').trim().replace(/棟[\d\-之]+號.*$/,'棟')}
     function parseArea(v){const n=Number(String(v||'').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null}
     function parsePriceYuan(v){const n=Number(String(v||'').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null}
     function findSheetName(names,keyword){return names.find(n=>String(n).includes(keyword))||''}
@@ -244,7 +245,7 @@
       return rows.slice(hi+1)
         .filter(r=>r[col['棟及號']]&&r[col['樓別/樓高']])
         .map(r=>({
-          編號:getByAlias(r,col,['編號']),建物坐落:getByAlias(r,col,['建物坐落']),棟及號:String(getByAlias(r,col,['棟及號'])).trim(),建案名稱:getByAlias(r,col,['建案名稱']),交易日期:getByAlias(r,col,['交易日期']),
+          編號:getByAlias(r,col,['編號']),建物坐落:getByAlias(r,col,['建物坐落']),棟及號:normalizeUnit(getByAlias(r,col,['棟及號'])),建案名稱:getByAlias(r,col,['建案名稱']),交易日期:getByAlias(r,col,['交易日期']),
           總價:cleanNumber(getByAlias(r,col,['總價(萬元)'])),單價:cleanNumber(getByAlias(r,col,['單價(萬元/坪)'])),總面積:cleanNumber(getByAlias(r,col,['總面積(坪)','建物移轉總面積(坪)'])),
           室內坪數:cleanNumber(getByAlias(r,col,['主建物面積(坪)','主建物坪數'])),陽台坪數:cleanNumber(getByAlias(r,col,['陽台面積(坪)','附屬建物面積(坪)'])),車位坪數:cleanNumber(getByAlias(r,col,['車位移轉總面積(坪)','車位面積(坪)'])),
           土地坪數:cleanNumber(getByAlias(r,col,['土地移轉總面積(坪)','土地面積(坪)'])),
@@ -489,7 +490,7 @@
         if(樓層概況){const m=樓層概況.match(/(-?\d+)\s*樓/);if(m)floor=Number(m[1]);}
         if(floor===null)floor=extractFloorFromAddr(addr);
         if(floor===null){skipped++;continue;}
-        const unit=extractUnitFromAddr(addr);
+        const unit=normalizeUnit(extractUnitFromAddr(addr));
         const totalYuan=gn(row,'總價');
         const totalWan=totalYuan!==null?totalYuan/10000:null;
         const unitPrice=gn(row,'每坪單價(萬)');
