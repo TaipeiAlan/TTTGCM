@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商務英文單字訓練</title>
+<style>
+  :root{--bg:#f5f3ef;--surface:#ffffff;--card:#ffffff;--border:#ddd9d0;--accent:#b8892a;--accent2:#4a9478;--danger:#c0624a;--text:#2a2520;--text-dim:#6a6058;--text-muted:#a09888;}
+  :root.dark{--bg:#0f0e0c;--surface:#1a1916;--card:#242220;--border:#333128;--accent:#d4a843;--accent2:#7eb89a;--danger:#c0624a;--text:#e8e4da;--text-dim:#8a8070;--text-muted:#5a5448;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,'Helvetica Neue',Arial,'PingFang TC','Microsoft JhengHei',sans-serif;min-height:100vh;overflow-x:hidden;transition:background 0.2s,color 0.2s;}
+  .app{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:2rem 1.5rem;}
+  header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:1.2rem;margin-bottom:2rem;}
+  .logo{font-family:Georgia,serif;font-size:1.4rem;color:var(--accent);letter-spacing:0.02em;}
+  .logo span{color:var(--text-dim);font-size:0.85rem;font-family:'Courier New',monospace;}
+  .header-right{display:flex;align-items:center;gap:1rem;}
+  .theme-toggle{background:none;border:1px solid var(--border);border-radius:20px;padding:0.3rem 0.8rem;color:var(--text-dim);font-size:0.78rem;cursor:pointer;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:0.4rem;}
+  .theme-toggle:hover{border-color:var(--accent);color:var(--accent);}
+  .progress-wrap{display:flex;align-items:center;gap:0.8rem;}
+  .progress-label{font-size:0.75rem;color:var(--text-dim);font-family:'Courier New',monospace;}
+  .progress-bar-outer{width:120px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+  .progress-bar-inner{height:100%;background:var(--accent);border-radius:2px;transition:width 0.5s ease;}
+
+  /* TABS */
+  .tab-nav{display:flex;margin-bottom:1.5rem;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+  .tab-btn{flex:1;padding:0.55rem 1rem;background:none;border:none;border-right:1px solid var(--border);color:var(--text-dim);font-family:inherit;font-size:0.82rem;cursor:pointer;transition:all 0.18s;}
+  .tab-btn:last-child{border-right:none;}
+  .tab-btn.active{background:var(--surface);color:var(--accent);}
+  .tab-pane{display:none;}
+  .tab-pane.active{display:block;}
+
+  /* DRILL */
+  .filter-row{display:flex;gap:0.5rem;margin-bottom:1.2rem;flex-wrap:wrap;}
+  .filter-btn{padding:0.35rem 0.9rem;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text-dim);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:all 0.2s;}
+  .filter-btn.active{background:var(--surface);border-color:var(--text-dim);color:var(--text);}
+  .filter-btn.active.f-all{border-color:var(--accent);color:var(--accent);}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:2rem 2.2rem;position:relative;overflow:hidden;min-height:340px;display:flex;flex-direction:column;justify-content:space-between;transition:opacity 0.2s;}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent);}
+  .card.flip{opacity:0;}
+  .card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;}
+  .word-number{font-family:'Courier New',monospace;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.1em;}
+  .word-pos{font-family:'Courier New',monospace;font-size:0.75rem;color:var(--accent2);background:rgba(74,148,120,0.1);padding:0.2rem 0.6rem;border-radius:3px;border:1px solid rgba(74,148,120,0.2);}
+  .word-main{font-family:Georgia,serif;font-size:2.8rem;color:var(--text);letter-spacing:0.01em;margin-bottom:0.3rem;line-height:1.1;}
+  .word-zh{font-size:1rem;color:var(--text-dim);margin-bottom:1.4rem;}
+  .memory-tip{background:rgba(184,137,42,0.08);border:1px solid rgba(184,137,42,0.2);border-left:3px solid var(--accent);border-radius:4px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;}
+  .memory-tip-label{font-size:0.65rem;color:var(--accent);font-family:'Courier New',monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.4rem;}
+  .memory-tip-text{font-size:0.88rem;color:var(--text);line-height:1.6;}
+  .memory-tip-text em{color:var(--accent);font-style:normal;font-weight:500;}
+  .sentence-block{margin-bottom:1.2rem;}
+  .sentence-en{font-size:1.05rem;line-height:1.7;color:var(--text);margin-bottom:0.5rem;}
+  .blank{display:inline-block;border-bottom:2px solid var(--accent);min-width:90px;color:transparent;background:rgba(184,137,42,0.1);border-radius:2px;padding:0 0.3rem;cursor:pointer;transition:all 0.2s;user-select:none;}
+  .blank.revealed{color:var(--accent);}
+  .sentence-zh{font-size:0.82rem;color:var(--text-dim);}
+  .card-controls{display:flex;gap:0.8rem;margin-top:1.5rem;flex-wrap:wrap;}
+  .btn{padding:0.6rem 1.4rem;border-radius:4px;border:1px solid;font-family:inherit;font-size:0.82rem;cursor:pointer;transition:all 0.18s;letter-spacing:0.03em;}
+  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:500;}
+  .btn-primary:hover{filter:brightness(1.1);}
+  .btn-outline{background:transparent;color:var(--text-dim);border-color:var(--border);}
+  .btn-outline:hover{border-color:var(--text-dim);color:var(--text);}
+  .score-row{display:flex;gap:0.4rem;margin-top:1.2rem;flex-wrap:wrap;}
+  .score-btn{flex:1;min-width:44px;padding:0.55rem 0.3rem;border-radius:5px;border:1px solid var(--border);font-size:0.78rem;font-weight:500;font-family:'Courier New',monospace;cursor:pointer;transition:all 0.18s;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;}
+  .score-btn .s-num{font-size:1.1rem;font-family:Georgia,serif;}
+  .score-btn .s-label{font-size:0.6rem;letter-spacing:0.04em;white-space:nowrap;}
+  .score-btn[data-score="0"]{background:rgba(192,98,74,0.12);color:#c0624a;border-color:rgba(192,98,74,0.35);}
+  .score-btn[data-score="1"]{background:rgba(192,120,74,0.1);color:#c07a4a;border-color:rgba(192,120,74,0.3);}
+  .score-btn[data-score="2"]{background:rgba(192,168,74,0.1);color:#a89040;border-color:rgba(192,168,74,0.3);}
+  .score-btn[data-score="3"]{background:rgba(150,180,100,0.1);color:#6a9a38;border-color:rgba(150,180,100,0.3);}
+  .score-btn[data-score="4"]{background:rgba(100,170,130,0.1);color:#3a8a62;border-color:rgba(100,170,130,0.3);}
+  .score-btn[data-score="5"]{background:rgba(74,148,120,0.15);color:#4a9478;border-color:rgba(74,148,120,0.4);}
+  .score-btn:hover{filter:brightness(1.15);transform:translateY(-1px);}
+  .score-btn.current-score{outline:2px solid currentColor;outline-offset:1px;}
+  .score-next-row{display:flex;gap:0.5rem;margin-top:0.6rem;}
+  .current-score-badge{font-size:0.7rem;color:var(--text-muted);font-family:'Courier New',monospace;margin-top:0.5rem;}
+  .reveal-hint{font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem;font-family:'Courier New',monospace;}
+  .stats-row{display:flex;gap:1rem;margin-top:1.5rem;}
+  .stat-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.9rem;text-align:center;}
+  .stat-num{font-family:Georgia,serif;font-size:1.8rem;color:var(--accent);}
+  .stat-label{font-size:0.7rem;color:var(--text-muted);font-family:'Courier New',monospace;margin-top:0.2rem;letter-spacing:0.08em;}
+  .nav-row{display:flex;justify-content:space-between;align-items:center;margin-top:1.2rem;}
+  .nav-btn{background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;padding:0.4rem 0.8rem;transition:color 0.2s;}
+  .nav-btn:hover{color:var(--accent);}
+  .nav-dots{display:flex;gap:4px;}
+  .nav-dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:background 0.2s;}
+  .nav-dot.active{background:var(--accent);}
+
+  /* READER */
+  .reader-textarea{width:100%;min-height:130px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;color:var(--text);font-family:inherit;font-size:0.95rem;line-height:1.8;resize:vertical;outline:none;transition:border-color 0.2s;}
+  .reader-textarea:focus{border-color:var(--accent);}
+  .reader-textarea::placeholder{color:var(--text-muted);}
+  .reader-actions{display:flex;gap:0.6rem;margin:0.8rem 0 1.2rem;}
+  .reader-output{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.4rem 1.6rem;font-size:0.97rem;line-height:2;display:none;overflow-wrap:break-word;}
+  .reader-output.show{display:block;}
+  .reader-output p{margin:0 0 0.2em;}
+  .reader-summary{font-size:0.72rem;color:var(--text-muted);font-family:'Courier New',monospace;margin-bottom:0.9rem;padding-bottom:0.7rem;border-bottom:1px solid var(--border);}
+  .reader-summary b{color:var(--accent);font-weight:normal;}
+  .vocab-hit{background:rgba(184,137,42,0.12);border-bottom:2px solid var(--accent);border-radius:2px;padding:0 2px;cursor:pointer;color:var(--accent);font-weight:500;transition:all 0.2s;}
+  .vocab-hit:hover,.vocab-hit.active-hit{background:rgba(184,137,42,0.28);}
+  .hints-off .vocab-hit{background:none;border-bottom:none;color:inherit;font-weight:inherit;cursor:default;}
+  .hints-off .vocab-hit:hover{background:none;}
+  .hints-off .vocab-hit.active-hit{background:none;}
+
+  /* SIDE PANEL */
+  .reader-side{display:none;position:fixed;top:5rem;width:240px;z-index:100;}
+  .reader-side.show{display:block;}
+  @media(min-width:1100px){.reader-side{left:calc(50% + 420px);}}
+  @media(min-width:860px) and (max-width:1099px){.reader-side{left:calc(50% - 420px - 252px);}}
+  @media(max-width:859px){.reader-side{position:fixed;bottom:1rem;right:1rem;top:auto;left:auto;max-width:calc(100vw - 2rem);}}
+  .side-card{background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:1.2rem 1.3rem;box-shadow:0 4px 24px rgba(0,0,0,0.15);animation:popIn 0.15s ease;}
+  :root.dark .side-card{box-shadow:0 4px 24px rgba(0,0,0,0.6);}
+  @keyframes popIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .side-close{float:right;background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;}
+  .side-close:hover{color:var(--text);}
+  .side-word{font-family:Georgia,serif;font-size:1.5rem;color:var(--text);margin-bottom:0.15rem;}
+  .side-pos{font-family:'Courier New',monospace;font-size:0.7rem;color:var(--accent2);margin-bottom:0.2rem;}
+  .side-zh{font-size:0.9rem;color:var(--text-dim);margin-bottom:0.9rem;}
+  .side-tip{background:rgba(184,137,42,0.08);border-left:3px solid var(--accent);border-radius:3px;padding:0.7rem 0.9rem;}
+  .side-tip-label{font-size:0.6rem;color:var(--accent);font-family:'Courier New',monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;}
+  .side-tip-text{font-size:0.82rem;color:var(--text);line-height:1.6;}
+  .side-tip-text em{color:var(--accent);font-style:normal;font-weight:500;}
+  .side-score{font-size:0.68rem;color:var(--text-muted);font-family:'Courier New',monospace;margin-top:0.7rem;}
+  .side-score b{color:var(--accent2);font-weight:normal;}
+  .version-tag{text-align:right;font-size:0.6rem;color:var(--text-muted);font-family:'Courier New',monospace;margin-top:2rem;letter-spacing:0.1em;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">Vocab Drill <span>/ 商務英文</span></div>
+    <div class="header-right">
+      <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙 深色</button>
+      <div class="progress-wrap">
+        <div class="progress-label" id="progressLabel">0 / 0</div>
+        <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('drill',this)">📚 單字訓練</button>
+    <button class="tab-btn" onclick="switchTab('reader',this)">📄 短文解析</button>
+  </div>
+
+  <!-- DRILL -->
+  <div class="tab-pane active" id="tab-drill">
+    <div class="filter-row">
+      <button class="filter-btn active f-all" onclick="setFilter('all',this)">全部</button>
+      <button class="filter-btn" onclick="setFilter('unseen',this)">未評分</button>
+      <button class="filter-btn" onclick="setFilter('weak',this)">0–2分</button>
+      <button class="filter-btn" onclick="setFilter('mid',this)">3–4分</button>
+      <button class="filter-btn" onclick="setFilter('known',this)">5分</button>
+      <button class="filter-btn" id="shuffleBtn" onclick="toggleShuffle()">🔀 亂數</button>
+      <button class="filter-btn" style="margin-left:auto;color:var(--danger);border-color:rgba(192,98,74,0.3)" onclick="resetProgress()">↺ 重置</button>
+    </div>
+    <div class="card" id="mainCard">
+      <div>
+        <div class="card-header">
+          <div class="word-number" id="wordNumber">—</div>
+          <div class="word-pos" id="wordPos">—</div>
+        </div>
+        <div class="word-main" id="wordMain">—</div>
+        <div class="word-zh" id="wordZh">—</div>
+        <div id="memorySection"></div>
+      </div>
+      <div class="card-controls" id="cardControls"></div>
+    </div>
+    <div class="nav-row">
+      <button class="nav-btn" onclick="prevCard()">←</button>
+      <div class="nav-dots" id="navDots"></div>
+      <button class="nav-btn" onclick="nextCard()">→</button>
+    </div>
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-num" id="statUnseen">0</div><div class="stat-label">未評分</div></div>
+      <div class="stat-box"><div class="stat-num" id="statWeak">0</div><div class="stat-label">0–2 分</div></div>
+      <div class="stat-box"><div class="stat-num" id="statMid">0</div><div class="stat-label">3–4 分</div></div>
+      <div class="stat-box"><div class="stat-num" id="statKnown">0</div><div class="stat-label">5 分</div></div>
+    </div>
+  </div>
+
+  <!-- READER -->
+  <div class="tab-pane" id="tab-reader">
+    <textarea class="reader-textarea" id="readerInput" placeholder="貼上一段英文短文，系統將自動標記收錄的商務單字，點擊即可查看解釋與記憶技巧…"></textarea>
+    <div class="reader-actions">
+      <button class="btn btn-primary" onclick="parseReader()">解析短文</button>
+      <button class="btn btn-outline" onclick="clearReader()">清除</button>
+      <button class="filter-btn" id="hintToggleBtn" onclick="toggleHints()" style="margin-left:auto">👁 顯示標記</button>
+    </div>
+    <div class="reader-output" id="readerOutput"></div>
+  </div>
+
+  <div class="version-tag">vocab_trainer_v8 · artifact</div>
+</div>
+
+<!-- SIDE PANEL -->
+<div class="reader-side" id="readerSide">
+  <div class="side-card">
+    <button class="side-close" onclick="closePanel()">✕</button>
+    <div class="side-word" id="sideWord"></div>
+    <div class="side-pos" id="sidePos"></div>
+    <div class="side-zh" id="sideZh"></div>
+    <div class="side-tip">
+      <div class="side-tip-label">記憶技巧</div>
+      <div class="side-tip-text" id="sideTip"></div>
+    </div>
+    <div class="side-score" id="sideScore"></div>
+  </div>
+</div>
+
+<script>
+const allWords=[
+  {id:2,word:'authorize',pos:'v.',zh:'授權、批准',tip:'字根 <em>author</em>（作者→創造者）+ <em>-ize</em>（使…）→ 使某人有「創造/執行」的正式權力',sentence:'The manager must <b>authorize</b> all purchases over $500.',sentenceZh:'所有超過500美元的採購必須由經理授權。'},
+  {id:3,word:'benchmark',pos:'n.',zh:'基準、標竿',tip:'<em>bench</em>（工作台）+ <em>mark</em>（標記）→ 工匠在工作台上刻的參考標記，引申為「衡量標準」',sentence:'Our company uses industry <b>benchmarks</b> to measure performance.',sentenceZh:'我們公司用業界基準來衡量績效。'},
+  {id:4,word:'comply',pos:'v.',zh:'遵守、依從',tip:'<em>com-</em>（一起）+ <em>ply</em>（填滿、折疊）→ 把自己「折疊」進規則裡 → 遵從。反義: <em>defy</em>',sentence:"All employees must <b>comply</b> with the company's code of conduct.",sentenceZh:'所有員工必須遵守公司行為準則。'},
+  {id:5,word:'consolidate',pos:'v.',zh:'合併、鞏固',tip:'<em>con-</em>（一起）+ <em>solid</em>（固體）→ 把東西「合成固體」→ 鞏固、合併成一體',sentence:'The two departments were <b>consolidated</b> to reduce costs.',sentenceZh:'兩個部門合併以降低成本。'},
+  {id:6,word:'delegate',pos:'v.',zh:'委派、授權',tip:'<em>de-</em>（向下）+ <em>leg</em>（派遣，如 legal 法律代理）→ 把任務「向下派遣」給他人',sentence:'A good manager knows how to <b>delegate</b> tasks effectively.',sentenceZh:'好的主管懂得如何有效地委派任務。'},
+  {id:7,word:'discrepancy',pos:'n.',zh:'差異、不符',tip:'<em>dis-</em>（分離）+ <em>crep</em>（發聲，如 decree）→ 兩個聲音「不一致」→ 落差、出入',sentence:'There is a <b>discrepancy</b> between the invoice and the actual delivery.',sentenceZh:'發票金額與實際交貨數量之間有出入。'},
+  {id:8,word:'elaborate',pos:'v./adj.',zh:'詳細說明；精心製作的',tip:'<em>e-</em>（出）+ <em>labor</em>（勞動）→ 把勞心費力的細節「展開」→ 詳述',sentence:'Could you <b>elaborate</b> on the new sales strategy?',sentenceZh:'可以請你詳細說明新的銷售策略嗎？'},
+  {id:9,word:'facilitate',pos:'v.',zh:'促進、使便利',tip:'<em>facil</em>（容易，如 facile）+ <em>-itate</em>（使）→ 讓事情「變得容易」進行',sentence:'The new software will <b>facilitate</b> communication between teams.',sentenceZh:'新軟體將有助於促進團隊之間的溝通。'},
+  {id:10,word:'implement',pos:'v.',zh:'實施、執行',tip:'<em>im-</em>（進入）+ <em>plement</em>（填滿）→ 把計畫「填入」現實 → 落實執行',sentence:'We plan to <b>implement</b> the new policy next quarter.',sentenceZh:'我們計畫下季開始實施新政策。'},
+  {id:11,word:'initiative',pos:'n.',zh:'主動性、計畫',tip:'<em>initiate</em>（起始）的名詞 → 主動「啟動」某事的精神或計畫',sentence:'She took the <b>initiative</b> to redesign the onboarding process.',sentenceZh:'她主動重新設計了員工入職流程。'},
+  {id:12,word:'inventory',pos:'n.',zh:'庫存、存貨清單',tip:'<em>invent</em>（發現/發明）的同源詞 → 古義指「盤點發現了什麼」→ 現為清點庫存',sentence:'We need to conduct a full <b>inventory</b> check before the audit.',sentenceZh:'審計前我們需要做一次完整的庫存盤點。'},
+  {id:13,word:'leverage',pos:'v./n.',zh:'善用；槓桿',tip:'<em>lever</em>（槓桿）→ 用槓桿原理以小博大 → 善加利用資源或優勢',sentence:'We can <b>leverage</b> our brand reputation to enter new markets.',sentenceZh:'我們可以善用品牌聲譽來拓展新市場。'},
+  {id:14,word:'mandatory',pos:'adj.',zh:'強制的、必須的',tip:'<em>mand</em>（命令，如 command、demand）+ <em>-ory</em>（形容詞）→ 帶有命令性質的 → 強制',sentence:'Attendance at the safety training is <b>mandatory</b> for all staff.',sentenceZh:'所有員工必須強制參加安全培訓。'},
+  {id:15,word:'merchandise',pos:'n.',zh:'商品、貨物',tip:'<em>merchant</em>（商人）的衍生詞 → 商人販售的東西 → 商品',sentence:'All <b>merchandise</b> must be inspected before shipment.',sentenceZh:'所有商品在出貨前都必須檢驗。'},
+  {id:17,word:'objective',pos:'n.',zh:'目標、目的',tip:'<em>object</em>（物體/客觀）→ 把目標「客觀化」成具體可衡量的事物。注意與 goal 的差異：objective 更具體',sentence:'Our main <b>objective</b> this quarter is to increase customer retention.',sentenceZh:'本季的主要目標是提升客戶留存率。'},
+  {id:18,word:'compensate',pos:'v.',zh:'補償、賠償',tip:'<em>com-</em>（一起）+ <em>pens</em>（秤量、支付，如 pension、expense）→ 把損失「秤量後填補」',sentence:'The company agreed to <b>compensate</b> employees for overtime work.',sentenceZh:'公司同意補償員工加班費用。'},
+  {id:19,word:'deficit',pos:'n.',zh:'赤字、不足額',tip:'<em>de-</em>（向下）+ <em>fic</em>（做，如 efficient）→ 做出來的「低於標準」→ 不足、虧損',sentence:'The company reported a budget <b>deficit</b> of two million dollars.',sentenceZh:'公司報告了兩百萬美元的預算赤字。'},
+  {id:20,word:'depreciate',pos:'v.',zh:'折舊、貶值',tip:'<em>de-</em>（向下）+ <em>preci</em>（價格/珍貴，如 precious、price）→ 價值往下走 → 貶值',sentence:'Company vehicles <b>depreciate</b> significantly in the first year.',sentenceZh:'公司車輛在第一年會大幅折舊。'},
+  {id:21,word:'dividend',pos:'n.',zh:'股息、紅利',tip:'<em>divide</em>（分割）的衍生詞 → 把公司盈餘「分割」給股東的那份 → 股息',sentence:'Shareholders will receive a <b>dividend</b> of $2 per share this year.',sentenceZh:'股東今年將獲得每股2美元的股息。'},
+  {id:22,word:'expenditure',pos:'n.',zh:'支出、花費',tip:'<em>expend</em>（花費，如 spend、expense）+ <em>-iture</em>（名詞後綴）→ 花出去的總金額',sentence:'We must reduce unnecessary <b>expenditures</b> to meet our targets.',sentenceZh:'我們必須減少不必要的支出以達成目標。'},
+  {id:23,word:'fluctuate',pos:'v.',zh:'波動、起伏',tip:'<em>fluct</em>（流動，同 fluid 流體）→ 像流水一樣忽上忽下 → 波動',sentence:'Oil prices tend to <b>fluctuate</b> based on global supply and demand.',sentenceZh:'油價傾向於根據全球供需波動。'},
+  {id:24,word:'liability',pos:'n.',zh:'負債、法律責任',tip:'<em>liable</em>（有責任的）的名詞 → 你「必須回應」的財務或法律義務',sentence:"The company's total <b>liabilities</b> exceed its assets.",sentenceZh:'公司的總負債超過其資產。'},
+  {id:25,word:'lucrative',pos:'adj.',zh:'有利可圖的',tip:'<em>lucr</em>（錢財，如 lucre 不義之財）→ 能帶來大量金錢的 → 有利可圖',sentence:'Entering the Asian market proved to be a <b>lucrative</b> decision.',sentenceZh:'進入亞洲市場被證明是一個有利可圖的決策。'},
+  {id:26,word:'mortgage',pos:'n.',zh:'抵押貸款',tip:'<em>mort</em>（死，如 mortal）+ <em>gage</em>（質押）→「死亡質押」→ 直到還清才解除的貸款',sentence:'They took out a 30-year <b>mortgage</b> to buy their first home.',sentenceZh:'他們辦了30年的抵押貸款來購買第一棟房子。'},
+  {id:27,word:'profitability',pos:'n.',zh:'獲利能力',tip:'<em>profit</em>（利潤）+ <em>-ability</em>（能力）→ 持續創造利潤的能力',sentence:"The new strategy significantly improved the company's <b>profitability</b>.",sentenceZh:'新策略顯著提升了公司的獲利能力。'},
+  {id:28,word:'reimburse',pos:'v.',zh:'報銷、退款',tip:'<em>re-</em>（回）+ <em>imburse</em>（放入錢包，同 purse）→ 把錢「放回你的錢包」→ 退款報銷',sentence:'Submit your receipts and HR will <b>reimburse</b> your travel expenses.',sentenceZh:'繳交收據後，人資部門將報銷你的差旅費。'},
+  {id:29,word:'revenue',pos:'n.',zh:'營收、收入',tip:'<em>re-</em>（回）+ <em>venu</em>（來，如 venue、avenue）→「流回來的錢」→ 營業收入',sentence:'Annual <b>revenue</b> grew by 18% compared to last year.',sentenceZh:'年度營收與去年相比成長了18%。'},
+  {id:30,word:'appraisal',pos:'n.',zh:'績效考核、（專業）評估',tip:'<em>ap-</em>（到）+ <em>praise</em>（稱讚/定價）→ 給予正式的「評價與定價」→ 考核。比 evaluation 更正式',sentence:'Her annual performance <b>appraisal</b> was scheduled for next Monday.',sentenceZh:'她的年度績效考核安排在下週一。'},
+  {id:31,word:'eligible',pos:'adj.',zh:'符合資格的',tip:'<em>e-</em>（選出）+ <em>lig</em>（選擇，如 elect）→ 被「選中」的條件 → 具資格的',sentence:'Employees who have worked for over a year are <b>eligible</b> for the bonus.',sentenceZh:'任職超過一年的員工符合領取獎金的資格。'},
+  {id:32,word:'incentive',pos:'n.',zh:'激勵、誘因',tip:'<em>in-</em>（進入）+ <em>cent</em>（唱歌/點燃，如 incense）→ 點燃內心的火 → 驅動行為的誘因',sentence:'The bonus serves as an <b>incentive</b> for employees to exceed targets.',sentenceZh:'獎金作為激勵員工超越目標的誘因。'},
+  {id:33,word:'probation',pos:'n.',zh:'試用期',tip:'<em>probe</em>（探測）的同源詞 → 雇主「探測你能力」的一段時間 → 試用期',sentence:'New hires are on <b>probation</b> for the first three months.',sentenceZh:'新進員工前三個月處於試用期。'},
+  {id:36,word:'retain',pos:'v.',zh:'留住、保留',tip:'<em>re-</em>（回/再）+ <em>tain</em>（握住，如 contain、obtain）→ 繼續「握住」→ 留住',sentence:'The company offers flexible hours to <b>retain</b> top talent.',sentenceZh:'公司提供彈性工時以留住頂尖人才。'},
+  {id:37,word:'turnover',pos:'n.',zh:'人員流動率；營業額',tip:'字面上是「翻轉」→ 員工不斷「翻轉替換」= 流動率；金錢不斷「翻轉流動」= 營業額。一字雙義！',sentence:'High staff <b>turnover</b> is costly for any organization.',sentenceZh:'高員工流動率對任何組織來說都是一筆昂貴的代價。'},
+  {id:38,word:'vacancy',pos:'n.',zh:'職缺、空缺',tip:'<em>vacant</em>（空的，如 vacation 假期＝空出來的時間）→ 職位「空著」→ 職缺',sentence:'We have a <b>vacancy</b> for a senior marketing manager.',sentenceZh:'我們有一個資深行銷經理的職缺。'},
+  {id:39,word:'affiliate',pos:'n./v.',zh:'附屬機構；使隸屬',tip:'<em>af-</em>（到）+ <em>filiate</em>（兒子，同 filial 孝順的）→ 認別人為「子公司」→ 附屬、聯盟',sentence:'Our company has several <b>affiliates</b> in Southeast Asia.',sentenceZh:'我們公司在東南亞有幾個附屬機構。'},
+  {id:40,word:'clientele',pos:'n.',zh:'顧客群',tip:'<em>client</em>（客戶）的法語衍生詞 → 整體客戶的「集合體」，帶有高端感，比 customers 更精緻',sentence:'The hotel caters to an upscale <b>clientele</b>.',sentenceZh:'這間飯店服務的是高端客群。'},
+  {id:41,word:'compelling',pos:'adj.',zh:'引人入勝的、有說服力的',tip:'<em>compel</em>（迫使）的形容詞 → 強到讓你「不得不」被吸引或信服 → 引人入勝',sentence:'She gave a <b>compelling</b> presentation that convinced the board.',sentenceZh:'她做了一場令人信服的簡報，說服了董事會。'},
+  {id:42,word:'demographic',pos:'n.',zh:'人口統計資料',tip:'<em>demo-</em>（人民，如 democracy）+ <em>graphic</em>（描繪）→ 把「人口特徵」繪製出來 → 統計資料',sentence:'The product targets the 25–35 age <b>demographic</b>.',sentenceZh:'這項產品鎖定25到35歲的年齡族群。'},
+  {id:43,word:'endorse',pos:'v.',zh:'背書、認可',tip:'<em>en-</em>（在…上）+ <em>dorse</em>（背部，如 dorsal）→ 在支票「背面」簽名 → 背書、認可',sentence:'The celebrity <b>endorsed</b> the brand in a series of advertisements.',sentenceZh:'這位名人在一系列廣告中為該品牌背書。'},
+  {id:46,word:'prospect',pos:'n.',zh:'潛在客戶、前景',tip:'<em>pro-</em>（向前）+ <em>spect</em>（看，如 inspect、spectacle）→ 向前「望」→ 展望、潛在機會',sentence:'The sales team identified 50 new <b>prospects</b> this month.',sentenceZh:'業務團隊本月開發了50位新的潛在客戶。'},
+  {id:47,word:'consignment',pos:'n.',zh:'託運、寄售',tip:'<em>con-</em>（一起）+ <em>sign</em>（簽名）→ 雙方「共同簽署」交付的貨物 → 委託寄售',sentence:'The goods were sent on <b>consignment</b> to our overseas partner.',sentenceZh:'貨物以寄售方式發送給我們的海外合作夥伴。'},
+  {id:48,word:'courier',pos:'n.',zh:'快遞員、快遞公司',tip:'<em>cour</em>（跑，如 course、current）→ 「奔跑傳遞」訊息或包裹的人 → 快遞',sentence:'Please send the contract via <b>courier</b> for same-day delivery.',sentenceZh:'請透過快遞寄送合約以確保當日送達。'},
+  {id:49,word:'customs',pos:'n.',zh:'海關',tip:'<em>custom</em>（慣例、習俗）的複數 → 入境要遵守當地「慣例與規定」的地方 → 海關',sentence:'The shipment was held at <b>customs</b> for inspection.',sentenceZh:'這批貨物在海關被扣留檢查。'},
+  {id:50,word:'defective',pos:'adj.',zh:'有缺陷的',tip:'<em>de-</em>（向下）+ <em>fect</em>（做，如 perfect 完美）→ 沒做好 → 有缺陷的。反義: perfect',sentence:'All <b>defective</b> products must be returned to the manufacturer.',sentenceZh:'所有有缺陷的產品必須退回給製造商。'},
+  {id:51,word:'dispatch',pos:'v./n.',zh:'派遣；發貨',tip:'<em>dis-</em>（分開）+ <em>patch</em>（補丁/連接）→ 「切斷」原地連接，快速發送出去 → 派遣、發貨',sentence:'The order was <b>dispatched</b> within 24 hours of payment.',sentenceZh:'訂單在付款後24小時內發貨。'},
+  {id:52,word:'freight',pos:'n.',zh:'貨運、運費',tip:'聯想：<em>freight</em> 讀音像「freighted」→ 「重載」的交通工具 → 大宗貨物運輸',sentence:'<b>Freight</b> costs have increased significantly due to fuel prices.',sentenceZh:'由於燃油價格上漲，貨運費用大幅增加。'},
+  {id:53,word:'procurement',pos:'n.',zh:'採購',tip:'<em>pro-</em>（向前）+ <em>cure</em>（照料/獲得，如 secure）→ 主動「去取得」所需物資 → 採購',sentence:'The <b>procurement</b> department handles all supplier contracts.',sentenceZh:'採購部門負責處理所有供應商合約。'},
+  {id:54,word:'recipient',pos:'n.',zh:'收件人、接受者',tip:'<em>recip</em>（接收，如 receive、recipe）→ 「接收」東西的人 → 收件人',sentence:"Please enter the <b>recipient</b>'s address before sending.",sentenceZh:'請在寄送前輸入收件人的地址。'},
+  {id:55,word:'shipment',pos:'n.',zh:'貨物、運送',tip:'<em>ship</em>（船/運輸）+ <em>-ment</em>（名詞）→ 一批「被運送的」貨物',sentence:'The latest <b>shipment</b> arrived two days ahead of schedule.',sentenceZh:'最新一批貨物提前兩天抵達。'},
+  {id:57,word:'configure',pos:'v.',zh:'設定、配置',tip:'<em>con-</em>（一起）+ <em>figure</em>（形狀/排列）→ 把各部分「排列組合」成特定形式 → 設定配置',sentence:'The IT team will <b>configure</b> the new servers this weekend.',sentenceZh:'IT團隊將在本週末設定新伺服器。'},
+  {id:58,word:'accommodate',pos:'v.',zh:'容納、提供住宿',tip:'<em>ac-</em>（到）+ <em>commod</em>（便利，如 commodity）→ 讓對方「感到便利舒適」→ 容納、安置',sentence:'The conference room can <b>accommodate</b> up to 50 people.',sentenceZh:'會議室最多可容納50人。'},
+  {id:59,word:'adjoining',pos:'adj.',zh:'相鄰的',tip:'<em>ad-</em>（到）+ <em>join</em>（連接）→「連接在一起」→ 緊鄰的',sentence:'We booked two <b>adjoining</b> rooms for the family.',sentenceZh:'我們為這個家庭訂了兩間相鄰的房間。'},
+  {id:60,word:'amenity',pos:'n.',zh:'便利設施',tip:'<em>amen</em>（愉快，如 amiable、amity）→ 讓生活「愉快便利」的設施 → 便利設施',sentence:'The hotel offers a range of <b>amenities</b> including a gym and spa.',sentenceZh:'飯店提供包括健身房和水療中心在內的多種便利設施。'},
+  {id:61,word:'complimentary',pos:'adj.',zh:'免費提供的、贈送的',tip:'<em>compliment</em>（稱讚）→ 因讚賞而「贈送」的東西 → 免費提供的。注意與 complementary（互補的）拼字不同！',sentence:'Guests receive a <b>complimentary</b> breakfast every morning.',sentenceZh:'住客每天早上可享用免費早餐。'},
+  {id:62,word:'confirmation',pos:'n.',zh:'確認、確認函',tip:'<em>con-</em>（加強）+ <em>firm</em>（穩固）→ 讓事情變得「更加穩固確定」→ 確認',sentence:'You will receive a booking <b>confirmation</b> via email.',sentenceZh:'您將透過電子郵件收到訂房確認函。'},
+  {id:63,word:'itinerary',pos:'n.',zh:'行程表',tip:'<em>iter</em>（旅行/道路，如 iterate 反覆走）→ 旅行的「路線規劃表」→ 行程表',sentence:'Please review the travel <b>itinerary</b> before departure.',sentenceZh:'請在出發前確認旅遊行程表。'},
+  {id:64,word:'layover',pos:'n.',zh:'中途停留',tip:'<em>lay</em>（放置/停下）+ <em>over</em>（停在上方）→ 飛行途中「暫時停下來」過夜或等待 → 中途停留',sentence:'We have a four-hour <b>layover</b> in Tokyo before the connecting flight.',sentenceZh:'我們在東京有四小時的中途停留，然後再搭轉機。'},
+  {id:65,word:'transit',pos:'n.',zh:'過境、轉運',tip:'<em>trans-</em>（穿越）+ <em>it</em>（走，如 exit）→ 「穿越」一個地方 → 過境',sentence:'Passengers in <b>transit</b> do not need to go through customs.',sentenceZh:'過境旅客不需要通過海關。'},
+  {id:66,word:'adjourn',pos:'v.',zh:'休會、延期',tip:'<em>ad-</em>（到）+ <em>journ</em>（一天，如 journal、journey）→「到另一天再繼續」→ 延期、休會',sentence:'The meeting was <b>adjourned</b> until the following Thursday.',sentenceZh:'會議延期至下週四繼續。'},
+  {id:68,word:'consensus',pos:'n.',zh:'共識',tip:'<em>con-</em>（一起）+ <em>sens</em>（感覺/感知，如 sense）→ 大家「感覺一致」→ 共識',sentence:'The team reached a <b>consensus</b> on the project timeline.',sentenceZh:'團隊就專案時程達成共識。'},
+  {id:69,word:'correspond',pos:'v.',zh:'通信、相符',tip:'<em>cor-</em>（一起）+ <em>respond</em>（回應）→「互相回應」→ 通信；兩事物「互相匹配」→ 相符',sentence:'The actual figures do not <b>correspond</b> with the original forecast.',sentenceZh:'實際數字與原始預測不相符。'},
+  {id:70,word:'outline',pos:'v./n.',zh:'概述；大綱',tip:'<em>out-</em>（外側）+ <em>line</em>（線條）→ 只畫「外輪廓線」→ 只說重點大綱',sentence:'Please <b>outline</b> the key points of your proposal.',sentenceZh:'請概述你提案的重點。'},
+  {id:71,word:'proceed',pos:'v.',zh:'進行、繼續',tip:'<em>pro-</em>（向前）+ <em>ceed</em>（走，如 succeed、exceed）→ 繼續「向前走」→ 進行',sentence:'Once approved, we can <b>proceed</b> with the product launch.',sentenceZh:'一旦獲得批准，我們就可以繼續進行產品發布。'},
+  {id:72,word:'reiterate',pos:'v.',zh:'重申、再次強調',tip:'<em>re-</em>（再次）+ <em>iterate</em>（重複，如 iteration）→「再次重複」→ 反覆強調',sentence:'I want to <b>reiterate</b> the importance of meeting this deadline.',sentenceZh:'我想再次強調準時完成這個截止日期的重要性。'},
+  {id:73,word:'unanimous',pos:'adj.',zh:'一致通過的、全體同意的',tip:'<em>uni-</em>（一）+ <em>anim</em>（心/靈魂，如 animate）→「所有人心意合一」→ 全體一致',sentence:'The board reached a <b>unanimous</b> decision to approve the merger.',sentenceZh:'董事會一致決議批准這項合併案。'},
+  {id:74,word:'clause',pos:'n.',zh:'條款',tip:'<em>claus</em>（關閉，同 close）→ 合約中「封閉界定」一項規則的段落 → 條款',sentence:'Please read the termination <b>clause</b> before signing the contract.',sentenceZh:'請在簽約前閱讀終止條款。'},
+  {id:75,word:'valid',pos:'adj.',zh:'有效的',tip:'<em>val</em>（強壯/有價值，如 value、evaluate）→ 仍然「有力度有價值」→ 有效的。反義: invalid',sentence:'Your passport must be <b>valid</b> for at least six months before travel.',sentenceZh:'您的護照必須在旅行前至少還有六個月的有效期。'},
+  {id:76,word:'violation',pos:'n.',zh:'違規、違反',tip:'<em>viol</em>（強力破壞，如 violent）→ 強行「破壞」規則 → 違規',sentence:'Parking here is a <b>violation</b> of company policy.',sentenceZh:'在此停車違反公司規定。'}
+];
+
+const DEFAULT_TEXT=`A Challenging Quarter — Lessons from the Field
+The regional manager was asked to outline the company's new initiative to consolidate operations across all affiliate branches. She began by sharing a compelling set of demographic data, which revealed that turnover had been rising and that clientele was shrinking in key markets.
+To address this, leadership chose to delegate responsibility to department heads, making it mandatory for each team to conduct a thorough appraisal of their expenditure and inventory. Any manager eligible for a performance bonus would need to demonstrate how they planned to retain top talent and facilitate growth.
+The sales division was especially concerned about profitability. Revenue had begun to fluctuate unpredictably, and a growing deficit threatened to depreciate the firm's assets. A lucrative contract with an overseas prospect had stalled at customs, where a discrepancy in the consignment paperwork caused the shipment to be held. The courier had failed to dispatch the documents on time, and the procurement team had not received confirmation of the updated clause in the agreement.
+Meanwhile, the logistics team was revising the travel itinerary for the upcoming client visit. The original plan included a layover and a transit stop, but the schedule was adjusted after the meeting was forced to adjourn early due to a lack of consensus. The team agreed to reiterate the key terms to ensure everyone's understanding was valid and that no violation had occurred.
+On the HR side, several new hires were still on probation. The company offered complimentary access to all office amenities, and the adjoining conference rooms were available to accommodate training sessions. New staff were encouraged to show initiative — to leverage every resource, implement best practices, and correspond with their mentors regularly. Their performance would be measured against a clear benchmark, and any incentive pay would be issued once they were confirmed as full recipients of the company's benefits package.
+Management also reminded all staff that the firm's mortgage on the new facility carried a significant liability, and that defective merchandise returned by clients must be properly documented. The procurement officer was authorized to reimburse vendors only after receiving a valid invoice. Any employee wishing to endorse a new supplier would need to proceed through the proper approval channel, as the company must always comply with mandatory configured protocols.
+In closing, the manager chose to elaborate on one final point: the firm must compensate for lost time by acting with urgency — because the prospects ahead, while uncertain, remained genuinely promising.`;
+
+// ── WORD MAP ──
+const wordMap={};
+allWords.forEach(w=>{wordMap[w.word.toLowerCase()]=w;});
+function lookupWord(raw){
+  const w=raw.toLowerCase().replace(/[^a-z]/g,'');
+  if(!w) return null;
+  if(wordMap[w]) return wordMap[w];
+  if(w.endsWith('s')&&wordMap[w.slice(0,-1)]) return wordMap[w.slice(0,-1)];
+  if(w.endsWith('es')&&wordMap[w.slice(0,-2)]) return wordMap[w.slice(0,-2)];
+  if(w.endsWith('ed')&&wordMap[w.slice(0,-2)]) return wordMap[w.slice(0,-2)];
+  if(w.endsWith('ed')&&wordMap[w.slice(0,-1)]) return wordMap[w.slice(0,-1)];
+  if(w.endsWith('ing')&&wordMap[w.slice(0,-3)]) return wordMap[w.slice(0,-3)];
+  if(w.endsWith('ing')&&wordMap[w.slice(0,-3)+'e']) return wordMap[w.slice(0,-3)+'e'];
+  if(w.endsWith('ly')&&wordMap[w.slice(0,-2)]) return wordMap[w.slice(0,-2)];
+  if(w.endsWith('ies')&&wordMap[w.slice(0,-3)+'y']) return wordMap[w.slice(0,-3)+'y'];
+  return null;
+}
+
+// ── THEME ──
+function toggleTheme(){
+  const isDark=document.documentElement.classList.toggle('dark');
+  document.getElementById('themeBtn').textContent=isDark?'☀️ 淺色':'🌙 深色';
+  try{localStorage.setItem('vocab_theme',isDark?'dark':'light');}catch(e){}
+}
+(function initTheme(){
+  try{
+    if(localStorage.getItem('vocab_theme')==='dark'){
+      document.documentElement.classList.add('dark');
+      document.getElementById('themeBtn').textContent='☀️ 淺色';
+    }
+  }catch(e){}
+})();
+
+// ── READER ──
+document.getElementById('readerInput').value=DEFAULT_TEXT;
+
+// ── HINT TOGGLE ──
+let hintsOn=false;
+function toggleHints(){
+  hintsOn=!hintsOn;
+  const out=document.getElementById('readerOutput');
+  const btn=document.getElementById('hintToggleBtn');
+  if(hintsOn){
+    out.classList.remove('hints-off');
+    btn.textContent='👁 隱藏標記';
+    btn.classList.add('active');
+  } else {
+    out.classList.add('hints-off');
+    btn.textContent='👁 顯示標記';
+    btn.classList.remove('active');
+    closePanel();
+  }
+}
+
+function parseReader(){
+  const raw=document.getElementById('readerInput').value;
+  if(!raw.trim()){alert('請先貼上短文');return;}
+  const out=document.getElementById('readerOutput');
+  let hitWords=new Set(),hitCount=0;
+  const paras=raw.split('\n').map(line=>{
+    const parts=line.split(/\b/);
+    const html=parts.map(tok=>{
+      const entry=lookupWord(tok);
+      if(entry&&/^[a-zA-Z]+$/.test(tok)){
+        hitWords.add(entry.word);hitCount++;
+        return `<span class="vocab-hit" data-id="${entry.id}" onclick="showPanel(this,${entry.id})">${tok}</span>`;
+      }
+      return tok.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }).join('');
+    return `<p>${html||'&nbsp;'}</p>`;
+  });
+  out.className='reader-output show hints-off';
+  hintsOn=false;
+  document.getElementById('hintToggleBtn').textContent='👁 顯示標記';
+  document.getElementById('hintToggleBtn').classList.remove('active');
+  out.innerHTML=`<div class="reader-summary">找到 <b>${hitWords.size}</b> 個收錄單字（共出現 <b>${hitCount}</b> 次）・點擊金色單字查看解釋</div>${paras.join('')}`;
+}
+function clearReader(){
+  document.getElementById('readerInput').value='';
+  document.getElementById('readerOutput').className='reader-output';
+  document.getElementById('readerOutput').innerHTML='';
+  closePanel();
+}
+
+// ── SIDE PANEL ──
+let activeHit=null;
+function showPanel(el,id){
+  const e=allWords.find(w=>w.id===id);if(!e)return;
+  if(activeHit)activeHit.classList.remove('active-hit');
+  activeHit=el;el.classList.add('active-hit');
+  document.getElementById('sideWord').textContent=e.word;
+  document.getElementById('sidePos').textContent=e.pos;
+  document.getElementById('sideZh').textContent=e.zh;
+  document.getElementById('sideTip').innerHTML=e.tip;
+  const sc=status[e.id];
+  const SL=['完全不認識','有點印象','模糊記得','大致了解','幾乎記住','完全記住'];
+  document.getElementById('sideScore').innerHTML=sc!==null?`我的評分：<b>${sc} 分 · ${SL[sc]}</b>`:'尚未評分';
+  document.getElementById('readerSide').classList.add('show');
+}
+function closePanel(){
+  document.getElementById('readerSide').classList.remove('show');
+  if(activeHit){activeHit.classList.remove('active-hit');activeHit=null;}
+}
+
+// ── TABS ──
+function switchTab(id,btn){
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+  closePanel();
+}
+
+// ── DRILL ──
+const LS_KEY='vocab_trainer_status_v3';
+const SCORE_META=[
+  {score:0,label:'完全不認識'},{score:1,label:'有點印象'},{score:2,label:'模糊記得'},
+  {score:3,label:'大致了解'},{score:4,label:'幾乎記住'},{score:5,label:'完全記住'}
+];
+let currentFilter='all',status={},filteredWords=[],currentIndex=0,revealed=false,isShuffled=false;
+
+function saveStatus(){try{localStorage.setItem(LS_KEY,JSON.stringify(status));}catch(e){}}
+function loadStatus(){
+  try{const s=localStorage.getItem(LS_KEY);if(s){const p=JSON.parse(s),c={};for(const k of Object.keys(p)){const v=p[k];c[k]=(typeof v==='number'&&v>=0&&v<=5)?v:null;}return c;}}catch(e){}return null;
+}
+const saved=loadStatus();
+allWords.forEach(w=>{status[w.id]=(saved&&saved[w.id]!==undefined)?saved[w.id]:null;});
+
+function resetProgress(){if(!confirm('確定要重置所有進度嗎？'))return;allWords.forEach(w=>{status[w.id]=null;});saveStatus();buildFiltered();currentIndex=0;renderCard();updateStats();}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function toggleShuffle(){isShuffled=!isShuffled;const btn=document.getElementById('shuffleBtn');btn.classList.toggle('active',isShuffled);btn.textContent=isShuffled?'🔀 亂數 ON':'🔀 亂數';currentIndex=0;buildFiltered();renderCard();}
+function setFilter(f,btn){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentIndex=0;buildFiltered();renderCard();}
+function buildFiltered(){
+  let base;
+  if(currentFilter==='all') base=[...allWords];
+  else if(currentFilter==='unseen') base=allWords.filter(w=>status[w.id]===null);
+  else if(currentFilter==='weak') base=allWords.filter(w=>status[w.id]!==null&&status[w.id]<=2);
+  else if(currentFilter==='mid') base=allWords.filter(w=>status[w.id]!==null&&status[w.id]>=3&&status[w.id]<=4);
+  else if(currentFilter==='known') base=allWords.filter(w=>status[w.id]===5);
+  else base=[...allWords];
+  if(!base.length) base=[...allWords];
+  filteredWords=isShuffled?shuffle(base):base;
+}
+function getWord(){return filteredWords[currentIndex]||allWords[0];}
+function scoreHTML(cur){return SCORE_META.map(m=>`<button class="score-btn${cur===m.score?' current-score':''}" data-score="${m.score}" onclick="markScore(${m.score})"><span class="s-num">${m.score}</span><span class="s-label">${m.label}</span></button>`).join('');}
+function renderCard(){
+  const w=getWord(),card=document.getElementById('mainCard');
+  card.classList.add('flip');
+  setTimeout(()=>{
+    document.getElementById('wordNumber').textContent=`#${w.id}`;
+    document.getElementById('wordPos').textContent=w.pos;
+    document.getElementById('wordMain').textContent=w.word;
+    document.getElementById('wordZh').textContent=w.zh;
+    const cur=status[w.id];
+    const badge=cur!==null?`<div class="current-score-badge">目前評分：${cur} 分 ／ ${SCORE_META[cur].label}</div>`:`<div class="current-score-badge">尚未評分</div>`;
+    const masked=w.sentence.replace(/<b>(.*?)<\/b>/,'<span class="blank" id="blankSpan" onclick="revealBlank()">$1</span>');
+    document.getElementById('memorySection').innerHTML=`<div class="memory-tip"><div class="memory-tip-label">記憶技巧</div><div class="memory-tip-text">${w.tip}</div></div><div class="sentence-block"><div class="sentence-en">${masked}</div><div class="sentence-zh">${w.sentenceZh}</div></div><div class="reveal-hint" id="revealHint">${revealed?'':'↑ 點擊空格顯示答案'}</div>`;
+    const s=document.getElementById('blankSpan');
+    if(s){if(!revealed)s.style.color='transparent';else{s.classList.add('revealed');s.style.color='';}}
+    document.getElementById('cardControls').innerHTML=`<button class="btn btn-primary" onclick="revealBlank()">顯示答案</button><div class="score-row">${scoreHTML(cur)}</div>${badge}<div class="score-next-row"><button class="btn btn-outline" onclick="nextCard()">下一個 →</button></div>`;
+    updateNavDots();updateProgress();card.classList.remove('flip');
+  },150);
+}
+function revealBlank(){revealed=true;const s=document.getElementById('blankSpan');if(s){s.classList.add('revealed');s.style.color='';}const h=document.getElementById('revealHint');if(h)h.textContent='';}
+function markScore(score){const w=getWord();status[w.id]=score;saveStatus();updateStats();revealed=false;currentIndex=(currentIndex+1)%filteredWords.length;renderCard();}
+function nextCard(){revealed=false;currentIndex=(currentIndex+1)%filteredWords.length;renderCard();}
+function prevCard(){revealed=false;currentIndex=(currentIndex-1+filteredWords.length)%filteredWords.length;renderCard();}
+function updateNavDots(){const d=document.getElementById('navDots'),t=Math.min(filteredWords.length,9);d.innerHTML='';for(let i=0;i<t;i++){const n=document.createElement('div');n.className='nav-dot'+(i===currentIndex%t?' active':'');d.appendChild(n);}}
+function updateProgress(){const seen=allWords.filter(w=>status[w.id]!==null).length,tot=allWords.length;document.getElementById('progressLabel').textContent=`${seen} / ${tot}`;document.getElementById('progressBar').style.width=`${seen/tot*100}%`;}
+function updateStats(){document.getElementById('statUnseen').textContent=allWords.filter(w=>status[w.id]===null).length;document.getElementById('statWeak').textContent=allWords.filter(w=>status[w.id]!==null&&status[w.id]<=2).length;document.getElementById('statMid').textContent=allWords.filter(w=>status[w.id]!==null&&status[w.id]>=3&&status[w.id]<=4).length;document.getElementById('statKnown').textContent=allWords.filter(w=>status[w.id]===5).length;}
+
+buildFiltered();renderCard();updateStats();
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT') return;
+  if(document.getElementById('tab-drill').classList.contains('active')){
+    if(e.key==='ArrowRight') nextCard();
+    else if(e.key==='ArrowLeft') prevCard();
+  }
+});
+</script>
+</body>
+</html>
