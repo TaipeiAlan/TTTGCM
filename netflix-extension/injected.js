@@ -197,20 +197,57 @@
     // Prefer webvtt or ttml formats
     const preferredFormats = [
       'webvtt-lssdh-ios8', 'webvtt-lssdh', 'webvtt',
-      'simplesdh', 'nflx-cmiaf', 'dfxp-ls-sdh'
+      'simplesdh', 'nflx-cmiaf', 'dfxp-ls-sdh',
+      'ttml-hidecues', 'webvtt-hidecues', 'nflx-cmiaf-hidecues',
+      'imsc1.1', 'ttml', 'srt'
     ];
-    for (const fmt of preferredFormats) {
-      const entry = ttDownloadables[fmt];
-      if (entry && entry.urls && entry.urls.length) {
+
+    function urlFromEntry(entry) {
+      if (!entry) return null;
+      if (typeof entry === 'string') return entry;
+      // {urls: [{url: '...'}, ...]} or {urls: ['...']}
+      if (Array.isArray(entry.urls) && entry.urls.length) {
         return entry.urls[0].url || entry.urls[0];
       }
+      // {downloadUrls: [...]}
+      if (Array.isArray(entry.downloadUrls) && entry.downloadUrls.length) {
+        return entry.downloadUrls[0].url || entry.downloadUrls[0];
+      }
+      // direct string url property
+      if (typeof entry.url === 'string') return entry.url;
+      return null;
     }
-    // Fallback: first available
+
+    for (const fmt of preferredFormats) {
+      const u = urlFromEntry(ttDownloadables[fmt]);
+      if (u) return u;
+    }
+    // Fallback: any key
     for (const fmt of Object.keys(ttDownloadables)) {
-      const entry = ttDownloadables[fmt];
-      if (entry && entry.urls && entry.urls.length) {
-        return entry.urls[0].url || entry.urls[0];
-      }
+      const u = urlFromEntry(ttDownloadables[fmt]);
+      if (u) return u;
+    }
+    return null;
+  }
+
+  // Extract a subtitle URL from a track object, trying all known property paths.
+  function extractUrlFromTrack(track) {
+    // Standard manifest path
+    let url = getFirstSubtitleUrl(track.ttDownloadables);
+    if (url) return url;
+
+    // Alternative: downloadables (seen in some API versions)
+    url = getFirstSubtitleUrl(track.downloadables);
+    if (url) return url;
+
+    // Direct URL properties on the track itself
+    if (typeof track.url === 'string' && track.url) return track.url;
+
+    if (Array.isArray(track.downloadUrls) && track.downloadUrls.length) {
+      return track.downloadUrls[0].url || track.downloadUrls[0];
+    }
+    if (Array.isArray(track.urls) && track.urls.length) {
+      return track.urls[0].url || track.urls[0];
     }
     return null;
   }
@@ -240,7 +277,7 @@
       return;
     }
 
-    const url = getFirstSubtitleUrl(enTrack.ttDownloadables);
+    const url = extractUrlFromTrack(enTrack);
     if (!url || fetchedEnUrls.has(url)) return;
     fetchedEnUrls.add(url);
     lastKnownEnUrl = url;
@@ -296,8 +333,13 @@
       if (!enTrack) enTrack = trackArr.find(t => /^en/.test(langOf(t)));
       if (!enTrack) { postStatus(`player API: no EN track (found: ${trackArr.map(t => langOf(t)).join(',')})`); return false; }
 
-      const url = getFirstSubtitleUrl(enTrack.ttDownloadables);
-      if (!url) { postStatus('player API: no downloadable URL for EN track'); return false; }
+      const url = extractUrlFromTrack(enTrack);
+      if (!url) {
+        const keys = Object.keys(enTrack).join(',');
+        const dlKeys = enTrack.ttDownloadables ? Object.keys(enTrack.ttDownloadables).join(',') : 'none';
+        postStatus(`player API: no downloadable URL for EN track (keys:${keys} ttDL:${dlKeys})`);
+        return false;
+      }
 
       lastKnownEnUrl = url;
       fetchEnFromUrl(url);
