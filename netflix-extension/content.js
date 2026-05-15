@@ -194,7 +194,6 @@
     if (/^en/i.test(lang)) {
       state.enCues = cues;
       console.log(LOG, 'EN cues loaded:', cues.length);
-      chrome.runtime.sendMessage({ type: 'EN_CUES_LOADED', count: cues.length }).catch(() => {});
       ensureOverlay();
     }
   });

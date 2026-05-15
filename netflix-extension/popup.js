@@ -106,6 +106,7 @@
     refetchBtn.textContent = '⟳ Fetching…';
     refetchBtn.disabled = true;
     chrome.tabs.sendMessage(activeTabId, { type: 'REFETCH_SUBTITLES' }, () => {
+      void chrome.runtime.lastError;
       setTimeout(() => {
         refetchBtn.textContent = '⟳ Re-fetch EN';
         refetchBtn.disabled = false;
@@ -119,6 +120,7 @@
   resetBtn.addEventListener('click', () => {
     if (activeTabId === null) return;
     chrome.tabs.sendMessage(activeTabId, { type: 'RESET_SUBTITLES' }, () => {
+      void chrome.runtime.lastError;
       statusEl.textContent = 'Reset — waiting for next subtitle load.';
       statusEl.className = 'status waiting';
       debugInfo.style.display = 'none';
@@ -132,6 +134,7 @@
     if (activeTabId === null) return;
     testModeOn = !testModeOn;
     chrome.tabs.sendMessage(activeTabId, { type: 'SET_TEST_MODE', enabled: testModeOn }, () => {
+      void chrome.runtime.lastError;
       testOverlayBtn.textContent = testModeOn ? '■ Stop Test' : '▶ Test Overlay';
       testOverlayBtn.classList.toggle('active', testModeOn);
     });
