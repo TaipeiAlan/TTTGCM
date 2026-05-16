@@ -8,11 +8,11 @@
     :root {
       --bg:#f7f4ee;--card:#fff;--line:#d9d1c4;--head:#ead4ab;--floor:#efe5d5;--text:#2f2f2f;--muted:#7f7f7f;
       --danger:#d64f41;--accent:#e8953f;--empty:#efefef;
-      --cell-w:148px;--cell-h:116px;--floor-w:38px;
+      --cell-w:148px;--cell-h:84px;--floor-w:38px;
       --num-size:30px;--total-size:30px;--date-size:16px;--sub-size:13px;
     }
-    body.size-m{--cell-w:122px;--cell-h:96px;--num-size:24px;--total-size:24px;--date-size:14px;--sub-size:12px;}
-    body.size-s{--cell-w:98px;--cell-h:80px;--num-size:16px;--total-size:16px;--date-size:12px;--sub-size:11px;}
+    body.size-m{--cell-w:122px;--cell-h:68px;--num-size:24px;--total-size:24px;--date-size:14px;--sub-size:12px;}
+    body.size-s{--cell-w:98px;--cell-h:56px;--num-size:16px;--total-size:16px;--date-size:12px;--sub-size:11px;}
     body.size-xs{--cell-w:68px;--cell-h:30px;--total-size:12px;--date-size:10px;--sub-size:9px;}
     body.size-xs td.cell.empty{font-size:9px;}
     body.size-xs .unit-price{display:none;}
@@ -66,7 +66,7 @@
     .deadline-pill .darrow{border:none;background:transparent;color:#2d6b2d;cursor:pointer;padding:4px 0;width:26px;font-size:12px;transition:.12s;text-align:center}
     .deadline-pill .darrow:hover{background:#c5e8c5}
     .deadline-pill .darrow + .darrow{border-left:1px solid #b6dab6}
-    .deadline-pill .dlabel{padding:4px 10px;cursor:ew-resize;min-width:76px;text-align:center;touch-action:none;border-right:1px solid #b6dab6;display:inline-flex;align-items:baseline;justify-content:center;gap:4px}
+    .deadline-pill .dlabel{padding:4px 10px;cursor:ew-resize;min-width:76px;text-align:center;touch-action:none;border-left:1px solid #b6dab6;display:inline-flex;align-items:baseline;justify-content:center;gap:4px}
     .deadline-pill .dbound{font-size:10px;font-weight:600;opacity:.75}
     .deadline-pill .dlabel:hover{background:#d4ecda}
     .deadline-pill.dragging .dlabel{background:#c5e8c5}
@@ -106,9 +106,10 @@
         <div id="deadlineCtrl" class="deadline-ctrl">
           <span style="font-size:12px;color:#7d7d7d;">截止：</span>
           <div class="deadline-pill all-mode" id="deadlinePill">
-            <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊顯示全部"><span id="deadlineLabelText">全部</span><span class="dbound" id="deadlineBoundary"></span></span>
             <button class="darrow" id="deadlinePrev" title="往前一個月">◀</button>
             <button class="darrow" id="deadlineNext" title="往後一個月">▶</button>
+            <button class="darrow dall" id="deadlineAll" title="顯示全部月份">全</button>
+            <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊顯示全部"><span id="deadlineLabelText">全部</span><span class="dbound" id="deadlineBoundary"></span></span>
           </div>
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
@@ -776,6 +777,7 @@
       const label=document.getElementById('deadlineLabel');
       const prevBtn=document.getElementById('deadlinePrev');
       const nextBtn=document.getElementById('deadlineNext');
+      const allBtn=document.getElementById('deadlineAll');
 
       function startDrag(clientX){
         if(!deadlineMonthRange.length)return;
@@ -810,6 +812,7 @@
         if(i>=deadlineMonthRange.length-1)setDeadlineYM(null);
         else setDeadlineYM(deadlineMonthRange[i+1]);
       });
+      allBtn.addEventListener('click',()=>setDeadlineYM(null));
     })();
     // ─────────────────────────────────────────────────────────────────────────
   </script>
