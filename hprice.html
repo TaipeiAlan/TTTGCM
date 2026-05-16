@@ -108,6 +108,7 @@
           <div class="deadline-pill all-mode" id="deadlinePill">
             <button class="darrow" id="deadlinePrev" title="往前一個月">◀</button>
             <button class="darrow" id="deadlineNext" title="往後一個月">▶</button>
+            <button class="darrow dall" id="deadlineAll" title="顯示全部月份">全</button>
             <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊顯示全部"><span id="deadlineLabelText">全部</span><span class="dbound" id="deadlineBoundary"></span></span>
           </div>
         </div>
@@ -776,6 +777,7 @@
       const label=document.getElementById('deadlineLabel');
       const prevBtn=document.getElementById('deadlinePrev');
       const nextBtn=document.getElementById('deadlineNext');
+      const allBtn=document.getElementById('deadlineAll');
 
       function startDrag(clientX){
         if(!deadlineMonthRange.length)return;
@@ -810,6 +812,7 @@
         if(i>=deadlineMonthRange.length-1)setDeadlineYM(null);
         else setDeadlineYM(deadlineMonthRange[i+1]);
       });
+      allBtn.addEventListener('click',()=>setDeadlineYM(null));
     })();
     // ─────────────────────────────────────────────────────────────────────────
   </script>
