@@ -47,6 +47,8 @@
     .u{font-size:var(--sub-size);font-weight:700}.total{font-size:var(--total-size);font-weight:850;line-height:1.1}
     .badge{position:absolute;top:0;right:0;background:var(--accent);color:#fff;border-radius:0 0 0 8px;font-size:10px;padding:2px 5px}
 
+    body.emph-unit .total{opacity:.3}
+    body.emph-total .unit-price{opacity:.3}
     .hover-row,.hover-col,.hover-head,.hover-floor{background:#fff4de!important}
     .hover-row.hover-col{background:#ffe7c5!important}
 
@@ -103,6 +105,12 @@
           <button class="btn size-btn" data-size="s">小</button>
           <button class="btn size-btn" data-size="xs">迷你</button>
         </div>
+        <div class="sizes">
+          <span style="font-size:12px;color:#7d7d7d;">凸顯：</span>
+          <button class="btn emph-btn active" data-emph="none">無</button>
+          <button class="btn emph-btn" data-emph="unit">單價</button>
+          <button class="btn emph-btn" data-emph="total">總價</button>
+        </div>
         <div id="deadlineCtrl" class="deadline-ctrl">
           <span style="font-size:12px;color:#7d7d7d;">截止：</span>
           <div class="deadline-pill all-mode" id="deadlinePill">
@@ -148,6 +156,7 @@
     const CACHE_KEY='hprice_cache_v5';
     const LEGACY_CACHE_KEYS=['hprice_cache','hprice_cache_v1','hprice_cache_v2','hprice_cache_v3','hprice_cache_v4'];
     const SIZE_KEY='hprice_size';
+    const EMPH_KEY='hprice_emph';
     const PRICE_MODE_KEY='hprice_price_with_parking';
     const fileInput=document.getElementById('fileInput');
     const priceToggle=document.getElementById('priceToggle');
@@ -158,6 +167,7 @@
     const modalBody=document.getElementById('modalBody');
     const closeModal=document.getElementById('closeModal');
     const sizeBtns=[...document.querySelectorAll('.size-btn')];
+    const emphBtns=[...document.querySelectorAll('.emph-btn')];
     let withParkingPrice=true;
     let currentRecords=[];
     let deadlineYM=null;
@@ -450,6 +460,7 @@
     }
 
     function setSize(s){document.body.classList.remove('size-l','size-m','size-s','size-xs');document.body.classList.add(`size-${s}`);sizeBtns.forEach(b=>b.classList.toggle('active',b.dataset.size===s));localStorage.setItem(SIZE_KEY,s)}
+    function setEmph(e){document.body.classList.remove('emph-unit','emph-total');if(e==='unit'||e==='total')document.body.classList.add(`emph-${e}`);emphBtns.forEach(b=>b.classList.toggle('active',b.dataset.emph===e));localStorage.setItem(EMPH_KEY,e)}
 
     // ── CSV support ──────────────────────────────────────────────────────────
     const csvInput=document.getElementById('csvInput');
@@ -543,6 +554,7 @@
 
     fileInput.addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;statusEl.textContent=`讀取中：${f.name}`;try{await handleUpload(f)}catch(err){statusEl.textContent=`解析失敗：${err.message}`;gridWrap.innerHTML=''}});
     sizeBtns.forEach(btn=>btn.addEventListener('click',()=>setSize(btn.dataset.size)));
+    emphBtns.forEach(btn=>btn.addEventListener('click',()=>setEmph(btn.dataset.emph)));
     closeModal.addEventListener('click',closeDetail);modal.addEventListener('click',e=>{if(e.target===modal)closeDetail()});
     const savedMode=localStorage.getItem(PRICE_MODE_KEY);
     withParkingPrice=savedMode===null?true:savedMode==='1';
@@ -557,6 +569,7 @@
 
     const cached=loadCache();if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();renderTable(getFilteredRecords(),cached);}
     setSize(localStorage.getItem(SIZE_KEY)||'l');
+    setEmph(localStorage.getItem(EMPH_KEY)||'none');
 
     // ── 交易趨勢圖 ──────────────────────────────────────────────────────────
     const TREND_COLORS=['#e8953f','#d64f41','#4a90d9','#5ba85a','#9b59b6','#16a085','#f39c12','#8e44ad','#2980b9','#c0392b'];
