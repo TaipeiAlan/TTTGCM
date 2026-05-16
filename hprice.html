@@ -66,14 +66,16 @@
     @media (max-width:640px){.unit-name{font-size:16px}}
     .deadline-ctrl{display:none;align-items:center;gap:5px;user-select:none}
     .deadline-pill{display:inline-flex;align-items:center;background:#e5f3e5;border:1.5px solid #7ab87a;border-radius:20px;overflow:hidden;font-weight:700;font-size:12px;color:#2d6b2d;line-height:1}
-    .deadline-pill .darrow{border:none;background:transparent;color:#2d6b2d;cursor:pointer;padding:4px 7px;font-size:12px;transition:.12s}
+    .deadline-pill .darrow{border:none;background:transparent;color:#2d6b2d;cursor:pointer;padding:4px 0;width:26px;font-size:12px;transition:.12s;text-align:center}
     .deadline-pill .darrow:hover{background:#c5e8c5}
-    .deadline-pill .dlabel{padding:4px 8px;cursor:ew-resize;min-width:76px;text-align:center;touch-action:none}
+    .deadline-pill .darrow + .darrow{border-left:1px solid #b6dab6}
+    .deadline-pill .dlabel{padding:4px 10px;cursor:ew-resize;min-width:76px;text-align:center;touch-action:none;border-right:1px solid #b6dab6}
     .deadline-pill .dlabel:hover{background:#d4ecda}
     .deadline-pill.dragging .dlabel{background:#c5e8c5}
     .deadline-pill.all-mode{background:#f7e8cd;border-color:#c7954f;color:#79552a}
     .deadline-pill.all-mode .darrow{color:#79552a}
     .deadline-pill.all-mode .darrow:hover,.deadline-pill.all-mode .dlabel:hover{background:#ead4ab}
+    .deadline-pill.all-mode .darrow + .darrow,.deadline-pill.all-mode .dlabel{border-color:#dcbf8a}
     #chartModal{align-items:center}
     #chartModal .modal-card{width:min(880px,100%);max-height:92vh}
   </style>
@@ -106,8 +108,8 @@
         <div id="deadlineCtrl" class="deadline-ctrl">
           <span style="font-size:12px;color:#7d7d7d;">截止：</span>
           <div class="deadline-pill all-mode" id="deadlinePill">
-            <button class="darrow" id="deadlinePrev" title="往前一個月">◀</button>
             <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊顯示全部">全部</span>
+            <button class="darrow" id="deadlinePrev" title="往前一個月">◀</button>
             <button class="darrow" id="deadlineNext" title="往後一個月">▶</button>
           </div>
         </div>
