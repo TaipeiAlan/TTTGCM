@@ -38,7 +38,11 @@
       margin: 0 auto;
       padding: .6rem .5rem;
       padding-top: calc(.6rem + env(safe-area-inset-top, 0px));
-      padding-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
     }
 
     /* ── Card ── */
@@ -46,8 +50,11 @@
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
-      margin-bottom: 1rem;
+      margin-bottom: .5rem;
       overflow: hidden;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
     .card-head {
       display: flex;
@@ -124,7 +131,7 @@
     .menu-item + .menu-item { border-top: 1px solid var(--border); }
 
     /* ── Table ── */
-    .table-wrap { overflow-x: auto; max-height: 58vh; overflow-y: auto; }
+    .table-wrap { overflow-x: auto; overflow-y: auto; flex: 1; }
     table { width: 100%; border-collapse: collapse; font-size: .86rem; }
     thead th {
       padding: .45rem .55rem;
@@ -211,11 +218,14 @@
     .note {
       background: var(--yellow-bg);
       border: 1px solid var(--yellow-border);
-      border-radius: 8px;
-      padding: .75rem 1rem;
-      font-size: .8rem;
+      border-radius: 8px 8px 0 0;
+      padding: .4rem .8rem;
+      font-size: .78rem;
       color: var(--muted);
-      line-height: 1.8;
+      line-height: 1.7;
+      max-height: 1.55rem;
+      overflow: hidden;
+      flex-shrink: 0;
     }
     .note strong { color: var(--text); }
 
@@ -503,13 +513,13 @@
             <th>買入價</th>
             <th class="th-tick">升降<br>單位</th>
             <th>約需價差</th>
-            <th>打平區間<br><span style="font-weight:400;color:var(--green);font-size:.65rem">▲賣出</span> / <span style="font-weight:400;color:var(--orange);font-size:.65rem">▼買回</span></th>
+            <th>最低賣出</th>
             <th class="th-del"></th>
           </tr>
         </thead>
         <tbody id="refBody">
           <tr id="dynRow" class="dyn-row hidden">
-            <td colspan="5"></td>
+            <td colspan="4"></td>
           </tr>
         </tbody>
       </table>
@@ -693,7 +703,7 @@
       <td>${price}</td>
       <td class="td-tick">${r.tick}</td>
       <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-range"><span class="td-sell">${fmt(r.minSell, r.tick)}</span><br><span class="td-bb">${fmt(r.maxBB, r.tickBB)}</span></td>
+      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
       <td class="td-del">
         <button class="del-btn" data-price="${price}" title="移除">✕</button>
       </td>
@@ -795,11 +805,10 @@
       const r = calcBuy(price);
       box.className = 'result-grid result-grid-buy';
       box.innerHTML = `
-        <div class="r-box neutral">
-          <div class="r-label">打平區間</div>
-          <div class="r-val" style="color:var(--green)">${fmt(r.minSell, r.tick)}</div>
-          <div class="r-val2" style="color:var(--orange)">${fmt(r.maxBB, r.tickBB)}</div>
-          <div class="r-sub">▲最低賣出 / ▼最高買回</div>
+        <div class="r-box sell">
+          <div class="r-label">最低賣出</div>
+          <div class="r-val">${fmt(r.minSell, r.tick)}</div>
+          <div class="r-sub">含雙向手續費＋稅</div>
         </div>
         <div class="r-box save">
           <div class="r-label">省錢回補上限</div>
@@ -840,7 +849,7 @@
       <td><span class="dyn-label">試算</span>${fmt(price, r.tick)}</td>
       <td class="td-tick">${r.tick}</td>
       <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-range"><span class="td-sell">${fmt(r.minSell, r.tick)}</span><br><span class="td-bb">${fmt(r.maxBB, r.tickBB)}</span></td>
+      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
       <td class="td-del">
         <button class="add-here-btn${inTable ? ' in-table' : ''}" id="addHereBtn">
           ${inTable ? '✓' : '存入快查'}
