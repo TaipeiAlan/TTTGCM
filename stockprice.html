@@ -21,6 +21,7 @@
       --muted: #6b7280;
       --yellow-bg: #fefce8;
       --yellow-border: #fbbf24;
+      --bar-h: 50px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -31,7 +32,7 @@
       font-size: 15px;
     }
 
-    /* ── Header ── */
+    /* ── Page header ── */
     .page-header {
       background: var(--primary);
       color: #fff;
@@ -41,8 +42,13 @@
     .page-header h1 { font-size: 1.4rem; font-weight: 700; }
     .page-header p  { opacity: .7; font-size: .85rem; margin-top: .2rem; }
 
-    /* ── Layout ── */
-    .wrap { max-width: 960px; margin: 0 auto; padding: 1rem .9rem 5rem; }
+    /* ── Scrollable page area ── */
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem .9rem;
+      padding-bottom: calc(var(--bar-h) + 1rem);
+    }
 
     /* ── Fee pills ── */
     .fee-bar {
@@ -86,7 +92,6 @@
     }
     .card-head-actions { display: flex; gap: .5rem; }
 
-    /* ── Small text buttons ── */
     .btn-sm {
       padding: .28rem .7rem;
       border-radius: 6px;
@@ -103,12 +108,6 @@
       color: var(--muted);
     }
     .btn-sm.ghost:hover { border-color: var(--primary); color: var(--primary); }
-    .btn-sm.danger {
-      border-color: transparent;
-      background: var(--red-bg);
-      color: var(--red);
-    }
-    .btn-sm.danger:hover { background: #f5c6c2; }
 
     /* ── Table ── */
     .table-wrap { overflow-x: auto; }
@@ -165,7 +164,6 @@
     }
     .del-btn:hover { background: var(--red-bg); color: var(--red); }
 
-    /* in-table add button for dyn row */
     .add-here-btn {
       background: none;
       border: 1.5px solid var(--primary);
@@ -205,27 +203,23 @@
       color: var(--muted);
       font-size: .78rem;
       padding: .8rem;
-      margin-bottom: 3.5rem;
     }
 
-    /* ═══════════════════════════════
-       TOOLBAR
-    ═══════════════════════════════ */
-    .toolbar {
+    /* ═══════════════════════════════════════════════════
+       COMPACT BAR  ── always-visible strip at bottom
+    ═══════════════════════════════════════════════════ */
+    .tb-bar {
       position: fixed;
       bottom: 0; left: 0; right: 0;
+      height: var(--bar-h);
       background: var(--card);
       border-top: 2px solid var(--primary);
-      box-shadow: 0 -3px 20px rgba(0,0,0,.1);
-      z-index: 200;
-    }
-
-    /* compact always-visible bar */
-    .tb-bar {
+      box-shadow: 0 -2px 14px rgba(0,0,0,.1);
+      z-index: 201;
       display: flex;
       align-items: center;
       gap: .7rem;
-      padding: .6rem 1rem;
+      padding: 0 1rem;
       cursor: pointer;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
@@ -233,11 +227,12 @@
     .tb-icon { font-size: 1.1rem; flex-shrink: 0; }
     .tb-status {
       flex: 1;
-      font-size: .82rem;
+      font-size: .8rem;
       color: var(--muted);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      min-width: 0;
     }
     .tb-status strong { color: var(--primary); }
     .tb-toggle {
@@ -246,46 +241,61 @@
       border: 1.5px solid var(--primary);
       color: var(--primary);
       border-radius: 6px;
-      padding: .2rem .65rem;
+      padding: .22rem .65rem;
       font-size: .78rem;
       font-weight: 700;
       cursor: pointer;
-      letter-spacing: .03em;
+      letter-spacing: .02em;
       transition: all .15s;
+      white-space: nowrap;
     }
     .tb-toggle:hover { background: var(--primary); color: #fff; }
 
-    /* expandable panel */
+    /* ═══════════════════════════════════════════════════
+       SLIDE PANEL  ── fills viewport above the compact bar
+       Layout (flex-column, top→bottom):
+         [header] fixed
+         [results-scroll] flex:1 scrollable
+         [display] fixed
+         [numpad]  fixed
+    ═══════════════════════════════════════════════════ */
     .tb-panel {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height .32s ease;
+      position: fixed;
+      left: 0; right: 0;
+      bottom: var(--bar-h);
+      /* height fills from bar top to viewport top */
+      height: calc(100vh - var(--bar-h));
+      height: calc(100dvh - var(--bar-h));
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      /* slide down to hide (behind compact bar) */
+      transform: translateY(100%);
+      transition: transform .28s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .toolbar.open .tb-panel {
-      max-height: 80vh;
-      overflow-y: auto;
+    .tb-panel.open {
+      transform: translateY(0);
     }
-    .tb-panel-inner { padding: 0 1rem 1.2rem; }
 
-    /* panel header */
+    /* Panel header */
     .tb-panel-head {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: .5rem;
-      padding: .7rem 0 .8rem;
+      padding: .5rem 1rem;
       border-bottom: 1px solid var(--border);
-      margin-bottom: .9rem;
     }
-
-    /* Perspective tabs */
     .persp-tabs { display: flex; gap: .4rem; flex: 1; }
     .persp-tab {
       flex: 1;
-      padding: .55rem .4rem;
+      padding: .5rem .4rem;
       border: 2px solid var(--border);
       border-radius: 8px;
       background: var(--bg);
-      font-size: .95rem;
+      font-size: .93rem;
       font-weight: 700;
       cursor: pointer;
       color: var(--muted);
@@ -294,53 +304,51 @@
     }
     .persp-tab[data-mode="buy"].active  { border-color: var(--primary); background: var(--primary); color: #fff; }
     .persp-tab[data-mode="sell"].active { border-color: var(--green);   background: var(--green);   color: #fff; }
-
     .tb-close {
       flex-shrink: 0;
       background: none;
       border: 1.5px solid var(--border);
       border-radius: 6px;
-      padding: .25rem .7rem;
+      padding: .22rem .65rem;
       font-size: .78rem;
       color: var(--muted);
       cursor: pointer;
       transition: all .15s;
+      white-space: nowrap;
     }
     .tb-close:hover { border-color: var(--red); color: var(--red); }
 
-    /* Display */
-    .calc-display {
-      background: #1a1d23;
-      color: #fff;
-      border-radius: 10px;
-      padding: .7rem 1rem;
-      margin-bottom: .85rem;
+    /* Results area — flex:1 so it fills space between header and display */
+    .results-scroll {
+      flex: 1;
+      min-height: 0;       /* critical: allows flex child to shrink below content height */
+      overflow-y: auto;
+      padding: .55rem 1rem .4rem;
       display: flex;
-      align-items: baseline;
-      gap: .5rem;
-      min-height: 62px;
+      flex-direction: column;
     }
-    .display-label { font-size: .76rem; opacity: .4; white-space: nowrap; flex-shrink: 0; }
-    .display-val {
-      font-size: 2.3rem; font-weight: 800; flex: 1;
-      text-align: right; font-variant-numeric: tabular-nums;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    .results-placeholder {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: .82rem;
+      text-align: center;
     }
-    .display-val.empty { opacity: .2; }
-    .display-unit { font-size: .82rem; opacity: .4; white-space: nowrap; flex-shrink: 0; }
+    .results-placeholder.hidden { display: none; }
 
-    /* Results (only shown after input) */
     .result-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: .65rem;
-      margin-bottom: .85rem;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: .55rem;
+      margin-bottom: .5rem;
     }
     .result-grid:empty { display: none; }
-    .r-box { border-radius: 8px; padding: .75rem .9rem; text-align: center; }
-    .r-box .r-label { font-size: .7rem; color: var(--muted); margin-bottom: .3rem; line-height: 1.4; }
-    .r-box .r-val   { font-size: 1.75rem; font-weight: 800; line-height: 1; }
-    .r-box .r-sub   { font-size: .66rem; color: var(--muted); margin-top: .25rem; }
+    .r-box { border-radius: 8px; padding: .65rem .8rem; text-align: center; }
+    .r-box .r-label { font-size: .68rem; color: var(--muted); margin-bottom: .25rem; line-height: 1.4; }
+    .r-box .r-val   { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .r-box .r-sub   { font-size: .63rem; color: var(--muted); margin-top: .2rem; }
     .r-box.neutral  { background: var(--bg); }
     .r-box.sell     { background: var(--green-bg); }
     .r-box.sell .r-val   { color: var(--green); }
@@ -349,20 +357,16 @@
     .r-box.save     { background: var(--red-bg); }
     .r-box.save .r-val   { color: var(--red); }
 
-    /* Add to table action */
-    .add-row {
-      display: none;
-      margin-bottom: .85rem;
-    }
-    .add-row.visible { display: block; }
+    .add-row { margin-bottom: .3rem; }
+    .add-row.hidden { display: none; }
     .add-to-table-btn {
       width: 100%;
-      padding: .6rem;
-      border-radius: 8px;
+      padding: .5rem;
+      border-radius: 7px;
       border: 2px solid var(--primary);
       background: var(--primary-bg);
       color: var(--primary);
-      font-size: .9rem;
+      font-size: .85rem;
       font-weight: 700;
       cursor: pointer;
       transition: all .15s;
@@ -376,21 +380,51 @@
       cursor: default;
     }
 
-    /* Numpad */
-    .numpad-wrap { display: flex; justify-content: center; }
+    /* Display — fixed above numpad, does NOT move */
+    .calc-display {
+      flex-shrink: 0;
+      background: #1a1d23;
+      color: #fff;
+      margin: 0 1rem .5rem;
+      border-radius: 10px;
+      padding: .6rem .9rem;
+      display: flex;
+      align-items: baseline;
+      gap: .5rem;
+      min-height: 58px;
+    }
+    .display-label { font-size: .72rem; opacity: .4; white-space: nowrap; flex-shrink: 0; }
+    .display-val {
+      font-size: 2.1rem; font-weight: 800; flex: 1;
+      text-align: right; font-variant-numeric: tabular-nums;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .display-val.empty { opacity: .2; }
+    .display-unit { font-size: .8rem; opacity: .4; white-space: nowrap; flex-shrink: 0; }
+
+    /* Numpad — anchored at bottom, never moves */
+    .numpad-wrap {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      padding: 0 1rem .6rem;
+      padding-bottom: calc(.6rem + env(safe-area-inset-bottom, 0px));
+    }
     .numpad {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
+      gap: 5px;
       width: 100%;
-      max-width: 300px;
+      max-width: 320px;
     }
     .num-btn {
-      height: 56px;
+      /* adaptive height: scales with screen but clamped */
+      height: clamp(44px, 9dvh, 62px);
+      height: clamp(44px, 9vh, 62px);
       border: 1.5px solid var(--border);
       border-radius: 10px;
       background: var(--card);
-      font-size: 1.4rem;
+      font-size: 1.35rem;
       font-weight: 600;
       cursor: pointer;
       color: var(--text);
@@ -403,17 +437,18 @@
       touch-action: manipulation;
     }
     .num-btn:active { transform: scale(.91); background: var(--primary-bg); border-color: var(--primary); }
-    .num-btn.action { background: #f1f3f5; font-size: 1.15rem; color: var(--muted); }
+    .num-btn.action { background: #f1f3f5; font-size: 1.1rem; color: var(--muted); }
     .num-btn.action:active { background: var(--border); }
     .num-btn.clear {
       grid-column: span 3;
-      height: 44px;
-      font-size: .88rem;
+      height: clamp(36px, 7dvh, 46px);
+      height: clamp(36px, 7vh, 46px);
+      font-size: .85rem;
       font-weight: 700;
       background: var(--red-bg);
       color: var(--red);
       border-color: transparent;
-      letter-spacing: .06em;
+      letter-spacing: .05em;
     }
     .num-btn.clear:active { background: #f5c6c2; transform: scale(.98); }
   </style>
@@ -427,7 +462,6 @@
 
 <div class="wrap">
 
-  <!-- Fee bar -->
   <div class="fee-bar">
     <span class="pill">手續費 0.1425% × 2</span>
     <span class="eq">+</span>
@@ -436,7 +470,7 @@
     <span class="total">合計 0.585%（速記 0.6%）</span>
   </div>
 
-  <!-- Quick reference table — primary content -->
+  <!-- Quick reference table -->
   <div class="card">
     <div class="card-head">
       <span>常見價位快查表</span>
@@ -459,7 +493,7 @@
         </thead>
         <tbody id="refBody">
           <tr id="dynRow" class="dyn-row hidden">
-            <td colspan="7" style="text-align:center;color:var(--muted);font-size:.8rem"></td>
+            <td colspan="7"></td>
           </tr>
         </tbody>
       </table>
@@ -478,67 +512,66 @@
 
 <footer>本試算僅供參考，不構成投資建議。</footer>
 
-<!-- ═══════════════════════════════
-     BOTTOM TOOLBAR
-═══════════════════════════════ -->
-<div id="toolbar" class="toolbar">
+<!-- ══════════════════════════════════════
+     COMPACT BAR — always at bottom
+══════════════════════════════════════ -->
+<div class="tb-bar" id="tbBar">
+  <span class="tb-icon">🧮</span>
+  <span class="tb-status" id="tbStatus">點此展開試算</span>
+  <button class="tb-toggle" id="tbToggle">▲ 展開</button>
+</div>
 
-  <!-- Always-visible compact bar -->
-  <div class="tb-bar" id="tbBar">
-    <span class="tb-icon">🧮</span>
-    <span class="tb-status" id="tbStatus">點此展開試算</span>
-    <button class="tb-toggle" id="tbToggle">▲ 展開</button>
+<!-- ══════════════════════════════════════
+     SLIDE PANEL — fills screen above bar
+     Order (top→bottom):
+       header · results-scroll · display · numpad
+══════════════════════════════════════ -->
+<div class="tb-panel" id="tbPanel">
+
+  <!-- 1. Header: tabs + close -->
+  <div class="tb-panel-head">
+    <div class="persp-tabs">
+      <button class="persp-tab" data-mode="buy">買入</button>
+      <button class="persp-tab" data-mode="sell">賣出</button>
+    </div>
+    <button class="tb-close" id="tbClose">✕ 收合</button>
   </div>
 
-  <!-- Expandable panel -->
-  <div class="tb-panel" id="tbPanel">
-    <div class="tb-panel-inner">
-
-      <!-- Panel header: tabs + close -->
-      <div class="tb-panel-head">
-        <div class="persp-tabs">
-          <button class="persp-tab" data-mode="buy">買入</button>
-          <button class="persp-tab" data-mode="sell">賣出</button>
-        </div>
-        <button class="tb-close" id="tbClose">✕ 收合</button>
-      </div>
-
-      <!-- Display -->
-      <div class="calc-display">
-        <span class="display-label" id="displayLabel">請選擇觀點</span>
-        <span class="display-val empty" id="displayVal">0</span>
-        <span class="display-unit">元</span>
-      </div>
-
-      <!-- Results (appear after input) -->
-      <div class="result-grid" id="calcResult"></div>
-
-      <!-- Add to table (buy mode only) -->
-      <div class="add-row" id="addRow">
-        <button class="add-to-table-btn" id="addBtn">＋ 加入快查表</button>
-      </div>
-
-      <!-- Numpad -->
-      <div class="numpad-wrap">
-        <div class="numpad" id="numpad">
-          <button class="num-btn" data-d="7">7</button>
-          <button class="num-btn" data-d="8">8</button>
-          <button class="num-btn" data-d="9">9</button>
-          <button class="num-btn" data-d="4">4</button>
-          <button class="num-btn" data-d="5">5</button>
-          <button class="num-btn" data-d="6">6</button>
-          <button class="num-btn" data-d="1">1</button>
-          <button class="num-btn" data-d="2">2</button>
-          <button class="num-btn" data-d="3">3</button>
-          <button class="num-btn" data-d=".">．</button>
-          <button class="num-btn" data-d="0">0</button>
-          <button class="num-btn action" data-action="back">⌫</button>
-          <button class="num-btn clear" data-action="clear">清除</button>
-        </div>
-      </div>
-
+  <!-- 2. Results area — grows/shrinks, scrolls; display & numpad never move -->
+  <div class="results-scroll" id="resultsScroll">
+    <div class="results-placeholder" id="resultsPlaceholder">選擇觀點後輸入價格</div>
+    <div class="result-grid" id="calcResult"></div>
+    <div class="add-row hidden" id="addRow">
+      <button class="add-to-table-btn" id="addBtn">＋ 加入快查表</button>
     </div>
   </div>
+
+  <!-- 3. Display — fixed, directly above numpad -->
+  <div class="calc-display">
+    <span class="display-label" id="displayLabel">請選擇觀點</span>
+    <span class="display-val empty" id="displayVal">0</span>
+    <span class="display-unit">元</span>
+  </div>
+
+  <!-- 4. Numpad — always at bottom, never moves -->
+  <div class="numpad-wrap">
+    <div class="numpad" id="numpad">
+      <button class="num-btn" data-d="7">7</button>
+      <button class="num-btn" data-d="8">8</button>
+      <button class="num-btn" data-d="9">9</button>
+      <button class="num-btn" data-d="4">4</button>
+      <button class="num-btn" data-d="5">5</button>
+      <button class="num-btn" data-d="6">6</button>
+      <button class="num-btn" data-d="1">1</button>
+      <button class="num-btn" data-d="2">2</button>
+      <button class="num-btn" data-d="3">3</button>
+      <button class="num-btn" data-d=".">．</button>
+      <button class="num-btn" data-d="0">0</button>
+      <button class="num-btn action" data-action="back">⌫</button>
+      <button class="num-btn clear" data-action="clear">清除</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -582,7 +615,7 @@
     const minSell     = buy + spread;
     const exactBB     = minSell * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
     const maxBB       = floorTick(exactBB, tickOf(exactBB));
-    const exactSave   = buy  * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const exactSave   = buy * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
     const maxSave     = floorTick(exactSave, tickOf(exactSave));
     return { buy, tick, theoretical, spread, minSell,
              maxBB, tickBB: tickOf(exactBB), maxSave, tickSave: tickOf(exactSave) };
@@ -614,7 +647,7 @@
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tableItems)); } catch {}
   }
 
-  function isInTable(price) { return tableItems.includes(price); }
+  function isInTable(p) { return tableItems.includes(p); }
 
   function addItem(price) {
     if (isInTable(price)) return;
@@ -622,6 +655,7 @@
     saveItems();
     rebuildTableRows();
     refreshAddBtn();
+    refreshDynRow();
   }
 
   function deleteItem(price) {
@@ -661,9 +695,7 @@
   }
 
   function rebuildTableRows() {
-    const tbody   = document.getElementById('refBody');
-    const dynRow  = document.getElementById('dynRow');
-    // clear all except dynRow
+    const tbody = document.getElementById('refBody');
     [...tbody.querySelectorAll('tr[data-price]')].forEach(r => r.remove());
     tableItems.forEach(price => tbody.appendChild(makeStaticRow(price)));
   }
@@ -698,7 +730,7 @@
   function pressBack()  { if (mode) { input = input.slice(0, -1); refresh(); } }
   function pressClear() { if (mode) { input = ''; refresh(); } }
 
-  /* ── Refresh all UI ── */
+  /* ── Refresh UI ── */
   function refresh() {
     refreshDisplay();
     refreshResults();
@@ -712,7 +744,8 @@
     const valEl   = document.getElementById('displayVal');
     if (!mode) {
       labelEl.textContent = '請選擇觀點';
-      valEl.textContent = '0'; valEl.classList.add('empty');
+      valEl.textContent   = '0';
+      valEl.classList.add('empty');
     } else {
       labelEl.textContent = mode === 'buy' ? '買入價' : '賣出價';
       valEl.textContent   = input || '0';
@@ -721,9 +754,16 @@
   }
 
   function refreshResults() {
-    const box   = document.getElementById('calcResult');
-    const price = getPrice();
-    if (!mode || !price) { box.innerHTML = ''; return; }
+    const box         = document.getElementById('calcResult');
+    const placeholder = document.getElementById('resultsPlaceholder');
+    const price       = getPrice();
+
+    if (!mode || !price) {
+      box.innerHTML = '';
+      placeholder.classList.remove('hidden');
+      return;
+    }
+    placeholder.classList.add('hidden');
 
     if (mode === 'buy') {
       const r = calcBuy(price);
@@ -785,8 +825,8 @@
     const addRow = document.getElementById('addRow');
     const addBtn = document.getElementById('addBtn');
     const price  = getPrice();
-    if (mode !== 'buy' || !price) { addRow.classList.remove('visible'); return; }
-    addRow.classList.add('visible');
+    if (mode !== 'buy' || !price) { addRow.classList.add('hidden'); return; }
+    addRow.classList.remove('hidden');
     const inTable = isInTable(price);
     addBtn.textContent = inTable ? '✓ 已在快查表' : '＋ 加入快查表';
     addBtn.classList.toggle('in-table', inTable);
@@ -796,7 +836,7 @@
     const dynRow = document.getElementById('dynRow');
     const price  = getPrice();
     if (mode !== 'buy' || !price) { dynRow.classList.add('hidden'); return; }
-    const r = calcBuy(price);
+    const r       = calcBuy(price);
     const inTable = isInTable(price);
     dynRow.classList.remove('hidden');
     dynRow.innerHTML = `
@@ -807,8 +847,7 @@
       <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
       <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
       <td class="td-del">
-        <button class="add-here-btn${inTable ? ' in-table' : ''}"
-          id="addHereBtn" title="${inTable ? '已在快查表' : '加入快查表'}">
+        <button class="add-here-btn${inTable ? ' in-table' : ''}" id="addHereBtn">
           ${inTable ? '✓' : '加入'}
         </button>
       </td>
@@ -835,26 +874,33 @@
     }
   }
 
-  /* ── Toolbar open / close ── */
+  /* ── Panel open / close ── */
   let isOpen = false;
 
-  function openToolbar() {
+  function openPanel() {
     isOpen = true;
-    document.getElementById('toolbar').classList.add('open');
+    document.getElementById('tbPanel').classList.add('open');
     document.getElementById('tbToggle').textContent = '▼ 收合';
   }
 
-  function closeToolbar() {
+  function closePanel() {
     isOpen = false;
-    document.getElementById('toolbar').classList.remove('open');
+    document.getElementById('tbPanel').classList.remove('open');
     document.getElementById('tbToggle').textContent = '▲ 展開';
   }
 
-  function toggleToolbar() { isOpen ? closeToolbar() : openToolbar(); }
-
   /* ── Event listeners ── */
-  document.getElementById('tbBar').addEventListener('click', toggleToolbar);
-  document.getElementById('tbClose').addEventListener('click', e => { e.stopPropagation(); closeToolbar(); });
+  document.getElementById('tbBar').addEventListener('click', () => {
+    isOpen ? closePanel() : openPanel();
+  });
+  document.getElementById('tbClose').addEventListener('click', e => {
+    e.stopPropagation();
+    closePanel();
+  });
+  document.getElementById('tbToggle').addEventListener('click', e => {
+    e.stopPropagation();
+    isOpen ? closePanel() : openPanel();
+  });
 
   document.querySelectorAll('.persp-tab').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -863,7 +909,7 @@
       document.querySelectorAll('.persp-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       if (newMode !== mode) { mode = newMode; input = ''; }
-      if (!isOpen) openToolbar();
+      if (!isOpen) openPanel();
       refresh();
     });
   });
