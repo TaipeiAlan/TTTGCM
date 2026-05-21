@@ -200,6 +200,7 @@
     .add-here-btn.in-table { border-color: var(--border); color: var(--muted); cursor: default; }
 
     .td-tick   { color: var(--muted); font-size: .78rem; }
+    .td-range  { line-height: 1.65; }
     .td-spread { color: var(--muted); }
     .td-spread strong { color: var(--text); }
     .td-sell   { color: var(--green);  font-weight: 700; }
@@ -501,14 +502,13 @@
             <th>買入價</th>
             <th class="th-tick">升降<br>單位</th>
             <th>約需價差</th>
-            <th>最低賣出</th>
-            <th>最高買回</th>
+            <th>打平區間<br><span style="font-weight:400;color:var(--green);font-size:.65rem">▲賣出</span> / <span style="font-weight:400;color:var(--orange);font-size:.65rem">▼買回</span></th>
             <th class="th-del"></th>
           </tr>
         </thead>
         <tbody id="refBody">
           <tr id="dynRow" class="dyn-row hidden">
-            <td colspan="6"></td>
+            <td colspan="5"></td>
           </tr>
         </tbody>
       </table>
@@ -692,8 +692,7 @@
       <td>${price}</td>
       <td class="td-tick">${r.tick}</td>
       <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
-      <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
+      <td class="td-range"><span class="td-sell">${fmt(r.minSell, r.tick)}</span><br><span class="td-bb">${fmt(r.maxBB, r.tickBB)}</span></td>
       <td class="td-del">
         <button class="del-btn" data-price="${price}" title="移除">✕</button>
       </td>
@@ -844,8 +843,7 @@
       <td><span class="dyn-label">試算</span>${fmt(price, r.tick)}</td>
       <td class="td-tick">${r.tick}</td>
       <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
-      <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
+      <td class="td-range"><span class="td-sell">${fmt(r.minSell, r.tick)}</span><br><span class="td-bb">${fmt(r.maxBB, r.tickBB)}</span></td>
       <td class="td-del">
         <button class="add-here-btn${inTable ? ' in-table' : ''}" id="addHereBtn">
           ${inTable ? '✓' : '存入快查'}
