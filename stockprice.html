@@ -109,8 +109,39 @@
     }
     .btn-sm.ghost:hover { border-color: var(--primary); color: var(--primary); }
 
+    /* ── ⋯ Menu ── */
+    .menu-wrap { position: relative; }
+    .menu-dropdown {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.14);
+      z-index: 100;
+      min-width: 150px;
+      overflow: hidden;
+    }
+    .menu-dropdown.hidden { display: none; }
+    .menu-item {
+      display: block;
+      width: 100%;
+      padding: .6rem 1rem;
+      text-align: left;
+      background: none;
+      border: none;
+      font-size: .82rem;
+      cursor: pointer;
+      color: var(--text);
+      transition: background .12s;
+      white-space: nowrap;
+    }
+    .menu-item:hover { background: var(--primary-bg); color: var(--primary); }
+    .menu-item + .menu-item { border-top: 1px solid var(--border); }
+
     /* ── Table ── */
-    .table-wrap { overflow-x: auto; }
+    .table-wrap { overflow-x: auto; max-height: 58vh; overflow-y: auto; }
     table { width: 100%; border-collapse: collapse; font-size: .86rem; }
     thead th {
       padding: .55rem .9rem;
@@ -124,9 +155,15 @@
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
       line-height: 1.4;
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }
     thead th:first-child { text-align: left; }
     thead th.th-del { width: 32px; padding: 0; }
+    /* Hide tick column by default */
+    table.hide-tick .th-tick,
+    table.hide-tick .td-tick { display: none; }
     tbody tr { border-bottom: 1px solid var(--border); }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--primary-bg); }
@@ -288,22 +325,12 @@
       padding: .5rem 1rem;
       border-bottom: 1px solid var(--border);
     }
-    .persp-tabs { display: flex; gap: .4rem; flex: 1; }
-    .persp-tab {
+    .tb-panel-title {
       flex: 1;
-      padding: .5rem .4rem;
-      border: 2px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg);
-      font-size: .93rem;
+      font-size: .85rem;
       font-weight: 700;
-      cursor: pointer;
-      color: var(--muted);
-      transition: all .15s;
-      letter-spacing: .06em;
+      color: var(--text);
     }
-    .persp-tab[data-mode="buy"].active  { border-color: var(--primary); background: var(--primary); color: #fff; }
-    .persp-tab[data-mode="sell"].active { border-color: var(--green);   background: var(--green);   color: #fff; }
     .tb-close {
       flex-shrink: 0;
       background: none;
@@ -405,17 +432,54 @@
     /* Numpad — anchored at bottom, never moves */
     .numpad-wrap {
       flex-shrink: 0;
-      display: flex;
-      justify-content: center;
       padding: 0 1rem .6rem;
       padding-bottom: calc(.6rem + env(safe-area-inset-bottom, 0px));
+      display: flex;
+      justify-content: center;
     }
+    .numpad-layout {
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+      width: 100%;
+      max-width: 380px;
+    }
+    /* Buy / Sell buttons — vertical column to the left of numpad */
+    .persp-col {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex-shrink: 0;
+      width: 52px;
+    }
+    .persp-btn {
+      flex: 1;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      font-size: .82rem;
+      font-weight: 800;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all .15s;
+      letter-spacing: .04em;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .persp-btn[data-mode="buy"].active  { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .persp-btn[data-mode="sell"].active { border-color: var(--green);   background: var(--green);   color: #fff; }
+    .persp-btn:active { transform: scale(.93); }
     .numpad {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 5px;
-      width: 100%;
-      max-width: 320px;
+      flex: 1;
+      min-width: 0;
+    }
+    /* Dim numpad when no mode is selected */
+    .numpad.disabled .num-btn {
+      opacity: 0.28;
+      pointer-events: none;
     }
     .num-btn {
       /* adaptive height: scales with screen but clamped */
@@ -475,15 +539,21 @@
     <div class="card-head">
       <span>常見價位快查表</span>
       <div class="card-head-actions">
-        <button class="btn-sm ghost" id="btnReset">還原預設</button>
+        <div class="menu-wrap" id="menuWrap">
+          <button class="btn-sm ghost" id="menuTrigger">⋯</button>
+          <div class="menu-dropdown hidden" id="menuDropdown">
+            <button class="menu-item" id="menuToggleTick">☐ 顯示升降單位</button>
+            <button class="menu-item" id="menuReset">還原預設</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="table-wrap">
-      <table>
+      <table id="refTable" class="hide-tick">
         <thead>
           <tr>
             <th>買入價（元）</th>
-            <th>升降<br>單位</th>
+            <th class="th-tick">升降<br>單位</th>
             <th>約需價差<br>理論 → 整跳</th>
             <th>最低<br>賣出價</th>
             <th>最高買回<br>（最低賣後）</th>
@@ -528,12 +598,9 @@
 ══════════════════════════════════════ -->
 <div class="tb-panel" id="tbPanel">
 
-  <!-- 1. Header: tabs + close -->
+  <!-- 1. Header: title + close -->
   <div class="tb-panel-head">
-    <div class="persp-tabs">
-      <button class="persp-tab" data-mode="buy">買入</button>
-      <button class="persp-tab" data-mode="sell">賣出</button>
-    </div>
+    <span class="tb-panel-title">股票買賣成本試算</span>
     <button class="tb-close" id="tbClose">✕ 收合</button>
   </div>
 
@@ -542,7 +609,7 @@
     <div class="results-placeholder" id="resultsPlaceholder">選擇觀點後輸入價格</div>
     <div class="result-grid" id="calcResult"></div>
     <div class="add-row hidden" id="addRow">
-      <button class="add-to-table-btn" id="addBtn">＋ 加入快查表</button>
+      <button class="add-to-table-btn" id="addBtn">存入快查</button>
     </div>
   </div>
 
@@ -555,20 +622,28 @@
 
   <!-- 4. Numpad — always at bottom, never moves -->
   <div class="numpad-wrap">
-    <div class="numpad" id="numpad">
-      <button class="num-btn" data-d="7">7</button>
-      <button class="num-btn" data-d="8">8</button>
-      <button class="num-btn" data-d="9">9</button>
-      <button class="num-btn" data-d="4">4</button>
-      <button class="num-btn" data-d="5">5</button>
-      <button class="num-btn" data-d="6">6</button>
-      <button class="num-btn" data-d="1">1</button>
-      <button class="num-btn" data-d="2">2</button>
-      <button class="num-btn" data-d="3">3</button>
-      <button class="num-btn" data-d=".">．</button>
-      <button class="num-btn" data-d="0">0</button>
-      <button class="num-btn action" data-action="back">⌫</button>
-      <button class="num-btn clear" data-action="clear">清除</button>
+    <div class="numpad-layout">
+      <!-- Buy / Sell buttons stacked vertically on the left -->
+      <div class="persp-col">
+        <button class="persp-btn" data-mode="buy">買入</button>
+        <button class="persp-btn" data-mode="sell">賣出</button>
+      </div>
+      <!-- Numpad grid -->
+      <div class="numpad disabled" id="numpad">
+        <button class="num-btn" data-d="7">7</button>
+        <button class="num-btn" data-d="8">8</button>
+        <button class="num-btn" data-d="9">9</button>
+        <button class="num-btn" data-d="4">4</button>
+        <button class="num-btn" data-d="5">5</button>
+        <button class="num-btn" data-d="6">6</button>
+        <button class="num-btn" data-d="1">1</button>
+        <button class="num-btn" data-d="2">2</button>
+        <button class="num-btn" data-d="3">3</button>
+        <button class="num-btn" data-d=".">．</button>
+        <button class="num-btn" data-d="0">0</button>
+        <button class="num-btn action" data-action="back">⌫</button>
+        <button class="num-btn clear" data-action="clear">清除</button>
+      </div>
     </div>
   </div>
 
@@ -583,15 +658,14 @@
   const TOTAL    = BUY_FEE + SELL_FEE + SELL_TAX;
 
   const DEFAULT_PRICES = [
-    1, 2, 5, 8, 9,
-    10, 12, 15, 20, 25, 30, 40,
+    25, 30, 40,
     50, 60, 75, 80,
     100, 120, 150, 200, 250, 300, 400,
     500, 600, 700, 800,
     1000, 1200, 1500, 2000, 2290, 3000, 5000
   ];
 
-  const STORAGE_KEY = 'stockprice_v1_items';
+  const STORAGE_KEY = 'stockprice_v2_items';
 
   /* ── Tick helpers ── */
   function tickOf(p) {
@@ -659,6 +733,7 @@
   }
 
   function deleteItem(price) {
+    if (!confirm(`確定移除 ${price} 元？`)) return;
     tableItems = tableItems.filter(p => p !== price);
     saveItems();
     const row = document.querySelector(`tr[data-price="${price}"]`);
@@ -737,6 +812,11 @@
     refreshDynRow();
     refreshAddBtn();
     refreshStatus();
+    refreshNumpad();
+  }
+
+  function refreshNumpad() {
+    document.getElementById('numpad').classList.toggle('disabled', !mode);
   }
 
   function refreshDisplay() {
@@ -828,7 +908,7 @@
     if (mode !== 'buy' || !price) { addRow.classList.add('hidden'); return; }
     addRow.classList.remove('hidden');
     const inTable = isInTable(price);
-    addBtn.textContent = inTable ? '✓ 已在快查表' : '＋ 加入快查表';
+    addBtn.textContent = inTable ? '✓ 已存入' : '存入快查';
     addBtn.classList.toggle('in-table', inTable);
   }
 
@@ -848,7 +928,7 @@
       <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
       <td class="td-del">
         <button class="add-here-btn${inTable ? ' in-table' : ''}" id="addHereBtn">
-          ${inTable ? '✓' : '加入'}
+          ${inTable ? '✓' : '存入快查'}
         </button>
       </td>
     `;
@@ -902,11 +982,11 @@
     isOpen ? closePanel() : openPanel();
   });
 
-  document.querySelectorAll('.persp-tab').forEach(btn => {
+  document.querySelectorAll('.persp-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const newMode = btn.dataset.mode;
-      document.querySelectorAll('.persp-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.persp-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       if (newMode !== mode) { mode = newMode; input = ''; }
       if (!isOpen) openPanel();
@@ -932,8 +1012,31 @@
     if (delBtn) deleteItem(parseFloat(delBtn.dataset.price));
   });
 
-  document.getElementById('btnReset').addEventListener('click', () => {
+  /* ── ⋯ Menu ── */
+  let showTick = false;
+
+  function toggleTick() {
+    showTick = !showTick;
+    document.getElementById('refTable').classList.toggle('hide-tick', !showTick);
+    document.getElementById('menuToggleTick').textContent = (showTick ? '☑' : '☐') + ' 顯示升降單位';
+  }
+
+  document.getElementById('menuTrigger').addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('menuDropdown').classList.toggle('hidden');
+  });
+  document.getElementById('menuToggleTick').addEventListener('click', e => {
+    e.stopPropagation();
+    toggleTick();
+    document.getElementById('menuDropdown').classList.add('hidden');
+  });
+  document.getElementById('menuReset').addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('menuDropdown').classList.add('hidden');
     if (confirm('還原為預設的快查表項目？')) resetDefaults();
+  });
+  document.addEventListener('click', () => {
+    document.getElementById('menuDropdown').classList.add('hidden');
   });
 
   /* ── Init ── */
