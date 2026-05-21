@@ -504,17 +504,40 @@
     .num-btn.action { background: #f1f3f5; font-size: 1.1rem; color: var(--muted); }
     .num-btn.action:active { background: var(--border); }
     .num-btn.clear {
-      grid-column: span 3;
       height: clamp(36px, 7dvh, 46px);
       height: clamp(36px, 7vh, 46px);
-      font-size: .85rem;
+      font-size: .82rem;
       font-weight: 700;
       background: var(--red-bg);
       color: var(--red);
       border-color: transparent;
-      letter-spacing: .05em;
+      letter-spacing: .04em;
     }
     .num-btn.clear:active { background: #f5c6c2; transform: scale(.98); }
+    .num-btn.save {
+      grid-column: span 2;
+      height: clamp(36px, 7dvh, 46px);
+      height: clamp(36px, 7vh, 46px);
+      font-size: .82rem;
+      font-weight: 700;
+      background: var(--primary-bg);
+      color: var(--primary);
+      border-color: var(--primary);
+      letter-spacing: .03em;
+    }
+    .num-btn.save:active { background: var(--primary); color: #fff; transform: scale(.98); }
+    .num-btn.save.in-table {
+      background: var(--bg);
+      color: var(--muted);
+      border-color: var(--border);
+      pointer-events: none;
+    }
+    .num-btn.save.save-off {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+    /* Buy result boxes always in one row */
+    .result-grid-buy { grid-template-columns: repeat(3, 1fr); }
   </style>
 </head>
 <body>
@@ -608,9 +631,6 @@
   <div class="results-scroll" id="resultsScroll">
     <div class="results-placeholder" id="resultsPlaceholder">選擇觀點後輸入價格</div>
     <div class="result-grid" id="calcResult"></div>
-    <div class="add-row hidden" id="addRow">
-      <button class="add-to-table-btn" id="addBtn">存入快查</button>
-    </div>
   </div>
 
   <!-- 3. Display — fixed, directly above numpad -->
@@ -643,6 +663,7 @@
         <button class="num-btn" data-d="0">0</button>
         <button class="num-btn action" data-action="back">⌫</button>
         <button class="num-btn clear" data-action="clear">清除</button>
+        <button class="num-btn save save-off" id="saveBtn" data-action="save">存入快查</button>
       </div>
     </div>
   </div>
@@ -728,7 +749,7 @@
     tableItems = [...tableItems, price].sort((a, b) => a - b);
     saveItems();
     rebuildTableRows();
-    refreshAddBtn();
+    refreshSaveBtn();
     refreshDynRow();
   }
 
@@ -738,7 +759,7 @@
     saveItems();
     const row = document.querySelector(`tr[data-price="${price}"]`);
     if (row) row.remove();
-    refreshAddBtn();
+    refreshSaveBtn();
     refreshDynRow();
   }
 
@@ -746,7 +767,7 @@
     tableItems = [...DEFAULT_PRICES];
     saveItems();
     rebuildTableRows();
-    refreshAddBtn();
+    refreshSaveBtn();
     refreshDynRow();
   }
 
@@ -810,13 +831,27 @@
     refreshDisplay();
     refreshResults();
     refreshDynRow();
-    refreshAddBtn();
+    refreshSaveBtn();
     refreshStatus();
     refreshNumpad();
   }
 
   function refreshNumpad() {
     document.getElementById('numpad').classList.toggle('disabled', !mode);
+  }
+
+  function refreshSaveBtn() {
+    const btn   = document.getElementById('saveBtn');
+    const price = getPrice();
+    btn.classList.remove('in-table', 'save-off');
+    if (mode !== 'buy' || !price) {
+      btn.textContent = '存入快查';
+      btn.classList.add('save-off');
+      return;
+    }
+    const inTable = isInTable(price);
+    btn.textContent = inTable ? '✓ 已存入' : '存入快查';
+    if (inTable) btn.classList.add('in-table');
   }
 
   function refreshDisplay() {
@@ -847,29 +882,20 @@
 
     if (mode === 'buy') {
       const r = calcBuy(price);
+      box.className = 'result-grid result-grid-buy';
       box.innerHTML = `
-        <div class="r-box neutral">
-          <div class="r-label">理論成本（元）</div>
-          <div class="r-val">${r.theoretical.toFixed(2)}</div>
-          <div class="r-sub">${price} × ${(TOTAL*100).toFixed(3)}%</div>
-        </div>
-        <div class="r-box neutral">
-          <div class="r-label">最小整跳價差</div>
-          <div class="r-val">${fmt(r.spread, r.tick)}</div>
-          <div class="r-sub">升降單位 ${r.tick} 元</div>
-        </div>
         <div class="r-box sell">
           <div class="r-label">最低賣出價</div>
           <div class="r-val">${fmt(r.minSell, r.tick)}</div>
-          <div class="r-sub">+ ${fmt(r.spread, r.tick)} 元</div>
+          <div class="r-sub">+${fmt(r.spread, r.tick)} 元</div>
         </div>
         <div class="r-box buyback">
-          <div class="r-label">最高買回（最低賣後）</div>
+          <div class="r-label">最高買回</div>
           <div class="r-val">${fmt(r.maxBB, r.tickBB)}</div>
           <div class="r-sub">損益兩平</div>
         </div>
         <div class="r-box save">
-          <div class="r-label">省錢回補上限（現價賣）</div>
+          <div class="r-label">省錢回補上限</div>
           <div class="r-val">${fmt(r.maxSave, r.tickSave)}</div>
           <div class="r-sub">低於此值才省</div>
         </div>
@@ -899,17 +925,6 @@
         </div>
       `;
     }
-  }
-
-  function refreshAddBtn() {
-    const addRow = document.getElementById('addRow');
-    const addBtn = document.getElementById('addBtn');
-    const price  = getPrice();
-    if (mode !== 'buy' || !price) { addRow.classList.add('hidden'); return; }
-    addRow.classList.remove('hidden');
-    const inTable = isInTable(price);
-    addBtn.textContent = inTable ? '✓ 已存入' : '存入快查';
-    addBtn.classList.toggle('in-table', inTable);
   }
 
   function refreshDynRow() {
@@ -988,7 +1003,7 @@
       const newMode = btn.dataset.mode;
       document.querySelectorAll('.persp-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      if (newMode !== mode) { mode = newMode; input = ''; }
+      mode = newMode;
       if (!isOpen) openPanel();
       refresh();
     });
@@ -1000,11 +1015,10 @@
     if (btn.dataset.d !== undefined) pressDigit(btn.dataset.d === '．' ? '.' : btn.dataset.d);
     else if (btn.dataset.action === 'back')  pressBack();
     else if (btn.dataset.action === 'clear') pressClear();
-  });
-
-  document.getElementById('addBtn').addEventListener('click', () => {
-    const price = getPrice();
-    if (price && mode === 'buy') addItem(price);
+    else if (btn.dataset.action === 'save') {
+      const price = getPrice();
+      if (price && mode === 'buy') addItem(price);
+    }
   });
 
   document.getElementById('refBody').addEventListener('click', e => {
