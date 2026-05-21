@@ -237,21 +237,18 @@
     }
 
     /* ═══════════════════════════════════════════════════
-       SLIDE PANEL  ── full viewport, opened via + button
-       Layout (flex-column, top→bottom):
-         [header] fixed
-         [results-scroll] flex:1 scrollable
-         [display] fixed
-         [numpad]  fixed
+       SLIDE PANEL  ── bottom-anchored sheet, auto-height
+       Panel grows upward from bottom; numpad stays at bottom.
     ═══════════════════════════════════════════════════ */
     .tb-panel {
       position: fixed;
       left: 0; right: 0;
       bottom: 0;
-      height: 100vh;
-      height: 100dvh;
+      max-height: 96dvh;
+      max-height: 96vh;
       background: var(--card);
       border-top: 1px solid var(--border);
+      box-shadow: 0 -4px 30px rgba(0,0,0,.12);
       z-index: 200;
       display: flex;
       flex-direction: column;
@@ -291,20 +288,16 @@
     }
     .tb-close:hover { border-color: var(--red); color: var(--red); }
 
-    /* Results area — flex:1 so it fills space between header and display */
+    /* Results area — shrinks to content; panel auto-sizes */
     .results-scroll {
-      flex: 1;
-      min-height: 0;       /* critical: allows flex child to shrink below content height */
+      flex: 0 0 auto;
       overflow-y: auto;
+      max-height: 38dvh;
+      max-height: 38vh;
       padding: .55rem 1rem .4rem;
-      display: flex;
-      flex-direction: column;
     }
     .results-placeholder {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      padding: .5rem 0;
       color: var(--muted);
       font-size: .82rem;
       text-align: center;
@@ -483,8 +476,9 @@
       pointer-events: none;
     }
     .r-box .r-val2  { font-size: 1.2rem; font-weight: 800; line-height: 1.5; }
-    /* Buy result boxes: 2 columns */
-    .result-grid-buy { grid-template-columns: repeat(2, 1fr); }
+    /* Result grid column presets */
+    .result-grid-buy  { grid-template-columns: repeat(2, 1fr); }
+    .result-grid-sell { grid-template-columns: repeat(3, 1fr); }
   </style>
 </head>
 <body>
@@ -818,21 +812,22 @@
       `;
     } else {
       const r = calcSell(price);
+      box.className = 'result-grid result-grid-sell';
       box.innerHTML = `
         <div class="r-box neutral">
-          <div class="r-label">到手金額（估）</div>
+          <div class="r-label">到手金額</div>
           <div class="r-val">${r.netProceeds.toFixed(2)}</div>
-          <div class="r-sub">${price} × ${((1-SELL_FEE-SELL_TAX)*100).toFixed(4)}%</div>
+          <div class="r-sub">扣費後</div>
         </div>
         <div class="r-box neutral">
-          <div class="r-label">手續費 + 稅（估）</div>
+          <div class="r-label">費用合計</div>
           <div class="r-val">${r.fees.toFixed(2)}</div>
-          <div class="r-sub">${price} × ${((SELL_FEE+SELL_TAX)*100).toFixed(4)}%</div>
+          <div class="r-sub">手續費＋稅</div>
         </div>
         <div class="r-box save">
-          <div class="r-label">省錢回補上限</div>
+          <div class="r-label">省錢回補</div>
           <div class="r-val">${fmt(r.threshold, r.tickThresh)}</div>
-          <div class="r-sub">低於此價買回才省</div>
+          <div class="r-sub">低於此價才省</div>
         </div>
       `;
     }
