@@ -472,8 +472,9 @@
       opacity: 0.3;
       pointer-events: none;
     }
-    /* Buy result boxes always in one row */
-    .result-grid-buy { grid-template-columns: repeat(3, 1fr); }
+    .r-box .r-val2  { font-size: 1.2rem; font-weight: 800; line-height: 1.5; }
+    /* Buy result boxes: 2 columns */
+    .result-grid-buy { grid-template-columns: repeat(2, 1fr); }
   </style>
 </head>
 <body>
@@ -794,15 +795,11 @@
       const r = calcBuy(price);
       box.className = 'result-grid result-grid-buy';
       box.innerHTML = `
-        <div class="r-box sell">
-          <div class="r-label">最低賣出價</div>
-          <div class="r-val">${fmt(r.minSell, r.tick)}</div>
-          <div class="r-sub">+${fmt(r.spread, r.tick)} 元</div>
-        </div>
-        <div class="r-box buyback">
-          <div class="r-label">最高買回</div>
-          <div class="r-val">${fmt(r.maxBB, r.tickBB)}</div>
-          <div class="r-sub">損益兩平</div>
+        <div class="r-box neutral">
+          <div class="r-label">打平區間</div>
+          <div class="r-val" style="color:var(--green)">${fmt(r.minSell, r.tick)}</div>
+          <div class="r-val2" style="color:var(--orange)">${fmt(r.maxBB, r.tickBB)}</div>
+          <div class="r-sub">▲最低賣出 / ▼最高買回</div>
         </div>
         <div class="r-box save">
           <div class="r-label">省錢回補上限</div>
