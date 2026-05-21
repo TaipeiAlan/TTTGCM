@@ -15,6 +15,8 @@
       --green-bg: #e6f4ef;
       --red: #c0392b;
       --red-bg: #fdecea;
+      --orange: #b45309;
+      --orange-bg: #fef3c7;
       --text: #1a1d23;
       --muted: #6b7280;
       --yellow-bg: #fefce8;
@@ -40,7 +42,7 @@
     .page-header p  { opacity: .75; font-size: .9rem; margin-top: .25rem; }
 
     /* ── Layout ── */
-    .wrap { max-width: 860px; margin: 0 auto; padding: 1.2rem .9rem 2rem; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 1.2rem .9rem 2rem; }
 
     /* ── Fee pills ── */
     .fee-bar {
@@ -67,33 +69,6 @@
       font-size: .9rem;
       color: var(--text);
     }
-
-    /* ── 2290 Example ── */
-    .example-card {
-      background: var(--primary);
-      color: #fff;
-      border-radius: 12px;
-      padding: 1.2rem 1.4rem;
-      margin-bottom: 1.1rem;
-    }
-    .example-card .eg-title {
-      font-size: .8rem;
-      opacity: .7;
-      letter-spacing: .05em;
-      text-transform: uppercase;
-      margin-bottom: .9rem;
-    }
-    .eg-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: .8rem;
-      text-align: center;
-    }
-    .eg-cell .label  { font-size: .75rem; opacity: .65; margin-bottom: .2rem; }
-    .eg-cell .val    { font-size: 1.65rem; font-weight: 800; line-height: 1; }
-    .eg-cell .sub    { font-size: .7rem; opacity: .55; margin-top: .2rem; }
-    .eg-cell.hi .val { color: #86efac; }   /* green tint for sell */
-    .eg-cell.lo .val { color: #fca5a5; }   /* red tint for buyback */
 
     /* ── Calculator ── */
     .card {
@@ -135,7 +110,7 @@
 
     .result-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
       gap: .8rem;
     }
     .r-box {
@@ -143,14 +118,16 @@
       padding: .9rem 1rem;
       text-align: center;
     }
-    .r-box .r-label { font-size: .75rem; color: var(--muted); margin-bottom: .35rem; }
-    .r-box .r-val   { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .r-box .r-label { font-size: .72rem; color: var(--muted); margin-bottom: .35rem; line-height: 1.4; }
+    .r-box .r-val   { font-size: 1.9rem; font-weight: 800; line-height: 1; }
     .r-box .r-sub   { font-size: .7rem; color: var(--muted); margin-top: .3rem; }
     .r-box.neutral  { background: var(--bg); }
     .r-box.sell     { background: var(--green-bg); }
     .r-box.sell .r-val   { color: var(--green); }
-    .r-box.buyback  { background: var(--red-bg); }
-    .r-box.buyback .r-val { color: var(--red); }
+    .r-box.buyback  { background: var(--orange-bg); }
+    .r-box.buyback .r-val { color: var(--orange); }
+    .r-box.save     { background: var(--red-bg); }
+    .r-box.save .r-val   { color: var(--red); }
 
     /* ── Table ── */
     .table-wrap { overflow-x: auto; }
@@ -162,24 +139,37 @@
     thead th {
       padding: .6rem 1rem;
       text-align: right;
-      font-size: .75rem;
+      font-size: .72rem;
       color: var(--muted);
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: .04em;
+      letter-spacing: .03em;
       background: var(--bg);
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
+      line-height: 1.4;
     }
     thead th:first-child { text-align: left; }
     tbody tr { border-bottom: 1px solid var(--border); }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--primary-bg); }
-    tbody tr.highlight { background: var(--yellow-bg); }
-    tbody tr.highlight td:first-child::after {
-      content: ' ★';
-      color: var(--yellow-border);
+
+    /* dynamic (calculator) row */
+    .dyn-row { background: var(--primary-bg); }
+    .dyn-row td { font-weight: 700; }
+    .dyn-row:hover { background: #dce9fb; }
+    .dyn-label {
+      display: inline-block;
+      font-size: .68rem;
+      font-weight: 700;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 3px;
+      padding: 0 .35rem;
+      margin-right: .35rem;
+      vertical-align: middle;
     }
+
     tbody td {
       padding: .65rem 1rem;
       text-align: right;
@@ -189,8 +179,9 @@
     .td-tick   { color: var(--muted); font-size: .8rem; }
     .td-spread { color: var(--muted); }
     .td-spread strong { color: var(--text); }
-    .td-sell   { color: var(--green); font-weight: 700; }
-    .td-buy    { color: var(--red);   font-weight: 700; }
+    .td-sell   { color: var(--green);  font-weight: 700; }
+    .td-bb     { color: var(--orange); font-weight: 700; }
+    .td-save   { color: var(--red);    font-weight: 700; }
 
     /* ── Note ── */
     .note {
@@ -200,7 +191,7 @@
       padding: .8rem 1rem;
       font-size: .82rem;
       color: var(--muted);
-      line-height: 1.7;
+      line-height: 1.8;
     }
     .note strong { color: var(--text); }
 
@@ -216,7 +207,7 @@
 
 <div class="page-header">
   <h1>股票買賣成本試算</h1>
-  <p>打平門檻 ‧ 最低賣出價 ‧ 最高買回價</p>
+  <p>打平門檻 ‧ 最低賣出價 ‧ 買回省錢門檻</p>
 </div>
 
 <div class="wrap">
@@ -228,12 +219,6 @@
     <span class="pill">證交稅 0.3%（賣出）</span>
     <span class="eq">=</span>
     <span class="total">合計 0.585%（速記 0.6%）</span>
-  </div>
-
-  <!-- 2290 example, filled by JS -->
-  <div class="example-card">
-    <div class="eg-title">📌 實際範例</div>
-    <div class="eg-grid" id="egGrid"></div>
   </div>
 
   <!-- Interactive calculator -->
@@ -257,23 +242,31 @@
         <thead>
           <tr>
             <th>買入價（元）</th>
-            <th>升降單位</th>
-            <th>約需價差</th>
-            <th>最低賣出價</th>
-            <th>最高買回價</th>
+            <th>升降<br>單位</th>
+            <th>約需價差<br>理論 → 整跳</th>
+            <th>最低<br>賣出價</th>
+            <th>最高買回<br>（最低賣後）</th>
+            <th>省錢回補上限<br>（現價直接賣）</th>
           </tr>
         </thead>
-        <tbody id="refBody"></tbody>
+        <tbody id="refBody">
+          <tr id="dynRow" class="dyn-row">
+            <td colspan="6" style="text-align:center;color:var(--muted);font-size:.8rem;padding:.5rem;">
+              輸入價格後自動顯示
+            </td>
+          </tr>
+        </tbody>
       </table>
     </div>
   </div>
 
   <div class="note">
-    <strong>注意事項</strong><br>
-    • 手續費最低收費 20 元，低價股或小量交易實際成本較高，試算結果僅供參考。<br>
-    • 升降單位：＜10元 → 0.01｜10–50 → 0.1｜50–100 → 0.5｜100–500 → 1｜500–1000 → 5｜≥1000 → 10<br>
-    • 最低賣出價為能覆蓋雙向手續費與交易稅的最小 tick 倍數。<br>
-    • 最高買回價為賣出後仍能損益兩平的最高可買回價格。
+    <strong>欄位說明</strong><br>
+    • <strong>最低賣出價</strong>：賣出後能覆蓋雙向手續費與交易稅的最小整跳價（打平門檻）。<br>
+    • <strong>最高買回（最低賣後）</strong>：以最低賣出價賣出後，買回不虧損的最高價格。<br>
+    • <strong>省錢回補上限（現價直接賣）</strong>：若以現價直接賣出，買回價格需低於此值才算真的省下費用。<br>
+    • 手續費最低收費 20 元，低價股或小量交易實際成本較高，試算僅供參考。<br>
+    • 升降單位：＜10 → 0.01｜10–50 → 0.1｜50–100 → 0.5｜100–500 → 1｜500–1000 → 5｜≥1000 → 10
   </div>
 
 </div>
@@ -315,55 +308,21 @@
 
   function calc(buy) {
     const tick        = tickOf(buy);
-    const theoretical = buy * TOTAL;                          // exact cost
-    const spread      = ceilTick(theoretical, tick);          // rounded-up ticks
+    const theoretical = buy * TOTAL;
+    const spread      = ceilTick(theoretical, tick);
     const minSell     = buy + spread;
 
-    // sell at minSell, buy back at R: break-even when
-    //   minSell × (1 - SELL_FEE - SELL_TAX) = R × (1 + BUY_FEE)
-    const exactBuyback = minSell * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
-    const tickBB       = tickOf(exactBuyback);
-    const maxBuyback   = floorTick(exactBuyback, tickBB);
+    // max buyback after selling at minSell (break-even)
+    const exactBB  = minSell * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const tickBB   = tickOf(exactBB);
+    const maxBB    = floorTick(exactBB, tickBB);
 
-    return { buy, tick, theoretical, spread, minSell, maxBuyback, tickBB };
-  }
+    // max buyback after selling at current price (actually saves money)
+    const exactSave = buy * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const tickSave  = tickOf(exactSave);
+    const maxSave   = floorTick(exactSave, tickSave);
 
-  /* ── 2290 example card ── */
-  function renderExample(price) {
-    const r = calc(price);
-    const grid = document.getElementById('egGrid');
-    grid.innerHTML = `
-      <div class="eg-cell">
-        <div class="label">買入價</div>
-        <div class="val">${price}</div>
-        <div class="sub">元</div>
-      </div>
-      <div class="eg-cell">
-        <div class="label">理論成本</div>
-        <div class="val">${r.theoretical.toFixed(1)}</div>
-        <div class="sub">${price} × 0.585%</div>
-      </div>
-      <div class="eg-cell">
-        <div class="label">升降單位</div>
-        <div class="val">${r.tick}</div>
-        <div class="sub">元 / tick</div>
-      </div>
-      <div class="eg-cell">
-        <div class="label">最小整跳價差</div>
-        <div class="val">${fmt(r.spread, r.tick)}</div>
-        <div class="sub">≥ ${r.theoretical.toFixed(1)} 進位</div>
-      </div>
-      <div class="eg-cell hi">
-        <div class="label">最低賣出價</div>
-        <div class="val">${fmt(r.minSell, r.tick)}</div>
-        <div class="sub">${price} + ${fmt(r.spread, r.tick)}</div>
-      </div>
-      <div class="eg-cell lo">
-        <div class="label">最高買回價</div>
-        <div class="val">${fmt(r.maxBuyback, r.tickBB)}</div>
-        <div class="sub">賣出後損益兩平</div>
-      </div>
-    `;
+    return { buy, tick, theoretical, spread, minSell, maxBB, tickBB, maxSave, tickSave };
   }
 
   /* ── Interactive calculator ── */
@@ -388,10 +347,29 @@
         <div class="r-sub">買入 ${fmt(buy, r.tick)} + ${fmt(r.spread, r.tick)}</div>
       </div>
       <div class="r-box buyback">
-        <div class="r-label">最高買回價</div>
-        <div class="r-val">${fmt(r.maxBuyback, r.tickBB)}</div>
-        <div class="r-sub">從 ${fmt(r.minSell, r.tick)} 賣出後</div>
+        <div class="r-label">最高買回（最低賣後）</div>
+        <div class="r-val">${fmt(r.maxBB, r.tickBB)}</div>
+        <div class="r-sub">從 ${fmt(r.minSell, r.tick)} 賣出後損益兩平</div>
       </div>
+      <div class="r-box save">
+        <div class="r-label">省錢回補上限（現價直接賣）</div>
+        <div class="r-val">${fmt(r.maxSave, r.tickSave)}</div>
+        <div class="r-sub">低於此價回補才算省下費用</div>
+      </div>
+    `;
+    renderDynRow(buy, r);
+  }
+
+  /* ── Dynamic table row ── */
+  function renderDynRow(buy, r) {
+    const tr = document.getElementById('dynRow');
+    tr.innerHTML = `
+      <td><span class="dyn-label">試算</span>${fmt(buy, r.tick)}</td>
+      <td class="td-tick">${r.tick}</td>
+      <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
+      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
+      <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
+      <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
     `;
   }
 
@@ -410,20 +388,19 @@
     TABLE_PRICES.forEach(price => {
       const r  = calc(price);
       const tr = document.createElement('tr');
-      if (price === 2290) tr.classList.add('highlight');
       tr.innerHTML = `
         <td>${price}</td>
         <td class="td-tick">${r.tick}</td>
         <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
         <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
-        <td class="td-buy">${fmt(r.maxBuyback, r.tickBB)}</td>
+        <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
+        <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
       `;
       tbody.appendChild(tr);
     });
   }
 
   /* ── Init ── */
-  renderExample(2290);
   renderCalc(100);
   buildTable();
 
