@@ -36,9 +36,9 @@
     .wrap {
       max-width: 960px;
       margin: 0 auto;
-      padding: 1rem .9rem;
-      padding-top: calc(1rem + env(safe-area-inset-top, 0px));
-      padding-bottom: calc(var(--bar-h) + 1rem);
+      padding: .6rem .5rem;
+      padding-top: calc(.6rem + env(safe-area-inset-top, 0px));
+      padding-bottom: 1.5rem;
     }
 
     /* ── Card ── */
@@ -78,6 +78,19 @@
       color: var(--muted);
     }
     .btn-sm.ghost:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-add {
+      padding: .28rem .62rem;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      border: 1.5px solid var(--primary);
+      background: var(--primary-bg);
+      color: var(--primary);
+      transition: all .15s;
+    }
+    .btn-add:hover { background: var(--primary); color: #fff; }
 
     /* ── ⋯ Menu ── */
     .menu-wrap { position: relative; }
@@ -114,7 +127,7 @@
     .table-wrap { overflow-x: auto; max-height: 58vh; overflow-y: auto; }
     table { width: 100%; border-collapse: collapse; font-size: .86rem; }
     thead th {
-      padding: .55rem .9rem;
+      padding: .45rem .55rem;
       text-align: right;
       font-size: .7rem;
       color: var(--muted);
@@ -154,9 +167,9 @@
       vertical-align: middle;
     }
 
-    tbody td { padding: .6rem .9rem; text-align: right; white-space: nowrap; }
+    tbody td { padding: .5rem .55rem; text-align: right; white-space: nowrap; }
     tbody td:first-child { text-align: left; font-weight: 700; }
-    tbody td.td-del { padding: .3rem .4rem; text-align: center; }
+    tbody td.td-del { padding: .3rem .3rem; text-align: center; }
 
     .del-btn {
       background: none;
@@ -213,53 +226,7 @@
     }
 
     /* ═══════════════════════════════════════════════════
-       COMPACT BAR  ── always-visible strip at bottom
-    ═══════════════════════════════════════════════════ */
-    .tb-bar {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      height: var(--bar-h);
-      background: var(--card);
-      border-top: 2px solid var(--primary);
-      box-shadow: 0 -2px 14px rgba(0,0,0,.1);
-      z-index: 201;
-      display: flex;
-      align-items: center;
-      gap: .7rem;
-      padding: 0 1rem;
-      cursor: pointer;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .tb-icon { font-size: 1.1rem; flex-shrink: 0; }
-    .tb-status {
-      flex: 1;
-      font-size: .8rem;
-      color: var(--muted);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      min-width: 0;
-    }
-    .tb-status strong { color: var(--primary); }
-    .tb-toggle {
-      flex-shrink: 0;
-      background: var(--primary-bg);
-      border: 1.5px solid var(--primary);
-      color: var(--primary);
-      border-radius: 6px;
-      padding: .22rem .65rem;
-      font-size: .78rem;
-      font-weight: 700;
-      cursor: pointer;
-      letter-spacing: .02em;
-      transition: all .15s;
-      white-space: nowrap;
-    }
-    .tb-toggle:hover { background: var(--primary); color: #fff; }
-
-    /* ═══════════════════════════════════════════════════
-       SLIDE PANEL  ── fills viewport above the compact bar
+       SLIDE PANEL  ── full viewport, opened via + button
        Layout (flex-column, top→bottom):
          [header] fixed
          [results-scroll] flex:1 scrollable
@@ -269,16 +236,14 @@
     .tb-panel {
       position: fixed;
       left: 0; right: 0;
-      bottom: var(--bar-h);
-      /* height fills from bar top to viewport top */
-      height: calc(100vh - var(--bar-h));
-      height: calc(100dvh - var(--bar-h));
+      bottom: 0;
+      height: 100vh;
+      height: 100dvh;
       background: var(--card);
       border-top: 1px solid var(--border);
       z-index: 200;
       display: flex;
       flex-direction: column;
-      /* slide down to hide (behind compact bar) */
       transform: translateY(100%);
       transition: transform .28s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -519,6 +484,7 @@
     <div class="card-head">
       <span>股票買賣成本快查</span>
       <div class="card-head-actions">
+        <button class="btn-add" id="addPanelBtn" title="開啟試算">＋</button>
         <div class="menu-wrap" id="menuWrap">
           <button class="btn-sm ghost" id="menuTrigger">⋯</button>
           <div class="menu-dropdown hidden" id="menuDropdown">
@@ -532,18 +498,17 @@
       <table id="refTable" class="hide-tick">
         <thead>
           <tr>
-            <th>買入價（元）</th>
+            <th>買入價</th>
             <th class="th-tick">升降<br>單位</th>
-            <th>約需價差<br>理論 → 整跳</th>
-            <th>最低<br>賣出價</th>
-            <th>最高買回<br>（最低賣後）</th>
-            <th>省錢回補上限<br>（現價直接賣）</th>
+            <th>約需價差</th>
+            <th>最低賣出</th>
+            <th>最高買回</th>
             <th class="th-del"></th>
           </tr>
         </thead>
         <tbody id="refBody">
           <tr id="dynRow" class="dyn-row hidden">
-            <td colspan="7"></td>
+            <td colspan="6"></td>
           </tr>
         </tbody>
       </table>
@@ -552,10 +517,8 @@
 
   <div class="note">
     手續費 0.1425% × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>0.585%</strong>（速記 <strong>0.6%</strong>）<br><br>
-    <strong>欄位說明</strong><br>
-    • <strong>最低賣出價</strong>：覆蓋雙向手續費與交易稅的最小整跳賣出價（打平門檻）。<br>
-    • <strong>最高買回（最低賣後）</strong>：以最低賣出價賣出後，損益兩平的最高買回價。<br>
-    • <strong>省錢回補上限（現價直接賣）</strong>：若以現價直接賣出，買回低於此值才真正省費用。<br>
+    • <strong>最低賣出</strong>：打平門檻，含雙向手續費與交易稅。<br>
+    • <strong>最高買回</strong>：以最低賣出後損益兩平的最高買回價。<br>
     • 手續費最低收費 20 元，低價股實際成本較高，試算僅供參考。
   </div>
 
@@ -564,16 +527,7 @@
 <footer>本試算僅供參考，不構成投資建議。</footer>
 
 <!-- ══════════════════════════════════════
-     COMPACT BAR — always at bottom
-══════════════════════════════════════ -->
-<div class="tb-bar" id="tbBar">
-  <span class="tb-icon">🧮</span>
-  <span class="tb-status" id="tbStatus">點此展開試算</span>
-  <button class="tb-toggle" id="tbToggle">▲ 展開</button>
-</div>
-
-<!-- ══════════════════════════════════════
-     SLIDE PANEL — fills screen above bar
+     SLIDE PANEL — full screen, opened via +
      Order (top→bottom):
        header · results-scroll · display · numpad
 ══════════════════════════════════════ -->
@@ -740,7 +694,6 @@
       <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
       <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
       <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
-      <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
       <td class="td-del">
         <button class="del-btn" data-price="${price}" title="移除">✕</button>
       </td>
@@ -790,7 +743,6 @@
     refreshResults();
     refreshDynRow();
     refreshSaveBtn();
-    refreshStatus();
     refreshNumpad();
   }
 
@@ -894,7 +846,6 @@
       <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
       <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
       <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
-      <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
       <td class="td-del">
         <button class="add-here-btn${inTable ? ' in-table' : ''}" id="addHereBtn">
           ${inTable ? '✓' : '存入快查'}
@@ -906,49 +857,27 @@
     }
   }
 
-  function refreshStatus() {
-    const el    = document.getElementById('tbStatus');
-    const price = getPrice();
-    if (!mode) { el.innerHTML = '點此展開試算'; return; }
-    if (!price) {
-      el.innerHTML = `<strong>${mode === 'buy' ? '買入' : '賣出'}觀點</strong> · 輸入價格`;
-      return;
-    }
-    if (mode === 'buy') {
-      const r = calcBuy(price);
-      el.innerHTML = `<strong>買入 ${fmt(price, r.tick)}</strong> → 最低賣 ${fmt(r.minSell, r.tick)} · 省錢回補 ${fmt(r.maxSave, r.tickSave)}`;
-    } else {
-      const r = calcSell(price);
-      el.innerHTML = `<strong>賣出 ${price}</strong> → 省錢回補上限 ${fmt(r.threshold, r.tickThresh)} · 需跌 ${fmt(r.drop, r.tick)} 元`;
-    }
-  }
-
   /* ── Panel open / close ── */
   let isOpen = false;
 
   function openPanel() {
     isOpen = true;
     document.getElementById('tbPanel').classList.add('open');
-    document.getElementById('tbToggle').textContent = '▼ 收合';
   }
 
   function closePanel() {
     isOpen = false;
     document.getElementById('tbPanel').classList.remove('open');
-    document.getElementById('tbToggle').textContent = '▲ 展開';
   }
 
   /* ── Event listeners ── */
-  document.getElementById('tbBar').addEventListener('click', () => {
-    isOpen ? closePanel() : openPanel();
+  document.getElementById('addPanelBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    openPanel();
   });
   document.getElementById('tbClose').addEventListener('click', e => {
     e.stopPropagation();
     closePanel();
-  });
-  document.getElementById('tbToggle').addEventListener('click', e => {
-    e.stopPropagation();
-    isOpen ? closePanel() : openPanel();
   });
 
   document.querySelectorAll('.persp-btn').forEach(btn => {
