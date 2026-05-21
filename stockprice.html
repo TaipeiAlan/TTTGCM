@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>股票買賣成本試算</title>
   <style>
     :root {
@@ -32,44 +32,14 @@
       font-size: 15px;
     }
 
-    /* ── Page header ── */
-    .page-header {
-      background: var(--primary);
-      color: #fff;
-      padding: 1.2rem 1rem 1rem;
-      text-align: center;
-    }
-    .page-header h1 { font-size: 1.4rem; font-weight: 700; }
-    .page-header p  { opacity: .7; font-size: .85rem; margin-top: .2rem; }
-
     /* ── Scrollable page area ── */
     .wrap {
       max-width: 960px;
       margin: 0 auto;
       padding: 1rem .9rem;
+      padding-top: calc(1rem + env(safe-area-inset-top, 0px));
       padding-bottom: calc(var(--bar-h) + 1rem);
     }
-
-    /* ── Fee pills ── */
-    .fee-bar {
-      display: flex; flex-wrap: wrap; gap: .5rem;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: .8rem 1.1rem;
-      margin-bottom: 1rem;
-      align-items: center;
-    }
-    .fee-bar .pill {
-      background: var(--primary-bg);
-      color: var(--primary);
-      border-radius: 999px;
-      padding: .2rem .75rem;
-      font-size: .8rem;
-      font-weight: 600;
-    }
-    .fee-bar .eq { color: var(--muted); font-size: .82rem; }
-    .fee-bar .total { margin-left: auto; font-weight: 700; font-size: .88rem; }
 
     /* ── Card ── */
     .card {
@@ -542,25 +512,12 @@
 </head>
 <body>
 
-<div class="page-header">
-  <h1>股票買賣成本試算</h1>
-  <p>打平門檻 ‧ 最低賣出價 ‧ 省錢回補門檻</p>
-</div>
-
 <div class="wrap">
-
-  <div class="fee-bar">
-    <span class="pill">手續費 0.1425% × 2</span>
-    <span class="eq">+</span>
-    <span class="pill">證交稅 0.3%（賣出）</span>
-    <span class="eq">=</span>
-    <span class="total">合計 0.585%（速記 0.6%）</span>
-  </div>
 
   <!-- Quick reference table -->
   <div class="card">
     <div class="card-head">
-      <span>常見價位快查表</span>
+      <span>股票買賣成本快查</span>
       <div class="card-head-actions">
         <div class="menu-wrap" id="menuWrap">
           <button class="btn-sm ghost" id="menuTrigger">⋯</button>
@@ -594,6 +551,7 @@
   </div>
 
   <div class="note">
+    手續費 0.1425% × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>0.585%</strong>（速記 <strong>0.6%</strong>）<br><br>
     <strong>欄位說明</strong><br>
     • <strong>最低賣出價</strong>：覆蓋雙向手續費與交易稅的最小整跳賣出價（打平門檻）。<br>
     • <strong>最高買回（最低賣後）</strong>：以最低賣出價賣出後，損益兩平的最高買回價。<br>
@@ -844,12 +802,13 @@
     const btn   = document.getElementById('saveBtn');
     const price = getPrice();
     btn.classList.remove('in-table', 'save-off');
-    if (mode !== 'buy' || !price) {
+    if (!mode || !price) {
       btn.textContent = '存入快查';
       btn.classList.add('save-off');
       return;
     }
-    const inTable = isInTable(price);
+    const savePrice = mode === 'buy' ? price : calcSell(price).threshold;
+    const inTable   = isInTable(savePrice);
     btn.textContent = inTable ? '✓ 已存入' : '存入快查';
     if (inTable) btn.classList.add('in-table');
   }
@@ -917,11 +876,6 @@
           <div class="r-label">省錢回補上限</div>
           <div class="r-val">${fmt(r.threshold, r.tickThresh)}</div>
           <div class="r-sub">低於此價買回才省</div>
-        </div>
-        <div class="r-box neutral">
-          <div class="r-label">回補需再跌</div>
-          <div class="r-val">${fmt(r.drop, r.tick)}</div>
-          <div class="r-sub">元（約 ${r.dropTicks} tick）</div>
         </div>
       `;
     }
@@ -1017,7 +971,10 @@
     else if (btn.dataset.action === 'clear') pressClear();
     else if (btn.dataset.action === 'save') {
       const price = getPrice();
-      if (price && mode === 'buy') addItem(price);
+      if (price && mode) {
+        const savePrice = mode === 'buy' ? price : calcSell(price).threshold;
+        addItem(savePrice);
+      }
     }
   });
 
