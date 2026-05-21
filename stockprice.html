@@ -802,12 +802,13 @@
     const btn   = document.getElementById('saveBtn');
     const price = getPrice();
     btn.classList.remove('in-table', 'save-off');
-    if (mode !== 'buy' || !price) {
+    if (!mode || !price) {
       btn.textContent = '存入快查';
       btn.classList.add('save-off');
       return;
     }
-    const inTable = isInTable(price);
+    const savePrice = mode === 'buy' ? price : calcSell(price).threshold;
+    const inTable   = isInTable(savePrice);
     btn.textContent = inTable ? '✓ 已存入' : '存入快查';
     if (inTable) btn.classList.add('in-table');
   }
@@ -975,7 +976,10 @@
     else if (btn.dataset.action === 'clear') pressClear();
     else if (btn.dataset.action === 'save') {
       const price = getPrice();
-      if (price && mode === 'buy') addItem(price);
+      if (price && mode) {
+        const savePrice = mode === 'buy' ? price : calcSell(price).threshold;
+        addItem(savePrice);
+      }
     }
   });
 
