@@ -35,211 +35,88 @@
     .page-header {
       background: var(--primary);
       color: #fff;
-      padding: 1.4rem 1rem 1.2rem;
+      padding: 1.2rem 1rem 1rem;
       text-align: center;
     }
-    .page-header h1 { font-size: 1.5rem; font-weight: 700; }
-    .page-header p  { opacity: .75; font-size: .9rem; margin-top: .25rem; }
+    .page-header h1 { font-size: 1.4rem; font-weight: 700; }
+    .page-header p  { opacity: .7; font-size: .85rem; margin-top: .2rem; }
 
     /* ── Layout ── */
-    .wrap { max-width: 960px; margin: 0 auto; padding: 1.2rem .9rem 2rem; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 1rem .9rem 5rem; }
 
     /* ── Fee pills ── */
     .fee-bar {
-      display: flex; flex-wrap: wrap; gap: .6rem;
+      display: flex; flex-wrap: wrap; gap: .5rem;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 1rem 1.2rem;
-      margin-bottom: 1.1rem;
+      padding: .8rem 1.1rem;
+      margin-bottom: 1rem;
       align-items: center;
     }
     .fee-bar .pill {
       background: var(--primary-bg);
       color: var(--primary);
       border-radius: 999px;
-      padding: .25rem .85rem;
-      font-size: .82rem;
+      padding: .2rem .75rem;
+      font-size: .8rem;
       font-weight: 600;
     }
-    .fee-bar .eq { color: var(--muted); font-size: .85rem; }
-    .fee-bar .total {
-      margin-left: auto;
-      font-weight: 700;
-      font-size: .9rem;
-      color: var(--text);
-    }
+    .fee-bar .eq { color: var(--muted); font-size: .82rem; }
+    .fee-bar .total { margin-left: auto; font-weight: 700; font-size: .88rem; }
 
     /* ── Card ── */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
-      margin-bottom: 1.1rem;
+      margin-bottom: 1rem;
       overflow: hidden;
     }
     .card-head {
-      padding: .75rem 1.2rem;
-      font-weight: 700;
-      font-size: .95rem;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg);
-    }
-    .card-body { padding: 1.2rem; }
-
-    /* ── Perspective tabs ── */
-    .persp-tabs {
-      display: flex;
-      gap: .5rem;
-      margin-bottom: 1.1rem;
-    }
-    .persp-tab {
-      flex: 1;
-      padding: .7rem .5rem;
-      border: 2px solid var(--border);
-      border-radius: 9px;
-      background: var(--bg);
-      font-size: 1.05rem;
-      font-weight: 700;
-      cursor: pointer;
-      color: var(--muted);
-      transition: all .18s;
-      letter-spacing: .08em;
-    }
-    .persp-tab[data-mode="buy"].active {
-      border-color: var(--primary);
-      background: var(--primary);
-      color: #fff;
-    }
-    .persp-tab[data-mode="sell"].active {
-      border-color: var(--green);
-      background: var(--green);
-      color: #fff;
-    }
-
-    /* ── Calculator display ── */
-    .calc-display {
-      background: #1a1d23;
-      color: #fff;
-      border-radius: 10px;
-      padding: .8rem 1.1rem;
-      margin-bottom: .9rem;
-      display: flex;
-      align-items: baseline;
-      gap: .6rem;
-      min-height: 68px;
-    }
-    .display-label {
-      font-size: .78rem;
-      opacity: .45;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .display-val {
-      font-size: 2.4rem;
-      font-weight: 800;
-      flex: 1;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: -.01em;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .display-val.empty { opacity: .2; }
-    .display-unit {
-      font-size: .85rem;
-      opacity: .4;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    /* ── Numpad ── */
-    .numpad-wrap {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 1.1rem;
-    }
-    .numpad {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 7px;
-      width: 100%;
-      max-width: 310px;
-    }
-    .num-btn {
-      height: 60px;
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      background: var(--card);
-      font-size: 1.45rem;
-      font-weight: 600;
-      cursor: pointer;
-      color: var(--text);
       display: flex;
       align-items: center;
-      justify-content: center;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      transition: background .1s, transform .08s;
-      touch-action: manipulation;
+      justify-content: space-between;
+      padding: .7rem 1.1rem;
+      font-weight: 700;
+      font-size: .93rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      gap: .6rem;
     }
-    .num-btn:active {
-      transform: scale(.92);
-      background: var(--primary-bg);
-      border-color: var(--primary);
+    .card-head-actions { display: flex; gap: .5rem; }
+
+    /* ── Small text buttons ── */
+    .btn-sm {
+      padding: .28rem .7rem;
+      border-radius: 6px;
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid;
+      transition: all .15s;
+      white-space: nowrap;
     }
-    .num-btn.action {
-      background: #f1f3f5;
-      font-size: 1.2rem;
+    .btn-sm.ghost {
+      border-color: var(--border);
+      background: var(--card);
       color: var(--muted);
     }
-    .num-btn.action:active { background: var(--border); }
-    .num-btn.clear {
-      grid-column: span 3;
-      height: 46px;
-      font-size: .92rem;
-      font-weight: 700;
+    .btn-sm.ghost:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-sm.danger {
+      border-color: transparent;
       background: var(--red-bg);
       color: var(--red);
-      border-color: transparent;
-      letter-spacing: .06em;
     }
-    .num-btn.clear:active { background: #f5c6c2; transform: scale(.98); }
-
-    /* ── Results ── */
-    .result-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-      gap: .8rem;
-    }
-    .r-box {
-      border-radius: 8px;
-      padding: .9rem 1rem;
-      text-align: center;
-    }
-    .r-box .r-label { font-size: .72rem; color: var(--muted); margin-bottom: .35rem; line-height: 1.4; }
-    .r-box .r-val   { font-size: 1.85rem; font-weight: 800; line-height: 1; }
-    .r-box .r-sub   { font-size: .68rem; color: var(--muted); margin-top: .3rem; }
-    .r-box.neutral  { background: var(--bg); }
-    .r-box.sell     { background: var(--green-bg); }
-    .r-box.sell .r-val   { color: var(--green); }
-    .r-box.buyback  { background: var(--orange-bg); }
-    .r-box.buyback .r-val { color: var(--orange); }
-    .r-box.save     { background: var(--red-bg); }
-    .r-box.save .r-val   { color: var(--red); }
+    .btn-sm.danger:hover { background: #f5c6c2; }
 
     /* ── Table ── */
     .table-wrap { overflow-x: auto; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: .88rem;
-    }
+    table { width: 100%; border-collapse: collapse; font-size: .86rem; }
     thead th {
-      padding: .6rem 1rem;
+      padding: .55rem .9rem;
       text-align: right;
-      font-size: .72rem;
+      font-size: .7rem;
       color: var(--muted);
       font-weight: 600;
       text-transform: uppercase;
@@ -250,6 +127,7 @@
       line-height: 1.4;
     }
     thead th:first-child { text-align: left; }
+    thead th.th-del { width: 32px; padding: 0; }
     tbody tr { border-bottom: 1px solid var(--border); }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--primary-bg); }
@@ -260,23 +138,50 @@
     .dyn-row.hidden { display: none; }
     .dyn-label {
       display: inline-block;
-      font-size: .68rem;
+      font-size: .66rem;
       font-weight: 700;
       background: var(--primary);
       color: #fff;
       border-radius: 3px;
-      padding: 0 .35rem;
-      margin-right: .35rem;
+      padding: 0 .32rem;
+      margin-right: .3rem;
       vertical-align: middle;
     }
 
-    tbody td {
-      padding: .65rem 1rem;
-      text-align: right;
-      white-space: nowrap;
-    }
+    tbody td { padding: .6rem .9rem; text-align: right; white-space: nowrap; }
     tbody td:first-child { text-align: left; font-weight: 700; }
-    .td-tick   { color: var(--muted); font-size: .8rem; }
+    tbody td.td-del { padding: .3rem .4rem; text-align: center; }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: var(--border);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: .2rem .4rem;
+      border-radius: 4px;
+      transition: all .15s;
+    }
+    .del-btn:hover { background: var(--red-bg); color: var(--red); }
+
+    /* in-table add button for dyn row */
+    .add-here-btn {
+      background: none;
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+      border-radius: 5px;
+      padding: .15rem .5rem;
+      font-size: .72rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s;
+    }
+    .add-here-btn:hover { background: var(--primary); color: #fff; }
+    .add-here-btn.in-table { border-color: var(--border); color: var(--muted); cursor: default; }
+
+    .td-tick   { color: var(--muted); font-size: .78rem; }
     .td-spread { color: var(--muted); }
     .td-spread strong { color: var(--text); }
     .td-sell   { color: var(--green);  font-weight: 700; }
@@ -288,8 +193,8 @@
       background: var(--yellow-bg);
       border: 1px solid var(--yellow-border);
       border-radius: 8px;
-      padding: .8rem 1rem;
-      font-size: .82rem;
+      padding: .75rem 1rem;
+      font-size: .8rem;
       color: var(--muted);
       line-height: 1.8;
     }
@@ -298,9 +203,219 @@
     footer {
       text-align: center;
       color: var(--muted);
-      font-size: .8rem;
-      padding: 1rem;
+      font-size: .78rem;
+      padding: .8rem;
+      margin-bottom: 3.5rem;
     }
+
+    /* ═══════════════════════════════
+       TOOLBAR
+    ═══════════════════════════════ */
+    .toolbar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--card);
+      border-top: 2px solid var(--primary);
+      box-shadow: 0 -3px 20px rgba(0,0,0,.1);
+      z-index: 200;
+    }
+
+    /* compact always-visible bar */
+    .tb-bar {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      padding: .6rem 1rem;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tb-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .tb-status {
+      flex: 1;
+      font-size: .82rem;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tb-status strong { color: var(--primary); }
+    .tb-toggle {
+      flex-shrink: 0;
+      background: var(--primary-bg);
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+      border-radius: 6px;
+      padding: .2rem .65rem;
+      font-size: .78rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .03em;
+      transition: all .15s;
+    }
+    .tb-toggle:hover { background: var(--primary); color: #fff; }
+
+    /* expandable panel */
+    .tb-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .32s ease;
+    }
+    .toolbar.open .tb-panel {
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .tb-panel-inner { padding: 0 1rem 1.2rem; }
+
+    /* panel header */
+    .tb-panel-head {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .7rem 0 .8rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: .9rem;
+    }
+
+    /* Perspective tabs */
+    .persp-tabs { display: flex; gap: .4rem; flex: 1; }
+    .persp-tab {
+      flex: 1;
+      padding: .55rem .4rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all .15s;
+      letter-spacing: .06em;
+    }
+    .persp-tab[data-mode="buy"].active  { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .persp-tab[data-mode="sell"].active { border-color: var(--green);   background: var(--green);   color: #fff; }
+
+    .tb-close {
+      flex-shrink: 0;
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: .25rem .7rem;
+      font-size: .78rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .tb-close:hover { border-color: var(--red); color: var(--red); }
+
+    /* Display */
+    .calc-display {
+      background: #1a1d23;
+      color: #fff;
+      border-radius: 10px;
+      padding: .7rem 1rem;
+      margin-bottom: .85rem;
+      display: flex;
+      align-items: baseline;
+      gap: .5rem;
+      min-height: 62px;
+    }
+    .display-label { font-size: .76rem; opacity: .4; white-space: nowrap; flex-shrink: 0; }
+    .display-val {
+      font-size: 2.3rem; font-weight: 800; flex: 1;
+      text-align: right; font-variant-numeric: tabular-nums;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .display-val.empty { opacity: .2; }
+    .display-unit { font-size: .82rem; opacity: .4; white-space: nowrap; flex-shrink: 0; }
+
+    /* Results (only shown after input) */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .65rem;
+      margin-bottom: .85rem;
+    }
+    .result-grid:empty { display: none; }
+    .r-box { border-radius: 8px; padding: .75rem .9rem; text-align: center; }
+    .r-box .r-label { font-size: .7rem; color: var(--muted); margin-bottom: .3rem; line-height: 1.4; }
+    .r-box .r-val   { font-size: 1.75rem; font-weight: 800; line-height: 1; }
+    .r-box .r-sub   { font-size: .66rem; color: var(--muted); margin-top: .25rem; }
+    .r-box.neutral  { background: var(--bg); }
+    .r-box.sell     { background: var(--green-bg); }
+    .r-box.sell .r-val   { color: var(--green); }
+    .r-box.buyback  { background: var(--orange-bg); }
+    .r-box.buyback .r-val { color: var(--orange); }
+    .r-box.save     { background: var(--red-bg); }
+    .r-box.save .r-val   { color: var(--red); }
+
+    /* Add to table action */
+    .add-row {
+      display: none;
+      margin-bottom: .85rem;
+    }
+    .add-row.visible { display: block; }
+    .add-to-table-btn {
+      width: 100%;
+      padding: .6rem;
+      border-radius: 8px;
+      border: 2px solid var(--primary);
+      background: var(--primary-bg);
+      color: var(--primary);
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      letter-spacing: .04em;
+    }
+    .add-to-table-btn:hover { background: var(--primary); color: #fff; }
+    .add-to-table-btn.in-table {
+      border-color: var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      cursor: default;
+    }
+
+    /* Numpad */
+    .numpad-wrap { display: flex; justify-content: center; }
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      width: 100%;
+      max-width: 300px;
+    }
+    .num-btn {
+      height: 56px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      font-size: 1.4rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .1s, transform .08s;
+      touch-action: manipulation;
+    }
+    .num-btn:active { transform: scale(.91); background: var(--primary-bg); border-color: var(--primary); }
+    .num-btn.action { background: #f1f3f5; font-size: 1.15rem; color: var(--muted); }
+    .num-btn.action:active { background: var(--border); }
+    .num-btn.clear {
+      grid-column: span 3;
+      height: 44px;
+      font-size: .88rem;
+      font-weight: 700;
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: transparent;
+      letter-spacing: .06em;
+    }
+    .num-btn.clear:active { background: #f5c6c2; transform: scale(.98); }
   </style>
 </head>
 <body>
@@ -321,22 +436,86 @@
     <span class="total">合計 0.585%（速記 0.6%）</span>
   </div>
 
-  <!-- Interactive calculator -->
+  <!-- Quick reference table — primary content -->
   <div class="card">
-    <div class="card-head">互動試算</div>
-    <div class="card-body">
+    <div class="card-head">
+      <span>常見價位快查表</span>
+      <div class="card-head-actions">
+        <button class="btn-sm ghost" id="btnReset">還原預設</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>買入價（元）</th>
+            <th>升降<br>單位</th>
+            <th>約需價差<br>理論 → 整跳</th>
+            <th>最低<br>賣出價</th>
+            <th>最高買回<br>（最低賣後）</th>
+            <th>省錢回補上限<br>（現價直接賣）</th>
+            <th class="th-del"></th>
+          </tr>
+        </thead>
+        <tbody id="refBody">
+          <tr id="dynRow" class="dyn-row hidden">
+            <td colspan="7" style="text-align:center;color:var(--muted);font-size:.8rem"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-      <!-- Perspective tabs -->
-      <div class="persp-tabs">
-        <button class="persp-tab" data-mode="buy">買入</button>
-        <button class="persp-tab" data-mode="sell">賣出</button>
+  <div class="note">
+    <strong>欄位說明</strong><br>
+    • <strong>最低賣出價</strong>：覆蓋雙向手續費與交易稅的最小整跳賣出價（打平門檻）。<br>
+    • <strong>最高買回（最低賣後）</strong>：以最低賣出價賣出後，損益兩平的最高買回價。<br>
+    • <strong>省錢回補上限（現價直接賣）</strong>：若以現價直接賣出，買回低於此值才真正省費用。<br>
+    • 手續費最低收費 20 元，低價股實際成本較高，試算僅供參考。
+  </div>
+
+</div>
+
+<footer>本試算僅供參考，不構成投資建議。</footer>
+
+<!-- ═══════════════════════════════
+     BOTTOM TOOLBAR
+═══════════════════════════════ -->
+<div id="toolbar" class="toolbar">
+
+  <!-- Always-visible compact bar -->
+  <div class="tb-bar" id="tbBar">
+    <span class="tb-icon">🧮</span>
+    <span class="tb-status" id="tbStatus">點此展開試算</span>
+    <button class="tb-toggle" id="tbToggle">▲ 展開</button>
+  </div>
+
+  <!-- Expandable panel -->
+  <div class="tb-panel" id="tbPanel">
+    <div class="tb-panel-inner">
+
+      <!-- Panel header: tabs + close -->
+      <div class="tb-panel-head">
+        <div class="persp-tabs">
+          <button class="persp-tab" data-mode="buy">買入</button>
+          <button class="persp-tab" data-mode="sell">賣出</button>
+        </div>
+        <button class="tb-close" id="tbClose">✕ 收合</button>
       </div>
 
       <!-- Display -->
-      <div class="calc-display" id="calcDisplay">
-        <span class="display-label" id="displayLabel">—</span>
+      <div class="calc-display">
+        <span class="display-label" id="displayLabel">請選擇觀點</span>
         <span class="display-val empty" id="displayVal">0</span>
-        <span class="display-unit" id="displayUnit">元</span>
+        <span class="display-unit">元</span>
+      </div>
+
+      <!-- Results (appear after input) -->
+      <div class="result-grid" id="calcResult"></div>
+
+      <!-- Add to table (buy mode only) -->
+      <div class="add-row" id="addRow">
+        <button class="add-to-table-btn" id="addBtn">＋ 加入快查表</button>
       </div>
 
       <!-- Numpad -->
@@ -358,48 +537,9 @@
         </div>
       </div>
 
-      <!-- Results -->
-      <div class="result-grid" id="calcResult"></div>
-
     </div>
   </div>
-
-  <!-- Reference table -->
-  <div class="card">
-    <div class="card-head">常見價位快查表</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>買入價（元）</th>
-            <th>升降<br>單位</th>
-            <th>約需價差<br>理論 → 整跳</th>
-            <th>最低<br>賣出價</th>
-            <th>最高買回<br>（最低賣後）</th>
-            <th>省錢回補上限<br>（現價直接賣）</th>
-          </tr>
-        </thead>
-        <tbody id="refBody">
-          <tr id="dynRow" class="dyn-row hidden">
-            <td colspan="6"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="note">
-    <strong>欄位說明</strong><br>
-    • <strong>最低賣出價</strong>：賣出後覆蓋雙向手續費與交易稅的最小整跳價（打平門檻）。<br>
-    • <strong>最高買回（最低賣後）</strong>：以最低賣出價賣出後，回補不虧損的最高價格。<br>
-    • <strong>省錢回補上限（現價直接賣）</strong>：若以現價直接賣出，買回低於此值才真正省費用。<br>
-    • 手續費最低收費 20 元，低價股或小量交易實際成本較高，試算僅供參考。<br>
-    • 升降單位：＜10 → 0.01｜10–50 → 0.1｜50–100 → 0.5｜100–500 → 1｜500–1000 → 5｜≥1000 → 10
-  </div>
-
 </div>
-
-<footer>本試算僅供參考，不構成投資建議。</footer>
 
 <script>
 (function () {
@@ -408,6 +548,17 @@
   const SELL_FEE = 0.001425;
   const SELL_TAX = 0.003;
   const TOTAL    = BUY_FEE + SELL_FEE + SELL_TAX;
+
+  const DEFAULT_PRICES = [
+    1, 2, 5, 8, 9,
+    10, 12, 15, 20, 25, 30, 40,
+    50, 60, 75, 80,
+    100, 120, 150, 200, 250, 300, 400,
+    500, 600, 700, 800,
+    1000, 1200, 1500, 2000, 2290, 3000, 5000
+  ];
+
+  const STORAGE_KEY = 'stockprice_v1_items';
 
   /* ── Tick helpers ── */
   function tickOf(p) {
@@ -418,27 +569,23 @@
     if (p < 1000) return 5;
     return 10;
   }
-  function decimals(tick) {
-    if (tick >= 1) return 0;
-    return tick.toString().split('.')[1].length;
-  }
-  function fmt(v, tick) { return v.toFixed(decimals(tick)); }
-  function ceilTick(v, t) { return Math.ceil(Math.round(v / t * 1e8) / 1e8) * t; }
+  function decimals(t) { return t >= 1 ? 0 : t.toString().split('.')[1].length; }
+  function fmt(v, t)   { return v.toFixed(decimals(t)); }
+  function ceilTick(v, t)  { return Math.ceil(Math.round(v / t * 1e8) / 1e8) * t; }
   function floorTick(v, t) { return Math.floor(Math.round(v / t * 1e8) / 1e8) * t; }
 
-  /* ── Core calc ── */
+  /* ── Core calculations ── */
   function calcBuy(buy) {
     const tick        = tickOf(buy);
     const theoretical = buy * TOTAL;
     const spread      = ceilTick(theoretical, tick);
     const minSell     = buy + spread;
     const exactBB     = minSell * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
-    const tickBB      = tickOf(exactBB);
-    const maxBB       = floorTick(exactBB, tickBB);
-    const exactSave   = buy * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
-    const tickSave    = tickOf(exactSave);
-    const maxSave     = floorTick(exactSave, tickSave);
-    return { buy, tick, theoretical, spread, minSell, maxBB, tickBB, maxSave, tickSave };
+    const maxBB       = floorTick(exactBB, tickOf(exactBB));
+    const exactSave   = buy  * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const maxSave     = floorTick(exactSave, tickOf(exactSave));
+    return { buy, tick, theoretical, spread, minSell,
+             maxBB, tickBB: tickOf(exactBB), maxSave, tickSave: tickOf(exactSave) };
   }
 
   function calcSell(sell) {
@@ -446,16 +593,89 @@
     const fees        = sell * (SELL_FEE + SELL_TAX);
     const netProceeds = sell * (1 - SELL_FEE - SELL_TAX);
     const exactThresh = netProceeds / (1 + BUY_FEE);
-    const tickThresh  = tickOf(exactThresh);
-    const threshold   = floorTick(exactThresh, tickThresh);
+    const threshold   = floorTick(exactThresh, tickOf(exactThresh));
     const drop        = sell - threshold;
     const dropTicks   = Math.round(drop / tick);
-    return { sell, tick, fees, netProceeds, threshold, tickThresh, drop, dropTicks };
+    return { sell, tick, fees, netProceeds, threshold, tickThresh: tickOf(exactThresh), drop, dropTicks };
+  }
+
+  /* ── Table state ── */
+  let tableItems = loadItems();
+
+  function loadItems() {
+    try {
+      const s = localStorage.getItem(STORAGE_KEY);
+      if (s) return JSON.parse(s);
+    } catch {}
+    return [...DEFAULT_PRICES];
+  }
+
+  function saveItems() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tableItems)); } catch {}
+  }
+
+  function isInTable(price) { return tableItems.includes(price); }
+
+  function addItem(price) {
+    if (isInTable(price)) return;
+    tableItems = [...tableItems, price].sort((a, b) => a - b);
+    saveItems();
+    rebuildTableRows();
+    refreshAddBtn();
+  }
+
+  function deleteItem(price) {
+    tableItems = tableItems.filter(p => p !== price);
+    saveItems();
+    const row = document.querySelector(`tr[data-price="${price}"]`);
+    if (row) row.remove();
+    refreshAddBtn();
+    refreshDynRow();
+  }
+
+  function resetDefaults() {
+    tableItems = [...DEFAULT_PRICES];
+    saveItems();
+    rebuildTableRows();
+    refreshAddBtn();
+    refreshDynRow();
+  }
+
+  /* ── Table rendering ── */
+  function makeStaticRow(price) {
+    const r  = calcBuy(price);
+    const tr = document.createElement('tr');
+    tr.dataset.price = price;
+    tr.innerHTML = `
+      <td>${price}</td>
+      <td class="td-tick">${r.tick}</td>
+      <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
+      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
+      <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
+      <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
+      <td class="td-del">
+        <button class="del-btn" data-price="${price}" title="移除">✕</button>
+      </td>
+    `;
+    return tr;
+  }
+
+  function rebuildTableRows() {
+    const tbody   = document.getElementById('refBody');
+    const dynRow  = document.getElementById('dynRow');
+    // clear all except dynRow
+    [...tbody.querySelectorAll('tr[data-price]')].forEach(r => r.remove());
+    tableItems.forEach(price => tbody.appendChild(makeStaticRow(price)));
   }
 
   /* ── Input state ── */
-  let mode  = null;   // 'buy' | 'sell'
-  let input = '';     // digit string
+  let mode  = null;
+  let input = '';
+
+  function getPrice() {
+    const v = parseFloat(input);
+    return isFinite(v) && v > 0 ? v : null;
+  }
 
   function pressDigit(d) {
     if (!mode) return;
@@ -475,59 +695,35 @@
     refresh();
   }
 
-  function pressBack() {
-    if (!mode) return;
-    input = input.slice(0, -1);
-    refresh();
-  }
+  function pressBack()  { if (mode) { input = input.slice(0, -1); refresh(); } }
+  function pressClear() { if (mode) { input = ''; refresh(); } }
 
-  function pressClear() {
-    if (!mode) return;
-    input = '';
-    refresh();
-  }
-
-  function getPrice() {
-    const v = parseFloat(input);
-    return isFinite(v) && v > 0 ? v : null;
-  }
-
-  /* ── Render ── */
+  /* ── Refresh all UI ── */
   function refresh() {
-    updateDisplay();
-    updateResults();
+    refreshDisplay();
+    refreshResults();
+    refreshDynRow();
+    refreshAddBtn();
+    refreshStatus();
   }
 
-  function updateDisplay() {
+  function refreshDisplay() {
     const labelEl = document.getElementById('displayLabel');
     const valEl   = document.getElementById('displayVal');
-
     if (!mode) {
       labelEl.textContent = '請選擇觀點';
-      valEl.textContent   = '—';
-      valEl.classList.add('empty');
-      return;
-    }
-    labelEl.textContent = mode === 'buy' ? '買入價' : '賣出價';
-    if (!input) {
-      valEl.textContent = '0';
-      valEl.classList.add('empty');
+      valEl.textContent = '0'; valEl.classList.add('empty');
     } else {
-      valEl.textContent = input;
-      valEl.classList.remove('empty');
+      labelEl.textContent = mode === 'buy' ? '買入價' : '賣出價';
+      valEl.textContent   = input || '0';
+      valEl.classList.toggle('empty', !input);
     }
   }
 
-  function updateResults() {
-    const price = getPrice();
+  function refreshResults() {
     const box   = document.getElementById('calcResult');
-    const dynRow = document.getElementById('dynRow');
-
-    if (!mode || !price) {
-      box.innerHTML = '';
-      dynRow.classList.add('hidden');
-      return;
-    }
+    const price = getPrice();
+    if (!mode || !price) { box.innerHTML = ''; return; }
 
     if (mode === 'buy') {
       const r = calcBuy(price);
@@ -535,38 +731,28 @@
         <div class="r-box neutral">
           <div class="r-label">理論成本（元）</div>
           <div class="r-val">${r.theoretical.toFixed(2)}</div>
-          <div class="r-sub">${price} × ${(TOTAL * 100).toFixed(3)}%</div>
+          <div class="r-sub">${price} × ${(TOTAL*100).toFixed(3)}%</div>
         </div>
         <div class="r-box neutral">
           <div class="r-label">最小整跳價差</div>
           <div class="r-val">${fmt(r.spread, r.tick)}</div>
-          <div class="r-sub">升降單位 ${r.tick} 元，無條件進位</div>
+          <div class="r-sub">升降單位 ${r.tick} 元</div>
         </div>
         <div class="r-box sell">
           <div class="r-label">最低賣出價</div>
           <div class="r-val">${fmt(r.minSell, r.tick)}</div>
-          <div class="r-sub">買入 ${fmt(price, r.tick)} + ${fmt(r.spread, r.tick)}</div>
+          <div class="r-sub">+ ${fmt(r.spread, r.tick)} 元</div>
         </div>
         <div class="r-box buyback">
           <div class="r-label">最高買回（最低賣後）</div>
           <div class="r-val">${fmt(r.maxBB, r.tickBB)}</div>
-          <div class="r-sub">從 ${fmt(r.minSell, r.tick)} 賣出後損益兩平</div>
+          <div class="r-sub">損益兩平</div>
         </div>
         <div class="r-box save">
-          <div class="r-label">省錢回補上限（現價直接賣）</div>
+          <div class="r-label">省錢回補上限（現價賣）</div>
           <div class="r-val">${fmt(r.maxSave, r.tickSave)}</div>
-          <div class="r-sub">低於此價回補才省費用</div>
+          <div class="r-sub">低於此值才省</div>
         </div>
-      `;
-      // Dynamic table row
-      dynRow.classList.remove('hidden');
-      dynRow.innerHTML = `
-        <td><span class="dyn-label">試算</span>${fmt(price, r.tick)}</td>
-        <td class="td-tick">${r.tick}</td>
-        <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-        <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
-        <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
-        <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
       `;
     } else {
       const r = calcSell(price);
@@ -574,65 +760,110 @@
         <div class="r-box neutral">
           <div class="r-label">到手金額（估）</div>
           <div class="r-val">${r.netProceeds.toFixed(2)}</div>
-          <div class="r-sub">${price} × ${((1 - SELL_FEE - SELL_TAX) * 100).toFixed(4)}%</div>
+          <div class="r-sub">${price} × ${((1-SELL_FEE-SELL_TAX)*100).toFixed(4)}%</div>
         </div>
         <div class="r-box neutral">
           <div class="r-label">手續費 + 稅（估）</div>
           <div class="r-val">${r.fees.toFixed(2)}</div>
-          <div class="r-sub">${price} × ${((SELL_FEE + SELL_TAX) * 100).toFixed(4)}%</div>
+          <div class="r-sub">${price} × ${((SELL_FEE+SELL_TAX)*100).toFixed(4)}%</div>
         </div>
         <div class="r-box save">
           <div class="r-label">省錢回補上限</div>
           <div class="r-val">${fmt(r.threshold, r.tickThresh)}</div>
-          <div class="r-sub">低於此價買回才省費用</div>
+          <div class="r-sub">低於此價買回才省</div>
         </div>
         <div class="r-box neutral">
           <div class="r-label">回補需再跌</div>
           <div class="r-val">${fmt(r.drop, r.tick)}</div>
-          <div class="r-sub">元（約 ${r.dropTicks} 個 tick）</div>
+          <div class="r-sub">元（約 ${r.dropTicks} tick）</div>
         </div>
       `;
-      dynRow.classList.add('hidden');
     }
   }
 
-  /* ── Table ── */
-  const TABLE_PRICES = [
-    1, 2, 5, 8, 9,
-    10, 12, 15, 20, 25, 30, 40,
-    50, 60, 75, 80,
-    100, 120, 150, 200, 250, 300, 400,
-    500, 600, 700, 800,
-    1000, 1200, 1500, 2000, 2290, 3000, 5000
-  ];
-
-  function buildTable() {
-    const tbody = document.getElementById('refBody');
-    TABLE_PRICES.forEach(price => {
-      const r  = calcBuy(price);
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${price}</td>
-        <td class="td-tick">${r.tick}</td>
-        <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-        <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
-        <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
-        <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+  function refreshAddBtn() {
+    const addRow = document.getElementById('addRow');
+    const addBtn = document.getElementById('addBtn');
+    const price  = getPrice();
+    if (mode !== 'buy' || !price) { addRow.classList.remove('visible'); return; }
+    addRow.classList.add('visible');
+    const inTable = isInTable(price);
+    addBtn.textContent = inTable ? '✓ 已在快查表' : '＋ 加入快查表';
+    addBtn.classList.toggle('in-table', inTable);
   }
 
+  function refreshDynRow() {
+    const dynRow = document.getElementById('dynRow');
+    const price  = getPrice();
+    if (mode !== 'buy' || !price) { dynRow.classList.add('hidden'); return; }
+    const r = calcBuy(price);
+    const inTable = isInTable(price);
+    dynRow.classList.remove('hidden');
+    dynRow.innerHTML = `
+      <td><span class="dyn-label">試算</span>${fmt(price, r.tick)}</td>
+      <td class="td-tick">${r.tick}</td>
+      <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
+      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
+      <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
+      <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
+      <td class="td-del">
+        <button class="add-here-btn${inTable ? ' in-table' : ''}"
+          id="addHereBtn" title="${inTable ? '已在快查表' : '加入快查表'}">
+          ${inTable ? '✓' : '加入'}
+        </button>
+      </td>
+    `;
+    if (!inTable) {
+      document.getElementById('addHereBtn').addEventListener('click', () => addItem(price));
+    }
+  }
+
+  function refreshStatus() {
+    const el    = document.getElementById('tbStatus');
+    const price = getPrice();
+    if (!mode) { el.innerHTML = '點此展開試算'; return; }
+    if (!price) {
+      el.innerHTML = `<strong>${mode === 'buy' ? '買入' : '賣出'}觀點</strong> · 輸入價格`;
+      return;
+    }
+    if (mode === 'buy') {
+      const r = calcBuy(price);
+      el.innerHTML = `<strong>買入 ${fmt(price, r.tick)}</strong> → 最低賣 ${fmt(r.minSell, r.tick)} · 省錢回補 ${fmt(r.maxSave, r.tickSave)}`;
+    } else {
+      const r = calcSell(price);
+      el.innerHTML = `<strong>賣出 ${price}</strong> → 省錢回補上限 ${fmt(r.threshold, r.tickThresh)} · 需跌 ${fmt(r.drop, r.tick)} 元`;
+    }
+  }
+
+  /* ── Toolbar open / close ── */
+  let isOpen = false;
+
+  function openToolbar() {
+    isOpen = true;
+    document.getElementById('toolbar').classList.add('open');
+    document.getElementById('tbToggle').textContent = '▼ 收合';
+  }
+
+  function closeToolbar() {
+    isOpen = false;
+    document.getElementById('toolbar').classList.remove('open');
+    document.getElementById('tbToggle').textContent = '▲ 展開';
+  }
+
+  function toggleToolbar() { isOpen ? closeToolbar() : openToolbar(); }
+
   /* ── Event listeners ── */
+  document.getElementById('tbBar').addEventListener('click', toggleToolbar);
+  document.getElementById('tbClose').addEventListener('click', e => { e.stopPropagation(); closeToolbar(); });
+
   document.querySelectorAll('.persp-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const newMode = btn.dataset.mode;
       document.querySelectorAll('.persp-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const newMode = btn.dataset.mode;
-      if (newMode !== mode) {
-        mode  = newMode;
-        input = '';
-      }
+      if (newMode !== mode) { mode = newMode; input = ''; }
+      if (!isOpen) openToolbar();
       refresh();
     });
   });
@@ -640,18 +871,28 @@
   document.getElementById('numpad').addEventListener('click', e => {
     const btn = e.target.closest('.num-btn');
     if (!btn) return;
-    if (btn.dataset.d !== undefined) {
-      pressDigit(btn.dataset.d === '．' ? '.' : btn.dataset.d);
-    } else if (btn.dataset.action === 'back') {
-      pressBack();
-    } else if (btn.dataset.action === 'clear') {
-      pressClear();
-    }
+    if (btn.dataset.d !== undefined) pressDigit(btn.dataset.d === '．' ? '.' : btn.dataset.d);
+    else if (btn.dataset.action === 'back')  pressBack();
+    else if (btn.dataset.action === 'clear') pressClear();
+  });
+
+  document.getElementById('addBtn').addEventListener('click', () => {
+    const price = getPrice();
+    if (price && mode === 'buy') addItem(price);
+  });
+
+  document.getElementById('refBody').addEventListener('click', e => {
+    const delBtn = e.target.closest('.del-btn');
+    if (delBtn) deleteItem(parseFloat(delBtn.dataset.price));
+  });
+
+  document.getElementById('btnReset').addEventListener('click', () => {
+    if (confirm('還原為預設的快查表項目？')) resetDefaults();
   });
 
   /* ── Init ── */
-  buildTable();
-  updateDisplay();
+  rebuildTableRows();
+  refresh();
 })();
 </script>
 </body>
