@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>股票買賣成本試算</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --border: #e2e6ea;
+      --primary: #1a56db;
+      --primary-bg: #eef3fd;
+      --green: #0b7a50;
+      --green-bg: #e6f4ef;
+      --red: #c0392b;
+      --red-bg: #fdecea;
+      --text: #1a1d23;
+      --muted: #6b7280;
+      --yellow-bg: #fefce8;
+      --yellow-border: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 1.4rem 1rem 1.2rem;
+      text-align: center;
+    }
+    .page-header h1 { font-size: 1.5rem; font-weight: 700; }
+    .page-header p  { opacity: .75; font-size: .9rem; margin-top: .25rem; }
+
+    /* ── Layout ── */
+    .wrap { max-width: 860px; margin: 0 auto; padding: 1.2rem .9rem 2rem; }
+
+    /* ── Fee pills ── */
+    .fee-bar {
+      display: flex; flex-wrap: wrap; gap: .6rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.1rem;
+      align-items: center;
+    }
+    .fee-bar .pill {
+      background: var(--primary-bg);
+      color: var(--primary);
+      border-radius: 999px;
+      padding: .25rem .85rem;
+      font-size: .82rem;
+      font-weight: 600;
+    }
+    .fee-bar .eq { color: var(--muted); font-size: .85rem; }
+    .fee-bar .total {
+      margin-left: auto;
+      font-weight: 700;
+      font-size: .9rem;
+      color: var(--text);
+    }
+
+    /* ── 2290 Example ── */
+    .example-card {
+      background: var(--primary);
+      color: #fff;
+      border-radius: 12px;
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 1.1rem;
+    }
+    .example-card .eg-title {
+      font-size: .8rem;
+      opacity: .7;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      margin-bottom: .9rem;
+    }
+    .eg-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: .8rem;
+      text-align: center;
+    }
+    .eg-cell .label  { font-size: .75rem; opacity: .65; margin-bottom: .2rem; }
+    .eg-cell .val    { font-size: 1.65rem; font-weight: 800; line-height: 1; }
+    .eg-cell .sub    { font-size: .7rem; opacity: .55; margin-top: .2rem; }
+    .eg-cell.hi .val { color: #86efac; }   /* green tint for sell */
+    .eg-cell.lo .val { color: #fca5a5; }   /* red tint for buyback */
+
+    /* ── Calculator ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 1.1rem;
+      overflow: hidden;
+    }
+    .card-head {
+      padding: .75rem 1.2rem;
+      font-weight: 700;
+      font-size: .95rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .card-body { padding: 1.2rem; }
+
+    .input-row {
+      display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+      margin-bottom: 1.3rem;
+    }
+    .input-row label { font-weight: 500; }
+    .input-row input[type=number] {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: .45rem .8rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      width: 140px;
+      color: var(--text);
+      transition: border-color .2s;
+    }
+    .input-row input[type=number]:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .input-row .unit { color: var(--muted); font-size: .9rem; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: .8rem;
+    }
+    .r-box {
+      border-radius: 8px;
+      padding: .9rem 1rem;
+      text-align: center;
+    }
+    .r-box .r-label { font-size: .75rem; color: var(--muted); margin-bottom: .35rem; }
+    .r-box .r-val   { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .r-box .r-sub   { font-size: .7rem; color: var(--muted); margin-top: .3rem; }
+    .r-box.neutral  { background: var(--bg); }
+    .r-box.sell     { background: var(--green-bg); }
+    .r-box.sell .r-val   { color: var(--green); }
+    .r-box.buyback  { background: var(--red-bg); }
+    .r-box.buyback .r-val { color: var(--red); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+    }
+    thead th {
+      padding: .6rem 1rem;
+      text-align: right;
+      font-size: .75rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    thead th:first-child { text-align: left; }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--primary-bg); }
+    tbody tr.highlight { background: var(--yellow-bg); }
+    tbody tr.highlight td:first-child::after {
+      content: ' ★';
+      color: var(--yellow-border);
+    }
+    tbody td {
+      padding: .65rem 1rem;
+      text-align: right;
+      white-space: nowrap;
+    }
+    tbody td:first-child { text-align: left; font-weight: 700; }
+    .td-tick   { color: var(--muted); font-size: .8rem; }
+    .td-spread { color: var(--muted); }
+    .td-spread strong { color: var(--text); }
+    .td-sell   { color: var(--green); font-weight: 700; }
+    .td-buy    { color: var(--red);   font-weight: 700; }
+
+    /* ── Note ── */
+    .note {
+      background: var(--yellow-bg);
+      border: 1px solid var(--yellow-border);
+      border-radius: 8px;
+      padding: .8rem 1rem;
+      font-size: .82rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .note strong { color: var(--text); }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: .8rem;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>股票買賣成本試算</h1>
+  <p>打平門檻 ‧ 最低賣出價 ‧ 最高買回價</p>
+</div>
+
+<div class="wrap">
+
+  <!-- Fee bar -->
+  <div class="fee-bar">
+    <span class="pill">手續費 0.1425% × 2</span>
+    <span class="eq">+</span>
+    <span class="pill">證交稅 0.3%（賣出）</span>
+    <span class="eq">=</span>
+    <span class="total">合計 0.585%（速記 0.6%）</span>
+  </div>
+
+  <!-- 2290 example, filled by JS -->
+  <div class="example-card">
+    <div class="eg-title">📌 實際範例</div>
+    <div class="eg-grid" id="egGrid"></div>
+  </div>
+
+  <!-- Interactive calculator -->
+  <div class="card">
+    <div class="card-head">互動試算</div>
+    <div class="card-body">
+      <div class="input-row">
+        <label for="buyInput">買入價格</label>
+        <input type="number" id="buyInput" value="100" min="0.01" step="any" />
+        <span class="unit">元</span>
+      </div>
+      <div class="result-grid" id="calcResult"></div>
+    </div>
+  </div>
+
+  <!-- Reference table -->
+  <div class="card">
+    <div class="card-head">常見價位快查表</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>買入價（元）</th>
+            <th>升降單位</th>
+            <th>約需價差</th>
+            <th>最低賣出價</th>
+            <th>最高買回價</th>
+          </tr>
+        </thead>
+        <tbody id="refBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>注意事項</strong><br>
+    • 手續費最低收費 20 元，低價股或小量交易實際成本較高，試算結果僅供參考。<br>
+    • 升降單位：＜10元 → 0.01｜10–50 → 0.1｜50–100 → 0.5｜100–500 → 1｜500–1000 → 5｜≥1000 → 10<br>
+    • 最低賣出價為能覆蓋雙向手續費與交易稅的最小 tick 倍數。<br>
+    • 最高買回價為賣出後仍能損益兩平的最高可買回價格。
+  </div>
+
+</div>
+
+<footer>本試算僅供參考，不構成投資建議。</footer>
+
+<script>
+(function () {
+  const BUY_FEE  = 0.001425;
+  const SELL_FEE = 0.001425;
+  const SELL_TAX = 0.003;
+  const TOTAL    = BUY_FEE + SELL_FEE + SELL_TAX; // 0.00585
+
+  function tickOf(p) {
+    if (p <   10) return 0.01;
+    if (p <   50) return 0.1;
+    if (p <  100) return 0.5;
+    if (p <  500) return 1;
+    if (p < 1000) return 5;
+    return 10;
+  }
+
+  function decimals(tick) {
+    if (tick >= 1) return 0;
+    return tick.toString().split('.')[1].length;
+  }
+
+  function fmt(v, tick) {
+    return v.toFixed(decimals(tick));
+  }
+
+  function ceilTick(v, tick) {
+    return Math.ceil(Math.round(v / tick * 1e8) / 1e8) * tick;
+  }
+
+  function floorTick(v, tick) {
+    return Math.floor(Math.round(v / tick * 1e8) / 1e8) * tick;
+  }
+
+  function calc(buy) {
+    const tick        = tickOf(buy);
+    const theoretical = buy * TOTAL;                          // exact cost
+    const spread      = ceilTick(theoretical, tick);          // rounded-up ticks
+    const minSell     = buy + spread;
+
+    // sell at minSell, buy back at R: break-even when
+    //   minSell × (1 - SELL_FEE - SELL_TAX) = R × (1 + BUY_FEE)
+    const exactBuyback = minSell * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const tickBB       = tickOf(exactBuyback);
+    const maxBuyback   = floorTick(exactBuyback, tickBB);
+
+    return { buy, tick, theoretical, spread, minSell, maxBuyback, tickBB };
+  }
+
+  /* ── 2290 example card ── */
+  function renderExample(price) {
+    const r = calc(price);
+    const grid = document.getElementById('egGrid');
+    grid.innerHTML = `
+      <div class="eg-cell">
+        <div class="label">買入價</div>
+        <div class="val">${price}</div>
+        <div class="sub">元</div>
+      </div>
+      <div class="eg-cell">
+        <div class="label">理論成本</div>
+        <div class="val">${r.theoretical.toFixed(1)}</div>
+        <div class="sub">${price} × 0.585%</div>
+      </div>
+      <div class="eg-cell">
+        <div class="label">升降單位</div>
+        <div class="val">${r.tick}</div>
+        <div class="sub">元 / tick</div>
+      </div>
+      <div class="eg-cell">
+        <div class="label">最小整跳價差</div>
+        <div class="val">${fmt(r.spread, r.tick)}</div>
+        <div class="sub">≥ ${r.theoretical.toFixed(1)} 進位</div>
+      </div>
+      <div class="eg-cell hi">
+        <div class="label">最低賣出價</div>
+        <div class="val">${fmt(r.minSell, r.tick)}</div>
+        <div class="sub">${price} + ${fmt(r.spread, r.tick)}</div>
+      </div>
+      <div class="eg-cell lo">
+        <div class="label">最高買回價</div>
+        <div class="val">${fmt(r.maxBuyback, r.tickBB)}</div>
+        <div class="sub">賣出後損益兩平</div>
+      </div>
+    `;
+  }
+
+  /* ── Interactive calculator ── */
+  function renderCalc(buy) {
+    if (!isFinite(buy) || buy <= 0) return;
+    const r   = calc(buy);
+    const box = document.getElementById('calcResult');
+    box.innerHTML = `
+      <div class="r-box neutral">
+        <div class="r-label">理論成本（元）</div>
+        <div class="r-val">${r.theoretical.toFixed(2)}</div>
+        <div class="r-sub">${buy} × ${(TOTAL * 100).toFixed(3)}%</div>
+      </div>
+      <div class="r-box neutral">
+        <div class="r-label">最小整跳價差</div>
+        <div class="r-val">${fmt(r.spread, r.tick)}</div>
+        <div class="r-sub">升降單位 ${r.tick} 元，無條件進位</div>
+      </div>
+      <div class="r-box sell">
+        <div class="r-label">最低賣出價</div>
+        <div class="r-val">${fmt(r.minSell, r.tick)}</div>
+        <div class="r-sub">買入 ${fmt(buy, r.tick)} + ${fmt(r.spread, r.tick)}</div>
+      </div>
+      <div class="r-box buyback">
+        <div class="r-label">最高買回價</div>
+        <div class="r-val">${fmt(r.maxBuyback, r.tickBB)}</div>
+        <div class="r-sub">從 ${fmt(r.minSell, r.tick)} 賣出後</div>
+      </div>
+    `;
+  }
+
+  /* ── Reference table ── */
+  const TABLE_PRICES = [
+    1, 2, 5, 8, 9,
+    10, 12, 15, 20, 25, 30, 40,
+    50, 60, 75, 80,
+    100, 120, 150, 200, 250, 300, 400,
+    500, 600, 700, 800,
+    1000, 1200, 1500, 2000, 2290, 3000, 5000
+  ];
+
+  function buildTable() {
+    const tbody = document.getElementById('refBody');
+    TABLE_PRICES.forEach(price => {
+      const r  = calc(price);
+      const tr = document.createElement('tr');
+      if (price === 2290) tr.classList.add('highlight');
+      tr.innerHTML = `
+        <td>${price}</td>
+        <td class="td-tick">${r.tick}</td>
+        <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
+        <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
+        <td class="td-buy">${fmt(r.maxBuyback, r.tickBB)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ── Init ── */
+  renderExample(2290);
+  renderCalc(100);
+  buildTable();
+
+  document.getElementById('buyInput').addEventListener('input', function () {
+    renderCalc(parseFloat(this.value));
+  });
+})();
+</script>
+</body>
+</html>
