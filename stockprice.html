@@ -70,7 +70,7 @@
       color: var(--text);
     }
 
-    /* ── Calculator ── */
+    /* ── Card ── */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -87,27 +87,127 @@
     }
     .card-body { padding: 1.2rem; }
 
-    .input-row {
-      display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
-      margin-bottom: 1.3rem;
+    /* ── Perspective tabs ── */
+    .persp-tabs {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.1rem;
     }
-    .input-row label { font-weight: 500; }
-    .input-row input[type=number] {
+    .persp-tab {
+      flex: 1;
+      padding: .7rem .5rem;
       border: 2px solid var(--border);
-      border-radius: 8px;
-      padding: .45rem .8rem;
-      font-size: 1.1rem;
+      border-radius: 9px;
+      background: var(--bg);
+      font-size: 1.05rem;
       font-weight: 700;
-      width: 140px;
-      color: var(--text);
-      transition: border-color .2s;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all .18s;
+      letter-spacing: .08em;
     }
-    .input-row input[type=number]:focus {
-      outline: none;
+    .persp-tab[data-mode="buy"].active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: #fff;
+    }
+    .persp-tab[data-mode="sell"].active {
+      border-color: var(--green);
+      background: var(--green);
+      color: #fff;
+    }
+
+    /* ── Calculator display ── */
+    .calc-display {
+      background: #1a1d23;
+      color: #fff;
+      border-radius: 10px;
+      padding: .8rem 1.1rem;
+      margin-bottom: .9rem;
+      display: flex;
+      align-items: baseline;
+      gap: .6rem;
+      min-height: 68px;
+    }
+    .display-label {
+      font-size: .78rem;
+      opacity: .45;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .display-val {
+      font-size: 2.4rem;
+      font-weight: 800;
+      flex: 1;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .display-val.empty { opacity: .2; }
+    .display-unit {
+      font-size: .85rem;
+      opacity: .4;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── Numpad ── */
+    .numpad-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.1rem;
+    }
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      width: 100%;
+      max-width: 310px;
+    }
+    .num-btn {
+      height: 60px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      font-size: 1.45rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .1s, transform .08s;
+      touch-action: manipulation;
+    }
+    .num-btn:active {
+      transform: scale(.92);
+      background: var(--primary-bg);
       border-color: var(--primary);
     }
-    .input-row .unit { color: var(--muted); font-size: .9rem; }
+    .num-btn.action {
+      background: #f1f3f5;
+      font-size: 1.2rem;
+      color: var(--muted);
+    }
+    .num-btn.action:active { background: var(--border); }
+    .num-btn.clear {
+      grid-column: span 3;
+      height: 46px;
+      font-size: .92rem;
+      font-weight: 700;
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: transparent;
+      letter-spacing: .06em;
+    }
+    .num-btn.clear:active { background: #f5c6c2; transform: scale(.98); }
 
+    /* ── Results ── */
     .result-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
@@ -119,8 +219,8 @@
       text-align: center;
     }
     .r-box .r-label { font-size: .72rem; color: var(--muted); margin-bottom: .35rem; line-height: 1.4; }
-    .r-box .r-val   { font-size: 1.9rem; font-weight: 800; line-height: 1; }
-    .r-box .r-sub   { font-size: .7rem; color: var(--muted); margin-top: .3rem; }
+    .r-box .r-val   { font-size: 1.85rem; font-weight: 800; line-height: 1; }
+    .r-box .r-sub   { font-size: .68rem; color: var(--muted); margin-top: .3rem; }
     .r-box.neutral  { background: var(--bg); }
     .r-box.sell     { background: var(--green-bg); }
     .r-box.sell .r-val   { color: var(--green); }
@@ -154,10 +254,10 @@
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--primary-bg); }
 
-    /* dynamic (calculator) row */
     .dyn-row { background: var(--primary-bg); }
     .dyn-row td { font-weight: 700; }
     .dyn-row:hover { background: #dce9fb; }
+    .dyn-row.hidden { display: none; }
     .dyn-label {
       display: inline-block;
       font-size: .68rem;
@@ -207,7 +307,7 @@
 
 <div class="page-header">
   <h1>股票買賣成本試算</h1>
-  <p>打平門檻 ‧ 最低賣出價 ‧ 買回省錢門檻</p>
+  <p>打平門檻 ‧ 最低賣出價 ‧ 省錢回補門檻</p>
 </div>
 
 <div class="wrap">
@@ -225,12 +325,42 @@
   <div class="card">
     <div class="card-head">互動試算</div>
     <div class="card-body">
-      <div class="input-row">
-        <label for="buyInput">買入價格</label>
-        <input type="number" id="buyInput" value="100" min="0.01" step="any" />
-        <span class="unit">元</span>
+
+      <!-- Perspective tabs -->
+      <div class="persp-tabs">
+        <button class="persp-tab" data-mode="buy">買入</button>
+        <button class="persp-tab" data-mode="sell">賣出</button>
       </div>
+
+      <!-- Display -->
+      <div class="calc-display" id="calcDisplay">
+        <span class="display-label" id="displayLabel">—</span>
+        <span class="display-val empty" id="displayVal">0</span>
+        <span class="display-unit" id="displayUnit">元</span>
+      </div>
+
+      <!-- Numpad -->
+      <div class="numpad-wrap">
+        <div class="numpad" id="numpad">
+          <button class="num-btn" data-d="7">7</button>
+          <button class="num-btn" data-d="8">8</button>
+          <button class="num-btn" data-d="9">9</button>
+          <button class="num-btn" data-d="4">4</button>
+          <button class="num-btn" data-d="5">5</button>
+          <button class="num-btn" data-d="6">6</button>
+          <button class="num-btn" data-d="1">1</button>
+          <button class="num-btn" data-d="2">2</button>
+          <button class="num-btn" data-d="3">3</button>
+          <button class="num-btn" data-d=".">．</button>
+          <button class="num-btn" data-d="0">0</button>
+          <button class="num-btn action" data-action="back">⌫</button>
+          <button class="num-btn clear" data-action="clear">清除</button>
+        </div>
+      </div>
+
+      <!-- Results -->
       <div class="result-grid" id="calcResult"></div>
+
     </div>
   </div>
 
@@ -250,10 +380,8 @@
           </tr>
         </thead>
         <tbody id="refBody">
-          <tr id="dynRow" class="dyn-row">
-            <td colspan="6" style="text-align:center;color:var(--muted);font-size:.8rem;padding:.5rem;">
-              輸入價格後自動顯示
-            </td>
+          <tr id="dynRow" class="dyn-row hidden">
+            <td colspan="6"></td>
           </tr>
         </tbody>
       </table>
@@ -262,9 +390,9 @@
 
   <div class="note">
     <strong>欄位說明</strong><br>
-    • <strong>最低賣出價</strong>：賣出後能覆蓋雙向手續費與交易稅的最小整跳價（打平門檻）。<br>
-    • <strong>最高買回（最低賣後）</strong>：以最低賣出價賣出後，買回不虧損的最高價格。<br>
-    • <strong>省錢回補上限（現價直接賣）</strong>：若以現價直接賣出，買回價格需低於此值才算真的省下費用。<br>
+    • <strong>最低賣出價</strong>：賣出後覆蓋雙向手續費與交易稅的最小整跳價（打平門檻）。<br>
+    • <strong>最高買回（最低賣後）</strong>：以最低賣出價賣出後，回補不虧損的最高價格。<br>
+    • <strong>省錢回補上限（現價直接賣）</strong>：若以現價直接賣出，買回低於此值才真正省費用。<br>
     • 手續費最低收費 20 元，低價股或小量交易實際成本較高，試算僅供參考。<br>
     • 升降單位：＜10 → 0.01｜10–50 → 0.1｜50–100 → 0.5｜100–500 → 1｜500–1000 → 5｜≥1000 → 10
   </div>
@@ -275,11 +403,13 @@
 
 <script>
 (function () {
+  /* ── Constants ── */
   const BUY_FEE  = 0.001425;
   const SELL_FEE = 0.001425;
   const SELL_TAX = 0.003;
-  const TOTAL    = BUY_FEE + SELL_FEE + SELL_TAX; // 0.00585
+  const TOTAL    = BUY_FEE + SELL_FEE + SELL_TAX;
 
+  /* ── Tick helpers ── */
   function tickOf(p) {
     if (p <   10) return 0.01;
     if (p <   50) return 0.1;
@@ -288,92 +418,185 @@
     if (p < 1000) return 5;
     return 10;
   }
-
   function decimals(tick) {
     if (tick >= 1) return 0;
     return tick.toString().split('.')[1].length;
   }
+  function fmt(v, tick) { return v.toFixed(decimals(tick)); }
+  function ceilTick(v, t) { return Math.ceil(Math.round(v / t * 1e8) / 1e8) * t; }
+  function floorTick(v, t) { return Math.floor(Math.round(v / t * 1e8) / 1e8) * t; }
 
-  function fmt(v, tick) {
-    return v.toFixed(decimals(tick));
-  }
-
-  function ceilTick(v, tick) {
-    return Math.ceil(Math.round(v / tick * 1e8) / 1e8) * tick;
-  }
-
-  function floorTick(v, tick) {
-    return Math.floor(Math.round(v / tick * 1e8) / 1e8) * tick;
-  }
-
-  function calc(buy) {
+  /* ── Core calc ── */
+  function calcBuy(buy) {
     const tick        = tickOf(buy);
     const theoretical = buy * TOTAL;
     const spread      = ceilTick(theoretical, tick);
     const minSell     = buy + spread;
-
-    // max buyback after selling at minSell (break-even)
-    const exactBB  = minSell * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
-    const tickBB   = tickOf(exactBB);
-    const maxBB    = floorTick(exactBB, tickBB);
-
-    // max buyback after selling at current price (actually saves money)
-    const exactSave = buy * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
-    const tickSave  = tickOf(exactSave);
-    const maxSave   = floorTick(exactSave, tickSave);
-
+    const exactBB     = minSell * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const tickBB      = tickOf(exactBB);
+    const maxBB       = floorTick(exactBB, tickBB);
+    const exactSave   = buy * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const tickSave    = tickOf(exactSave);
+    const maxSave     = floorTick(exactSave, tickSave);
     return { buy, tick, theoretical, spread, minSell, maxBB, tickBB, maxSave, tickSave };
   }
 
-  /* ── Interactive calculator ── */
-  function renderCalc(buy) {
-    if (!isFinite(buy) || buy <= 0) return;
-    const r   = calc(buy);
-    const box = document.getElementById('calcResult');
-    box.innerHTML = `
-      <div class="r-box neutral">
-        <div class="r-label">理論成本（元）</div>
-        <div class="r-val">${r.theoretical.toFixed(2)}</div>
-        <div class="r-sub">${buy} × ${(TOTAL * 100).toFixed(3)}%</div>
-      </div>
-      <div class="r-box neutral">
-        <div class="r-label">最小整跳價差</div>
-        <div class="r-val">${fmt(r.spread, r.tick)}</div>
-        <div class="r-sub">升降單位 ${r.tick} 元，無條件進位</div>
-      </div>
-      <div class="r-box sell">
-        <div class="r-label">最低賣出價</div>
-        <div class="r-val">${fmt(r.minSell, r.tick)}</div>
-        <div class="r-sub">買入 ${fmt(buy, r.tick)} + ${fmt(r.spread, r.tick)}</div>
-      </div>
-      <div class="r-box buyback">
-        <div class="r-label">最高買回（最低賣後）</div>
-        <div class="r-val">${fmt(r.maxBB, r.tickBB)}</div>
-        <div class="r-sub">從 ${fmt(r.minSell, r.tick)} 賣出後損益兩平</div>
-      </div>
-      <div class="r-box save">
-        <div class="r-label">省錢回補上限（現價直接賣）</div>
-        <div class="r-val">${fmt(r.maxSave, r.tickSave)}</div>
-        <div class="r-sub">低於此價回補才算省下費用</div>
-      </div>
-    `;
-    renderDynRow(buy, r);
+  function calcSell(sell) {
+    const tick        = tickOf(sell);
+    const fees        = sell * (SELL_FEE + SELL_TAX);
+    const netProceeds = sell * (1 - SELL_FEE - SELL_TAX);
+    const exactThresh = netProceeds / (1 + BUY_FEE);
+    const tickThresh  = tickOf(exactThresh);
+    const threshold   = floorTick(exactThresh, tickThresh);
+    const drop        = sell - threshold;
+    const dropTicks   = Math.round(drop / tick);
+    return { sell, tick, fees, netProceeds, threshold, tickThresh, drop, dropTicks };
   }
 
-  /* ── Dynamic table row ── */
-  function renderDynRow(buy, r) {
-    const tr = document.getElementById('dynRow');
-    tr.innerHTML = `
-      <td><span class="dyn-label">試算</span>${fmt(buy, r.tick)}</td>
-      <td class="td-tick">${r.tick}</td>
-      <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
-      <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
-      <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
-    `;
+  /* ── Input state ── */
+  let mode  = null;   // 'buy' | 'sell'
+  let input = '';     // digit string
+
+  function pressDigit(d) {
+    if (!mode) return;
+    if (d === '.') {
+      if (input.includes('.')) return;
+      input = (input || '0') + '.';
+    } else {
+      const [intPart, decPart] = input.split('.');
+      if (decPart !== undefined) {
+        if (decPart.length >= 2) return;
+      } else {
+        if ((intPart || '').length >= 5) return;
+        if (intPart === '0') { input = d; refresh(); return; }
+      }
+      input += d;
+    }
+    refresh();
   }
 
-  /* ── Reference table ── */
+  function pressBack() {
+    if (!mode) return;
+    input = input.slice(0, -1);
+    refresh();
+  }
+
+  function pressClear() {
+    if (!mode) return;
+    input = '';
+    refresh();
+  }
+
+  function getPrice() {
+    const v = parseFloat(input);
+    return isFinite(v) && v > 0 ? v : null;
+  }
+
+  /* ── Render ── */
+  function refresh() {
+    updateDisplay();
+    updateResults();
+  }
+
+  function updateDisplay() {
+    const labelEl = document.getElementById('displayLabel');
+    const valEl   = document.getElementById('displayVal');
+
+    if (!mode) {
+      labelEl.textContent = '請選擇觀點';
+      valEl.textContent   = '—';
+      valEl.classList.add('empty');
+      return;
+    }
+    labelEl.textContent = mode === 'buy' ? '買入價' : '賣出價';
+    if (!input) {
+      valEl.textContent = '0';
+      valEl.classList.add('empty');
+    } else {
+      valEl.textContent = input;
+      valEl.classList.remove('empty');
+    }
+  }
+
+  function updateResults() {
+    const price = getPrice();
+    const box   = document.getElementById('calcResult');
+    const dynRow = document.getElementById('dynRow');
+
+    if (!mode || !price) {
+      box.innerHTML = '';
+      dynRow.classList.add('hidden');
+      return;
+    }
+
+    if (mode === 'buy') {
+      const r = calcBuy(price);
+      box.innerHTML = `
+        <div class="r-box neutral">
+          <div class="r-label">理論成本（元）</div>
+          <div class="r-val">${r.theoretical.toFixed(2)}</div>
+          <div class="r-sub">${price} × ${(TOTAL * 100).toFixed(3)}%</div>
+        </div>
+        <div class="r-box neutral">
+          <div class="r-label">最小整跳價差</div>
+          <div class="r-val">${fmt(r.spread, r.tick)}</div>
+          <div class="r-sub">升降單位 ${r.tick} 元，無條件進位</div>
+        </div>
+        <div class="r-box sell">
+          <div class="r-label">最低賣出價</div>
+          <div class="r-val">${fmt(r.minSell, r.tick)}</div>
+          <div class="r-sub">買入 ${fmt(price, r.tick)} + ${fmt(r.spread, r.tick)}</div>
+        </div>
+        <div class="r-box buyback">
+          <div class="r-label">最高買回（最低賣後）</div>
+          <div class="r-val">${fmt(r.maxBB, r.tickBB)}</div>
+          <div class="r-sub">從 ${fmt(r.minSell, r.tick)} 賣出後損益兩平</div>
+        </div>
+        <div class="r-box save">
+          <div class="r-label">省錢回補上限（現價直接賣）</div>
+          <div class="r-val">${fmt(r.maxSave, r.tickSave)}</div>
+          <div class="r-sub">低於此價回補才省費用</div>
+        </div>
+      `;
+      // Dynamic table row
+      dynRow.classList.remove('hidden');
+      dynRow.innerHTML = `
+        <td><span class="dyn-label">試算</span>${fmt(price, r.tick)}</td>
+        <td class="td-tick">${r.tick}</td>
+        <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
+        <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
+        <td class="td-bb">${fmt(r.maxBB, r.tickBB)}</td>
+        <td class="td-save">${fmt(r.maxSave, r.tickSave)}</td>
+      `;
+    } else {
+      const r = calcSell(price);
+      box.innerHTML = `
+        <div class="r-box neutral">
+          <div class="r-label">到手金額（估）</div>
+          <div class="r-val">${r.netProceeds.toFixed(2)}</div>
+          <div class="r-sub">${price} × ${((1 - SELL_FEE - SELL_TAX) * 100).toFixed(4)}%</div>
+        </div>
+        <div class="r-box neutral">
+          <div class="r-label">手續費 + 稅（估）</div>
+          <div class="r-val">${r.fees.toFixed(2)}</div>
+          <div class="r-sub">${price} × ${((SELL_FEE + SELL_TAX) * 100).toFixed(4)}%</div>
+        </div>
+        <div class="r-box save">
+          <div class="r-label">省錢回補上限</div>
+          <div class="r-val">${fmt(r.threshold, r.tickThresh)}</div>
+          <div class="r-sub">低於此價買回才省費用</div>
+        </div>
+        <div class="r-box neutral">
+          <div class="r-label">回補需再跌</div>
+          <div class="r-val">${fmt(r.drop, r.tick)}</div>
+          <div class="r-sub">元（約 ${r.dropTicks} 個 tick）</div>
+        </div>
+      `;
+      dynRow.classList.add('hidden');
+    }
+  }
+
+  /* ── Table ── */
   const TABLE_PRICES = [
     1, 2, 5, 8, 9,
     10, 12, 15, 20, 25, 30, 40,
@@ -386,7 +609,7 @@
   function buildTable() {
     const tbody = document.getElementById('refBody');
     TABLE_PRICES.forEach(price => {
-      const r  = calc(price);
+      const r  = calcBuy(price);
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${price}</td>
@@ -400,13 +623,35 @@
     });
   }
 
-  /* ── Init ── */
-  renderCalc(100);
-  buildTable();
-
-  document.getElementById('buyInput').addEventListener('input', function () {
-    renderCalc(parseFloat(this.value));
+  /* ── Event listeners ── */
+  document.querySelectorAll('.persp-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.persp-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const newMode = btn.dataset.mode;
+      if (newMode !== mode) {
+        mode  = newMode;
+        input = '';
+      }
+      refresh();
+    });
   });
+
+  document.getElementById('numpad').addEventListener('click', e => {
+    const btn = e.target.closest('.num-btn');
+    if (!btn) return;
+    if (btn.dataset.d !== undefined) {
+      pressDigit(btn.dataset.d === '．' ? '.' : btn.dataset.d);
+    } else if (btn.dataset.action === 'back') {
+      pressBack();
+    } else if (btn.dataset.action === 'clear') {
+      pressClear();
+    }
+  });
+
+  /* ── Init ── */
+  buildTable();
+  updateDisplay();
 })();
 </script>
 </body>
