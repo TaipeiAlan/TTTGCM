@@ -422,6 +422,76 @@
 
   .hidden { display: none !important; }
 
+  /* ── Mode Toggle ── */
+  .mode-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 4px;
+    margin-bottom: 20px;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 9px 16px;
+    border: none;
+    border-radius: 11px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    line-height: 1.2;
+  }
+
+  .mode-btn small {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 400;
+    opacity: 0.75;
+    margin-top: 1px;
+  }
+
+  .mode-btn.active {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.35);
+  }
+
+  .mode-btn.active small { opacity: 1; color: var(--accent); }
+
+  /* ── Mode B derived rate ── */
+  .derived-box {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: rgba(167,139,250,0.07);
+    border: 1px solid rgba(167,139,250,0.28);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .derived-box .d-label { color: var(--muted); font-size: 0.8rem; }
+
+  .derived-box .d-value {
+    color: #a78bfa;
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+
+  .derived-box .d-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    opacity: 0.75;
+    flex-basis: 100%;
+    margin-top: -6px;
+  }
+
   @media (max-width: 480px) {
     .section { padding: 18px; }
     .rate-grid { grid-template-columns: 1fr 1fr; }
@@ -533,6 +603,17 @@
     <p class="subtitle">試算「台幣換日幣」vs「美金換日幣」哪種方式更划算</p>
   </header>
 
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="mode-btn-a">
+      試算模式
+      <small>輸入匯率 + 目標日幣</small>
+    </button>
+    <button class="mode-btn" id="mode-btn-b">
+      實際花費
+      <small>已知換了多少 JPY 花了多少 USD</small>
+    </button>
+  </div>
+
   <!-- ── 匯率設定 ── -->
   <div class="section">
     <div class="section-title">匯率設定</div>
@@ -547,7 +628,7 @@
         <div class="rate-hint">例：銀行掛牌或換匯所的報價</div>
       </div>
 
-      <div class="rate-item">
+      <div class="rate-item" id="usd-jpy-rate-item">
         <div class="rate-label"><span>美金 → 日幣</span></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">1 USD =</div>
@@ -569,8 +650,8 @@
     </div>
   </div>
 
-  <!-- ── 目標日幣 ── -->
-  <div class="section">
+  <!-- ── 目標日幣 (Mode A) ── -->
+  <div class="section" id="mode-a-section">
     <div class="section-title">你想換多少日幣？</div>
     <div class="jpy-big">
       <div class="rate-input-wrap">
@@ -586,6 +667,36 @@
       <button class="quick-btn" data-v="100000">¥100,000</button>
       <button class="quick-btn" data-v="200000">¥200,000</button>
       <button class="quick-btn" data-v="500000">¥500,000</button>
+    </div>
+  </div>
+
+  <!-- ── 實際花費 (Mode B) ── -->
+  <div class="section hidden" id="mode-b-section">
+    <div class="section-title">你的實際花費</div>
+    <div class="rate-grid" style="grid-template-columns: 1fr 1fr">
+      <div class="rate-item">
+        <div class="rate-label"><span>換得日幣</span></div>
+        <div class="rate-input-wrap">
+          <div class="rate-unit">換得</div>
+          <input type="number" id="actual-jpy" value="50000" min="1" step="100" placeholder="50000">
+          <div class="rate-unit">JPY</div>
+        </div>
+        <div class="rate-hint">你實際拿到的日幣金額</div>
+      </div>
+      <div class="rate-item">
+        <div class="rate-label"><span>花費美金</span></div>
+        <div class="rate-input-wrap">
+          <div class="rate-unit">花費</div>
+          <input type="number" id="actual-usd" value="118.73" min="0.01" step="0.01" placeholder="118.73">
+          <div class="rate-unit">USD</div>
+        </div>
+        <div class="rate-hint">實際支付的美金金額</div>
+      </div>
+    </div>
+    <div class="derived-box">
+      <span class="d-label">推算有效匯率</span>
+      <span class="d-value" id="derived-rate-value">1 USD = — JPY</span>
+      <span class="d-hint">比較台幣直換仍需填左側「台幣→日幣」與「台幣→美金」報價</span>
     </div>
   </div>
 
@@ -684,96 +795,122 @@
     return n.toLocaleString('zh-TW', { minimumFractionDigits: dec, maximumFractionDigits: dec });
   }
 
-  function calc() {
-    const twdJpy  = parseFloat($('twd-jpy').value)   || 0;
-    const usdJpy  = parseFloat($('usd-jpy').value)   || 0;
-    const usdTwd  = parseFloat($('usd-twd').value)   || 0;
-    const jpyGoal = parseFloat($('jpy-target').value) || 0;
+  // ── Mode ──────────────────────────────────────────────
+  let currentMode = 'a';
 
-    if (twdJpy <= 0 || usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0) {
-      setEmpty();
-      return;
+  function switchMode(mode) {
+    currentMode = mode;
+    $('mode-btn-a').classList.toggle('active', mode === 'a');
+    $('mode-btn-b').classList.toggle('active', mode === 'b');
+    $('mode-a-section').classList.toggle('hidden', mode !== 'a');
+    $('mode-b-section').classList.toggle('hidden', mode !== 'b');
+    $('usd-jpy-rate-item').classList.toggle('hidden', mode !== 'a');
+
+    // Update card B label
+    const routeEl = $('card-usd').querySelector('.result-route');
+    routeEl.textContent = mode === 'b' ? '美金實際花費' : '美金 → 日幣';
+
+    const subEl = $('card-usd').querySelector('.result-sub');
+    if (mode === 'b') {
+      subEl.innerHTML = '折合台幣 <b id="res-usd-in-twd">—</b> TWD<br>推算有效匯率：<b id="res-usd-per10k">—</b> JPY/USD';
+    } else {
+      subEl.innerHTML = '約合台幣 <b id="res-usd-in-twd">—</b> TWD<br>每萬日幣成本：<b id="res-usd-per10k">—</b> TWD';
     }
 
-    // Method A: TWD → JPY directly
+    calc();
+  }
+
+  $('mode-btn-a').addEventListener('click', () => switchMode('a'));
+  $('mode-btn-b').addEventListener('click', () => switchMode('b'));
+
+  // ── Inputs ────────────────────────────────────────────
+  function getInputs() {
+    const twdJpy = parseFloat($('twd-jpy').value) || 0;
+    const usdTwd = parseFloat($('usd-twd').value) || 0;
+    if (currentMode === 'b') {
+      const actualJpy = parseFloat($('actual-jpy').value) || 0;
+      const actualUsd = parseFloat($('actual-usd').value) || 0;
+      const usdJpy = actualUsd > 0 ? actualJpy / actualUsd : 0;
+      if (usdJpy > 0) $('derived-rate-value').textContent = `1 USD = ${fmt(usdJpy, 2)} JPY`;
+      else $('derived-rate-value').textContent = '1 USD = — JPY';
+      return { twdJpy, usdJpy, usdTwd, jpyGoal: actualJpy, actualUsd };
+    }
+    return {
+      twdJpy,
+      usdJpy: parseFloat($('usd-jpy').value) || 0,
+      usdTwd,
+      jpyGoal: parseFloat($('jpy-target').value) || 0,
+      actualUsd: null
+    };
+  }
+
+  // ── Calc ──────────────────────────────────────────────
+  function calc() {
+    const { twdJpy, usdJpy, usdTwd, jpyGoal, actualUsd } = getInputs();
+
+    if (twdJpy <= 0 || usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0) {
+      setEmpty(); return;
+    }
+
     const twdNeeded = jpyGoal / twdJpy;
-
-    // Method B: buy USD then exchange to JPY
-    const usdNeeded  = jpyGoal / usdJpy;
-    const twdForUsd  = usdNeeded * usdTwd;
-
-    // Per-10k JPY cost
+    const usdNeeded = actualUsd != null ? actualUsd : jpyGoal / usdJpy;
+    const twdForUsd = usdNeeded * usdTwd;
     const twdPer10k = 10000 / twdJpy;
-    const usdPer10k = (10000 / usdJpy) * usdTwd;
-
-    // Theoretical (if you could convert without TWD→USD spread)
+    const usdPer10k = currentMode === 'b' ? usdJpy : (10000 / usdJpy) * usdTwd;
     const theoryPer10k = (usdTwd / usdJpy) * 10000;
 
-    // Update Method A card
-    $('res-twd-amount').textContent  = fmt(twdNeeded, 0);
-    $('res-jpy-display-a').textContent = fmt(jpyGoal, 0);
-    $('res-twd-per10k').textContent  = fmt(twdPer10k, 1);
+    $('res-twd-amount').textContent     = fmt(twdNeeded, 0);
+    $('res-jpy-display-a').textContent  = fmt(jpyGoal, 0);
+    $('res-twd-per10k').textContent     = fmt(twdPer10k, 1);
+    $('res-usd-amount').textContent     = fmt(usdNeeded, 2);
+    $('res-usd-in-twd').textContent     = fmt(twdForUsd, 0);
+    $('res-usd-per10k').textContent     = currentMode === 'b'
+      ? fmt(usdJpy, 2)
+      : fmt((10000 / usdJpy) * usdTwd, 1);
 
-    // Update Method B card
-    $('res-usd-amount').textContent  = fmt(usdNeeded, 2);
-    $('res-usd-in-twd').textContent  = fmt(twdForUsd, 0);
-    $('res-usd-per10k').textContent  = fmt(usdPer10k, 1);
+    $('unit-twd').textContent    = fmt(twdPer10k, 1) + ' TWD';
+    $('unit-usd').textContent    = fmt((10000 / usdJpy) * usdTwd, 1) + ' TWD';
+    $('unit-theory').textContent = fmt(theoryPer10k, 1) + ' TWD';
 
-    // Unit rates
-    $('unit-twd').textContent     = fmt(twdPer10k, 1) + ' TWD';
-    $('unit-usd').textContent     = fmt(usdPer10k, 1) + ' TWD';
-    $('unit-theory').textContent  = fmt(theoryPer10k, 1) + ' TWD';
-
-    // Bar ratios
-    const total = twdNeeded + twdForUsd;
+    const total  = twdNeeded + twdForUsd;
     const pctTwd = (twdNeeded / total) * 100;
-    const pctUsd = 100 - pctTwd;
     $('bar-twd').style.width = pctTwd + '%';
-    $('bar-usd').style.width = pctUsd + '%';
+    $('bar-usd').style.width = (100 - pctTwd) + '%';
 
     const diff    = Math.abs(twdNeeded - twdForUsd);
     const diffPct = (diff / Math.max(twdNeeded, twdForUsd) * 100).toFixed(1);
     $('bar-diff-label').textContent = `差距 ${fmt(diff, 0)} TWD (${diffPct}%)`;
 
     const EPS = 0.5;
-    const cardTwd = $('card-twd');
-    const cardUsd = $('card-usd');
-    const flagTwd = $('flag-twd');
-    const flagUsd = $('flag-usd');
-    const summaryIcon = $('summary-icon');
-    const summaryText = $('summary-text');
-
+    const cardTwd = $('card-twd'), cardUsd = $('card-usd');
+    const flagTwd = $('flag-twd'), flagUsd = $('flag-usd');
+    const summaryIcon = $('summary-icon'), summaryText = $('summary-text');
     cardTwd.classList.remove('winner', 'loser');
     cardUsd.classList.remove('winner', 'loser');
 
-    if (Math.abs(twdNeeded - twdForUsd) < EPS) {
-      // Essentially the same
-      flagTwd.innerHTML = '<span class="equal-badge">相當</span>';
-      flagUsd.innerHTML = '<span class="equal-badge">相當</span>';
+    const isEqual = diff < EPS;
+    const twdWins = twdNeeded < twdForUsd;
+
+    if (isEqual) {
+      flagTwd.innerHTML = flagUsd.innerHTML = '<span class="equal-badge">相當</span>';
       summaryIcon.textContent = '⚖️';
-      summaryText.innerHTML = `兩種換法幾乎相同，換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，台幣成本差距不到 1 元。`;
-    } else if (twdNeeded < twdForUsd) {
-      cardTwd.classList.add('winner');
-      cardUsd.classList.add('loser');
-      flagTwd.textContent = '較划算 ✓';
-      flagUsd.textContent = '較貴';
+      summaryText.innerHTML = currentMode === 'b'
+        ? `你花了 <span class="diff-twd">${fmt(actualUsd,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，與台幣直換成本幾乎相同。`
+        : `兩種換法幾乎相同，換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，台幣成本差距不到 1 元。`;
+    } else if (twdWins) {
+      cardTwd.classList.add('winner'); cardUsd.classList.add('loser');
+      flagTwd.textContent = '較划算 ✓'; flagUsd.textContent = '較貴';
       summaryIcon.textContent = '🏆';
-      summaryText.innerHTML =
-        `<strong>直接用台幣換日幣比較划算！</strong><br>` +
-        `換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，` +
-        `台幣直換只需 <span class="diff-twd">${fmt(twdNeeded,0)} TWD</span>，` +
-        `比用美金換少花 <span class="diff-twd">${fmt(diff,0)} TWD</span>（省 ${diffPct}%）。`;
+      summaryText.innerHTML = currentMode === 'b'
+        ? `你花了 <span class="diff-twd">${fmt(actualUsd,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>。<strong>若改用台幣直換</strong>，同樣金額只需 <span class="diff-twd">${fmt(twdNeeded,0)} TWD</span>，比你實際花費<strong>省了 ${fmt(diff,0)} TWD</strong>（${diffPct}%）。`
+        : `<strong>直接用台幣換日幣比較划算！</strong><br>換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，台幣直換只需 <span class="diff-twd">${fmt(twdNeeded,0)} TWD</span>，比用美金換少花 <span class="diff-twd">${fmt(diff,0)} TWD</span>（省 ${diffPct}%）。`;
     } else {
-      cardUsd.classList.add('winner');
-      cardTwd.classList.add('loser');
-      flagUsd.textContent = '較划算 ✓';
-      flagTwd.textContent = '較貴';
+      cardUsd.classList.add('winner'); cardTwd.classList.add('loser');
+      flagUsd.textContent = '較划算 ✓'; flagTwd.textContent = '較貴';
       summaryIcon.textContent = '🏆';
-      summaryText.innerHTML =
-        `<strong>用美金換日幣比較划算！</strong><br>` +
-        `換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，` +
-        `用美金換台幣成本僅 <span class="diff-twd">${fmt(twdForUsd,0)} TWD</span>，` +
-        `比台幣直換省了 <span class="diff-twd">${fmt(diff,0)} TWD</span>（省 ${diffPct}%）。`;
+      summaryText.innerHTML = currentMode === 'b'
+        ? `你花了 <span class="diff-twd">${fmt(actualUsd,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>。<strong>比台幣直換便宜</strong>，用台幣換同樣需要 ${fmt(twdNeeded,0)} TWD，<strong>實際省了 <span class="diff-twd">${fmt(diff,0)} TWD</span></strong>（${diffPct}%）。`
+        : `<strong>用美金換日幣比較划算！</strong><br>換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，用美金換台幣成本僅 <span class="diff-twd">${fmt(twdForUsd,0)} TWD</span>，比台幣直換省了 <span class="diff-twd">${fmt(diff,0)} TWD</span>（省 ${diffPct}%）。`;
     }
   }
 
@@ -781,7 +918,7 @@
     ['res-twd-amount','res-jpy-display-a','res-twd-per10k',
      'res-usd-amount','res-usd-in-twd','res-usd-per10k',
      'unit-twd','unit-usd','unit-theory'].forEach(id => { const el = $(id); if (el) el.textContent = '—'; });
-    $('summary-text').textContent = '請填入完整匯率與目標金額';
+    $('summary-text').textContent = '請填入完整資料';
     $('summary-icon').textContent = '💡';
     $('bar-twd').style.width = '50%';
     $('bar-usd').style.width = '50%';
@@ -845,23 +982,21 @@
   function scheduleAutoSave() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      const twdJpy  = parseFloat($('twd-jpy').value)   || 0;
-      const usdJpy  = parseFloat($('usd-jpy').value)   || 0;
-      const usdTwd  = parseFloat($('usd-twd').value)   || 0;
-      const jpyGoal = parseFloat($('jpy-target').value) || 0;
+      const { twdJpy, usdJpy, usdTwd, jpyGoal, actualUsd } = getInputs();
       if (twdJpy <= 0 || usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0) return;
 
       const twdNeeded = jpyGoal / twdJpy;
-      const twdForUsd = (jpyGoal / usdJpy) * usdTwd;
+      const usdAmt    = actualUsd != null ? actualUsd : jpyGoal / usdJpy;
+      const twdForUsd = usdAmt * usdTwd;
       const EPS = 0.5;
       const winner = Math.abs(twdNeeded - twdForUsd) < EPS ? 'equal'
                    : twdNeeded < twdForUsd ? 'twd' : 'usd';
 
-      const stateKey = `${jpyGoal}|${twdJpy}|${usdJpy}|${usdTwd}`;
+      const stateKey = `${currentMode}|${jpyGoal}|${twdJpy}|${usdJpy}|${usdTwd}`;
       if (stateKey === lastSavedState) return;
       lastSavedState = stateKey;
 
-      saveHistory({ ts: Date.now(), jpyGoal, twdJpy, usdJpy, usdTwd, twdNeeded, twdForUsd, winner });
+      saveHistory({ ts: Date.now(), mode: currentMode, jpyGoal, twdJpy, usdJpy, usdTwd, twdNeeded, twdForUsd, winner });
     }, 1500);
   }
 
@@ -869,13 +1004,12 @@
   document.querySelectorAll('.quick-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       $('jpy-target').value = btn.dataset.v;
-      calc();
-      scheduleAutoSave();
+      calc(); scheduleAutoSave();
     });
   });
 
   // ── Live calc ─────────────────────────────────────────
-  ['twd-jpy','usd-jpy','usd-twd','jpy-target'].forEach(id => {
+  ['twd-jpy','usd-jpy','usd-twd','jpy-target','actual-jpy','actual-usd'].forEach(id => {
     $(id).addEventListener('input', () => { calc(); scheduleAutoSave(); });
   });
 
