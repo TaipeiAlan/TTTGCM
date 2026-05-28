@@ -426,6 +426,101 @@
     .section { padding: 18px; }
     .rate-grid { grid-template-columns: 1fr 1fr; }
   }
+
+  /* ── History ── */
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .history-header .section-title {
+    margin-bottom: 0;
+    flex: 1;
+  }
+
+  .clear-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    padding: 4px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+
+  .clear-btn:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .history-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .history-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr auto;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+  }
+
+  @media (max-width: 540px) {
+    .history-row {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+    }
+    .history-row .h-time { grid-column: 1 / -1; }
+    .history-row .h-badge { justify-self: end; }
+  }
+
+  .h-time {
+    color: var(--muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .h-jpy {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .h-costs {
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .h-costs b { color: var(--text); }
+
+  .h-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .h-badge.twd  { background: rgba(56,189,248,0.15); color: #38bdf8; }
+  .h-badge.usd  { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .h-badge.equal { background: rgba(251,191,36,0.15); color: #fbbf24; }
 </style>
 </head>
 <body>
@@ -569,6 +664,17 @@
     </div>
   </div>
 
+  <!-- ── 兌換歷史 ── -->
+  <div class="section">
+    <div class="history-header">
+      <div class="section-title">兌換歷史（最近 19 筆）</div>
+      <button class="clear-btn" id="clear-history-btn">清除記錄</button>
+    </div>
+    <div id="history-container">
+      <div class="history-empty">尚無記錄，試算後自動儲存</div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -684,21 +790,98 @@
     $('card-usd').classList.remove('winner','loser');
   }
 
-  // Quick buttons
+  // ── History ──────────────────────────────────────────
+  const HISTORY_KEY = 'exchange-history';
+  const HISTORY_MAX = 19;
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveHistory(record) {
+    const list = loadHistory();
+    list.unshift(record);
+    if (list.length > HISTORY_MAX) list.length = HISTORY_MAX;
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    renderHistory(list);
+  }
+
+  function renderHistory(list) {
+    list = list || loadHistory();
+    const container = $('history-container');
+    if (!list.length) {
+      container.innerHTML = '<div class="history-empty">尚無記錄，試算後自動儲存</div>';
+      return;
+    }
+    container.innerHTML = '<div class="history-list">' +
+      list.map(r => {
+        const d = new Date(r.ts);
+        const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        const badgeClass = r.winner === 'twd' ? 'twd' : r.winner === 'usd' ? 'usd' : 'equal';
+        const badgeText  = r.winner === 'twd' ? '台幣較優' : r.winner === 'usd' ? '美金較優' : '兩者相當';
+        return `<div class="history-row">
+          <div class="h-time">${dateStr}</div>
+          <div class="h-jpy">¥${fmt(r.jpyGoal, 0)}</div>
+          <div class="h-costs">
+            台幣 <b>${fmt(r.twdNeeded, 0)}</b> TWD<br>
+            美金 <b>${fmt(r.twdForUsd, 0)}</b> TWD equiv
+          </div>
+          <div class="h-badge ${badgeClass}">${badgeText}</div>
+        </div>`;
+      }).join('') +
+    '</div>';
+  }
+
+  $('clear-history-btn').addEventListener('click', () => {
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory([]);
+  });
+
+  // ── Auto-save with debounce ───────────────────────────
+  let saveTimer = null;
+  let lastSavedState = null;
+
+  function scheduleAutoSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const twdJpy  = parseFloat($('twd-jpy').value)   || 0;
+      const usdJpy  = parseFloat($('usd-jpy').value)   || 0;
+      const usdTwd  = parseFloat($('usd-twd').value)   || 0;
+      const jpyGoal = parseFloat($('jpy-target').value) || 0;
+      if (twdJpy <= 0 || usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0) return;
+
+      const twdNeeded = jpyGoal / twdJpy;
+      const twdForUsd = (jpyGoal / usdJpy) * usdTwd;
+      const EPS = 0.5;
+      const winner = Math.abs(twdNeeded - twdForUsd) < EPS ? 'equal'
+                   : twdNeeded < twdForUsd ? 'twd' : 'usd';
+
+      const stateKey = `${jpyGoal}|${twdJpy}|${usdJpy}|${usdTwd}`;
+      if (stateKey === lastSavedState) return;
+      lastSavedState = stateKey;
+
+      saveHistory({ ts: Date.now(), jpyGoal, twdJpy, usdJpy, usdTwd, twdNeeded, twdForUsd, winner });
+    }, 1500);
+  }
+
+  // ── Quick buttons ─────────────────────────────────────
   document.querySelectorAll('.quick-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       $('jpy-target').value = btn.dataset.v;
       calc();
+      scheduleAutoSave();
     });
   });
 
-  // Live calc
+  // ── Live calc ─────────────────────────────────────────
   ['twd-jpy','usd-jpy','usd-twd','jpy-target'].forEach(id => {
-    $(id).addEventListener('input', calc);
+    $(id).addEventListener('input', () => { calc(); scheduleAutoSave(); });
   });
 
-  // Init
+  // ── Init ──────────────────────────────────────────────
   calc();
+  renderHistory();
 </script>
 </body>
 </html>
