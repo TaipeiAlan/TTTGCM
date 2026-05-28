@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>換匯比較計算器 — 台幣 vs 美金換日幣</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --card: #1e293b;
+    --card2: #162032;
+    --border: #334155;
+    --accent: #38bdf8;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --green-dim: rgba(52, 211, 153, 0.12);
+    --red: #f87171;
+    --red-dim: rgba(248, 113, 113, 0.10);
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --input-bg: #0f1e30;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 20px 60px;
+  }
+
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 700;
+    background: linear-gradient(90deg, #38bdf8, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  /* ── Sections ── */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Rate Inputs ── */
+  .rate-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 16px;
+  }
+
+  .rate-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .rate-label {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  .rate-label span {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .rate-input-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+
+  .rate-input-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+  }
+
+  .rate-unit {
+    padding: 0 12px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+    height: 42px;
+    display: flex;
+    align-items: center;
+  }
+
+  input[type="number"] {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 1rem;
+    padding: 0 12px;
+    height: 42px;
+    width: 0;
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    opacity: 0;
+  }
+
+  .rate-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    opacity: 0.7;
+  }
+
+  /* ── JPY Input ── */
+  .jpy-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .jpy-row .rate-input-wrap {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .jpy-big input[type="number"] {
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .quick-btns {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .quick-btn {
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.25);
+    border-radius: 20px;
+    color: var(--accent);
+    font-size: 0.8rem;
+    padding: 4px 14px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .quick-btn:hover {
+    background: rgba(56,189,248,0.2);
+    border-color: var(--accent);
+  }
+
+  /* ── Results ── */
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 500px) {
+    .result-grid { grid-template-columns: 1fr; }
+  }
+
+  .result-card {
+    border-radius: 12px;
+    padding: 20px;
+    border: 2px solid var(--border);
+    transition: border-color 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card.winner {
+    border-color: var(--green);
+    box-shadow: 0 0 24px -6px rgba(52, 211, 153, 0.3);
+    background: var(--green-dim);
+  }
+
+  .result-card.loser {
+    border-color: var(--border);
+    opacity: 0.75;
+  }
+
+  .result-flag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 10px;
+    border-radius: 20px;
+  }
+
+  .winner .result-flag {
+    background: var(--green);
+    color: #052e16;
+  }
+
+  .loser .result-flag {
+    background: var(--border);
+    color: var(--muted);
+  }
+
+  .result-method {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .result-route {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+
+  .result-main {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .result-main .currency {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 2px;
+  }
+
+  .result-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .result-sub b {
+    color: var(--text);
+  }
+
+  /* ── Comparison bar ── */
+  .compare-section {
+    margin-top: 4px;
+  }
+
+  .compare-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .compare-bar-wrap {
+    background: rgba(255,255,255,0.06);
+    border-radius: 6px;
+    height: 12px;
+    overflow: hidden;
+    display: flex;
+  }
+
+  .bar-twd {
+    background: linear-gradient(90deg, #38bdf8, #60a5fa);
+    height: 100%;
+    border-radius: 6px 0 0 6px;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    min-width: 4px;
+  }
+
+  .bar-usd {
+    background: linear-gradient(90deg, #a78bfa, #c084fc);
+    height: 100%;
+    border-radius: 0 6px 6px 0;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    min-width: 4px;
+  }
+
+  /* ── Summary pill ── */
+  .summary-box {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .summary-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .summary-text {
+    flex: 1;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .summary-text strong {
+    color: var(--green);
+  }
+
+  .summary-text .diff-twd {
+    color: var(--yellow);
+    font-weight: 600;
+  }
+
+  /* ── Per-unit rates ── */
+  .unit-rates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .unit-rate-item {
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+  }
+
+  .unit-rate-item .urt-label {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+  }
+
+  .unit-rate-item .urt-value {
+    font-weight: 600;
+    font-size: 1rem;
+  }
+
+  /* ── No result state ── */
+  .empty-state {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  /* ── Misc ── */
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-decoration: none;
+    margin-bottom: 28px;
+    transition: color 0.15s;
+  }
+
+  .back-link:hover { color: var(--accent); }
+
+  .equal-badge {
+    display: inline-block;
+    background: var(--yellow);
+    color: #1c1600;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 20px;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 480px) {
+    .section { padding: 18px; }
+    .rate-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── History ── */
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .history-header .section-title {
+    margin-bottom: 0;
+    flex: 1;
+  }
+
+  .clear-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    padding: 4px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+
+  .clear-btn:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .history-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .history-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr auto;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+  }
+
+  @media (max-width: 540px) {
+    .history-row {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+    }
+    .history-row .h-time { grid-column: 1 / -1; }
+    .history-row .h-badge { justify-self: end; }
+  }
+
+  .h-time {
+    color: var(--muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .h-jpy {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .h-costs {
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .h-costs b { color: var(--text); }
+
+  .h-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .h-badge.twd  { background: rgba(56,189,248,0.15); color: #38bdf8; }
+  .h-badge.usd  { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .h-badge.equal { background: rgba(251,191,36,0.15); color: #fbbf24; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <a class="back-link" href="index.html">← 返回工具總覽</a>
+
+  <header>
+    <h1>換匯比較計算器</h1>
+    <p class="subtitle">試算「台幣換日幣」vs「美金換日幣」哪種方式更划算</p>
+  </header>
+
+  <!-- ── 匯率設定 ── -->
+  <div class="section">
+    <div class="section-title">匯率設定</div>
+    <div class="rate-grid">
+      <div class="rate-item">
+        <div class="rate-label"><span>台幣 → 日幣</span></div>
+        <div class="rate-input-wrap">
+          <div class="rate-unit">1 TWD =</div>
+          <input type="number" id="twd-jpy" value="4.50" min="0.01" step="0.01" placeholder="4.50">
+          <div class="rate-unit">JPY</div>
+        </div>
+        <div class="rate-hint">例：銀行掛牌或換匯所的報價</div>
+      </div>
+
+      <div class="rate-item">
+        <div class="rate-label"><span>美金 → 日幣</span></div>
+        <div class="rate-input-wrap">
+          <div class="rate-unit">1 USD =</div>
+          <input type="number" id="usd-jpy" value="155" min="1" step="0.1" placeholder="155">
+          <div class="rate-unit">JPY</div>
+        </div>
+        <div class="rate-hint">例：機場/換匯所/信用卡報價</div>
+      </div>
+
+      <div class="rate-item">
+        <div class="rate-label"><span>台幣 → 美金</span></div>
+        <div class="rate-input-wrap">
+          <div class="rate-unit">1 USD =</div>
+          <input type="number" id="usd-twd" value="32.5" min="1" step="0.1" placeholder="32.5">
+          <div class="rate-unit">TWD</div>
+        </div>
+        <div class="rate-hint">用於換算美金的台幣成本</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 目標日幣 ── -->
+  <div class="section">
+    <div class="section-title">你想換多少日幣？</div>
+    <div class="jpy-big">
+      <div class="rate-input-wrap">
+        <div class="rate-unit">目標</div>
+        <input type="number" id="jpy-target" value="50000" min="1" step="1000" placeholder="50000">
+        <div class="rate-unit">JPY</div>
+      </div>
+    </div>
+    <div class="quick-btns">
+      <button class="quick-btn" data-v="10000">¥10,000</button>
+      <button class="quick-btn" data-v="30000">¥30,000</button>
+      <button class="quick-btn" data-v="50000">¥50,000</button>
+      <button class="quick-btn" data-v="100000">¥100,000</button>
+      <button class="quick-btn" data-v="200000">¥200,000</button>
+      <button class="quick-btn" data-v="500000">¥500,000</button>
+    </div>
+  </div>
+
+  <!-- ── 結果 ── -->
+  <div class="section" id="result-section">
+    <div class="section-title">比較結果</div>
+
+    <div class="result-grid">
+      <!-- Method A: TWD → JPY -->
+      <div class="result-card" id="card-twd">
+        <div class="result-flag" id="flag-twd"></div>
+        <div class="result-method">方法 A</div>
+        <div class="result-route">台幣 → 日幣</div>
+        <div class="result-main">
+          <span id="res-twd-amount">—</span>
+          <span class="currency">TWD</span>
+        </div>
+        <div class="result-sub">
+          換得 <b id="res-jpy-display-a">—</b> JPY<br>
+          每萬日幣成本：<b id="res-twd-per10k">—</b> TWD
+        </div>
+      </div>
+
+      <!-- Method B: USD → JPY -->
+      <div class="result-card" id="card-usd">
+        <div class="result-flag" id="flag-usd"></div>
+        <div class="result-method">方法 B</div>
+        <div class="result-route">美金 → 日幣</div>
+        <div class="result-main">
+          <span id="res-usd-amount">—</span>
+          <span class="currency">USD</span>
+        </div>
+        <div class="result-sub">
+          約合台幣 <b id="res-usd-in-twd">—</b> TWD<br>
+          每萬日幣成本：<b id="res-usd-per10k">—</b> TWD
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar -->
+    <div class="compare-section">
+      <div class="compare-label">
+        <span style="color:#38bdf8">■ 台幣成本</span>
+        <span id="bar-diff-label" style="color:var(--muted);font-size:0.75rem"></span>
+        <span style="color:#a78bfa">■ 美金成本（換算台幣）</span>
+      </div>
+      <div class="compare-bar-wrap">
+        <div class="bar-twd" id="bar-twd" style="width:50%"></div>
+        <div class="bar-usd" id="bar-usd" style="width:50%"></div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-box" style="margin-top:16px" id="summary-box">
+      <div class="summary-icon" id="summary-icon">💡</div>
+      <div class="summary-text" id="summary-text">請輸入匯率與目標金額</div>
+    </div>
+  </div>
+
+  <!-- ── 每萬日幣單位成本 ── -->
+  <div class="section">
+    <div class="section-title">換匯效率一覽（每萬日幣台幣成本）</div>
+    <div class="unit-rates" id="unit-rates">
+      <div class="unit-rate-item">
+        <div class="urt-label">台幣換日幣</div>
+        <div class="urt-value" id="unit-twd">—</div>
+      </div>
+      <div class="unit-rate-item">
+        <div class="urt-label">美金換日幣（含購匯成本）</div>
+        <div class="urt-value" id="unit-usd">—</div>
+      </div>
+      <div class="unit-rate-item">
+        <div class="urt-label">理論最優（USD/JPY ÷ TWD/USD）</div>
+        <div class="urt-value" id="unit-theory">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 兌換歷史 ── -->
+  <div class="section">
+    <div class="history-header">
+      <div class="section-title">兌換歷史（最近 19 筆）</div>
+      <button class="clear-btn" id="clear-history-btn">清除記錄</button>
+    </div>
+    <div id="history-container">
+      <div class="history-empty">尚無記錄，試算後自動儲存</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  function fmt(n, dec = 0) {
+    return n.toLocaleString('zh-TW', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+
+  function calc() {
+    const twdJpy  = parseFloat($('twd-jpy').value)   || 0;
+    const usdJpy  = parseFloat($('usd-jpy').value)   || 0;
+    const usdTwd  = parseFloat($('usd-twd').value)   || 0;
+    const jpyGoal = parseFloat($('jpy-target').value) || 0;
+
+    if (twdJpy <= 0 || usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0) {
+      setEmpty();
+      return;
+    }
+
+    // Method A: TWD → JPY directly
+    const twdNeeded = jpyGoal / twdJpy;
+
+    // Method B: buy USD then exchange to JPY
+    const usdNeeded  = jpyGoal / usdJpy;
+    const twdForUsd  = usdNeeded * usdTwd;
+
+    // Per-10k JPY cost
+    const twdPer10k = 10000 / twdJpy;
+    const usdPer10k = (10000 / usdJpy) * usdTwd;
+
+    // Theoretical (if you could convert without TWD→USD spread)
+    const theoryPer10k = (usdTwd / usdJpy) * 10000;
+
+    // Update Method A card
+    $('res-twd-amount').textContent  = fmt(twdNeeded, 0);
+    $('res-jpy-display-a').textContent = fmt(jpyGoal, 0);
+    $('res-twd-per10k').textContent  = fmt(twdPer10k, 1);
+
+    // Update Method B card
+    $('res-usd-amount').textContent  = fmt(usdNeeded, 2);
+    $('res-usd-in-twd').textContent  = fmt(twdForUsd, 0);
+    $('res-usd-per10k').textContent  = fmt(usdPer10k, 1);
+
+    // Unit rates
+    $('unit-twd').textContent     = fmt(twdPer10k, 1) + ' TWD';
+    $('unit-usd').textContent     = fmt(usdPer10k, 1) + ' TWD';
+    $('unit-theory').textContent  = fmt(theoryPer10k, 1) + ' TWD';
+
+    // Bar ratios
+    const total = twdNeeded + twdForUsd;
+    const pctTwd = (twdNeeded / total) * 100;
+    const pctUsd = 100 - pctTwd;
+    $('bar-twd').style.width = pctTwd + '%';
+    $('bar-usd').style.width = pctUsd + '%';
+
+    const diff    = Math.abs(twdNeeded - twdForUsd);
+    const diffPct = (diff / Math.max(twdNeeded, twdForUsd) * 100).toFixed(1);
+    $('bar-diff-label').textContent = `差距 ${fmt(diff, 0)} TWD (${diffPct}%)`;
+
+    const EPS = 0.5;
+    const cardTwd = $('card-twd');
+    const cardUsd = $('card-usd');
+    const flagTwd = $('flag-twd');
+    const flagUsd = $('flag-usd');
+    const summaryIcon = $('summary-icon');
+    const summaryText = $('summary-text');
+
+    cardTwd.classList.remove('winner', 'loser');
+    cardUsd.classList.remove('winner', 'loser');
+
+    if (Math.abs(twdNeeded - twdForUsd) < EPS) {
+      // Essentially the same
+      flagTwd.innerHTML = '<span class="equal-badge">相當</span>';
+      flagUsd.innerHTML = '<span class="equal-badge">相當</span>';
+      summaryIcon.textContent = '⚖️';
+      summaryText.innerHTML = `兩種換法幾乎相同，換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，台幣成本差距不到 1 元。`;
+    } else if (twdNeeded < twdForUsd) {
+      cardTwd.classList.add('winner');
+      cardUsd.classList.add('loser');
+      flagTwd.textContent = '較划算 ✓';
+      flagUsd.textContent = '較貴';
+      summaryIcon.textContent = '🏆';
+      summaryText.innerHTML =
+        `<strong>直接用台幣換日幣比較划算！</strong><br>` +
+        `換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，` +
+        `台幣直換只需 <span class="diff-twd">${fmt(twdNeeded,0)} TWD</span>，` +
+        `比用美金換少花 <span class="diff-twd">${fmt(diff,0)} TWD</span>（省 ${diffPct}%）。`;
+    } else {
+      cardUsd.classList.add('winner');
+      cardTwd.classList.add('loser');
+      flagUsd.textContent = '較划算 ✓';
+      flagTwd.textContent = '較貴';
+      summaryIcon.textContent = '🏆';
+      summaryText.innerHTML =
+        `<strong>用美金換日幣比較划算！</strong><br>` +
+        `換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，` +
+        `用美金換台幣成本僅 <span class="diff-twd">${fmt(twdForUsd,0)} TWD</span>，` +
+        `比台幣直換省了 <span class="diff-twd">${fmt(diff,0)} TWD</span>（省 ${diffPct}%）。`;
+    }
+  }
+
+  function setEmpty() {
+    ['res-twd-amount','res-jpy-display-a','res-twd-per10k',
+     'res-usd-amount','res-usd-in-twd','res-usd-per10k',
+     'unit-twd','unit-usd','unit-theory'].forEach(id => { const el = $(id); if (el) el.textContent = '—'; });
+    $('summary-text').textContent = '請填入完整匯率與目標金額';
+    $('summary-icon').textContent = '💡';
+    $('bar-twd').style.width = '50%';
+    $('bar-usd').style.width = '50%';
+    $('bar-diff-label').textContent = '';
+    $('card-twd').classList.remove('winner','loser');
+    $('card-usd').classList.remove('winner','loser');
+  }
+
+  // ── History ──────────────────────────────────────────
+  const HISTORY_KEY = 'exchange-history';
+  const HISTORY_MAX = 19;
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveHistory(record) {
+    const list = loadHistory();
+    list.unshift(record);
+    if (list.length > HISTORY_MAX) list.length = HISTORY_MAX;
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    renderHistory(list);
+  }
+
+  function renderHistory(list) {
+    list = list || loadHistory();
+    const container = $('history-container');
+    if (!list.length) {
+      container.innerHTML = '<div class="history-empty">尚無記錄，試算後自動儲存</div>';
+      return;
+    }
+    container.innerHTML = '<div class="history-list">' +
+      list.map(r => {
+        const d = new Date(r.ts);
+        const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        const badgeClass = r.winner === 'twd' ? 'twd' : r.winner === 'usd' ? 'usd' : 'equal';
+        const badgeText  = r.winner === 'twd' ? '台幣較優' : r.winner === 'usd' ? '美金較優' : '兩者相當';
+        return `<div class="history-row">
+          <div class="h-time">${dateStr}</div>
+          <div class="h-jpy">¥${fmt(r.jpyGoal, 0)}</div>
+          <div class="h-costs">
+            台幣 <b>${fmt(r.twdNeeded, 0)}</b> TWD<br>
+            美金 <b>${fmt(r.twdForUsd, 0)}</b> TWD equiv
+          </div>
+          <div class="h-badge ${badgeClass}">${badgeText}</div>
+        </div>`;
+      }).join('') +
+    '</div>';
+  }
+
+  $('clear-history-btn').addEventListener('click', () => {
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory([]);
+  });
+
+  // ── Auto-save with debounce ───────────────────────────
+  let saveTimer = null;
+  let lastSavedState = null;
+
+  function scheduleAutoSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const twdJpy  = parseFloat($('twd-jpy').value)   || 0;
+      const usdJpy  = parseFloat($('usd-jpy').value)   || 0;
+      const usdTwd  = parseFloat($('usd-twd').value)   || 0;
+      const jpyGoal = parseFloat($('jpy-target').value) || 0;
+      if (twdJpy <= 0 || usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0) return;
+
+      const twdNeeded = jpyGoal / twdJpy;
+      const twdForUsd = (jpyGoal / usdJpy) * usdTwd;
+      const EPS = 0.5;
+      const winner = Math.abs(twdNeeded - twdForUsd) < EPS ? 'equal'
+                   : twdNeeded < twdForUsd ? 'twd' : 'usd';
+
+      const stateKey = `${jpyGoal}|${twdJpy}|${usdJpy}|${usdTwd}`;
+      if (stateKey === lastSavedState) return;
+      lastSavedState = stateKey;
+
+      saveHistory({ ts: Date.now(), jpyGoal, twdJpy, usdJpy, usdTwd, twdNeeded, twdForUsd, winner });
+    }, 1500);
+  }
+
+  // ── Quick buttons ─────────────────────────────────────
+  document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $('jpy-target').value = btn.dataset.v;
+      calc();
+      scheduleAutoSave();
+    });
+  });
+
+  // ── Live calc ─────────────────────────────────────────
+  ['twd-jpy','usd-jpy','usd-twd','jpy-target'].forEach(id => {
+    $(id).addEventListener('input', () => { calc(); scheduleAutoSave(); });
+  });
+
+  // ── Init ──────────────────────────────────────────────
+  calc();
+  renderHistory();
+</script>
+</body>
+</html>
