@@ -276,6 +276,45 @@
     }
     .manual-hint a { color: var(--accent); text-decoration: none; }
     .manual-hint a:hover { text-decoration: underline; }
+
+    /* Log modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 500; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .modal-backdrop.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: #0a0f1e; border: 1px solid var(--border);
+      border-radius: 14px; width: min(760px, 96vw); max-height: 80vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .modal-header h3 { font-size: 14px; font-weight: 700; color: var(--text); }
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-body {
+      flex: 1; overflow-y: auto; padding: 14px 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px; line-height: 1.75;
+    }
+    .log-entry { display: flex; gap: 8px; align-items: baseline; }
+    .log-time  { color: #475569; flex-shrink: 0; font-size: 11px; }
+    .log-lv    { flex-shrink: 0; font-weight: 700; font-size: 11px; min-width: 44px; text-align: right; }
+    .log-lv.INFO { color: #64748b; }
+    .log-lv.OK   { color: var(--green); }
+    .log-lv.ERR  { color: var(--red); }
+    .log-lv.WARN { color: var(--yellow); }
+    .log-lv.DATA { color: var(--accent); }
+    .log-msg { color: var(--text); word-break: break-all; white-space: pre-wrap; }
+    .log-empty { color: #475569; font-style: italic; }
+    .modal-footer {
+      padding: 10px 16px; border-top: 1px solid var(--border);
+      font-size: 11px; color: #475569; flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -380,7 +419,10 @@
   <div class="card" style="margin-bottom:18px;">
     <div class="section-header">
       <div class="card-title" style="margin-bottom:0;">自動抓取數據</div>
-      <button class="btn btn-primary" id="fetchBtn" onclick="autoFetch()">▶ 抓取今日資料</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px;" onclick="openLogModal()">📋 查看 Log</button>
+        <button class="btn btn-primary" id="fetchBtn" onclick="autoFetch()">▶ 抓取今日資料</button>
+      </div>
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
       建議收盤後（16:00後）執行，資料更完整。抓取成功後數值會填入下方表單，確認後再儲存。
@@ -533,6 +575,23 @@
     </ul>
   </div>
 
+</div>
+
+<!-- Log Modal -->
+<div class="modal-backdrop" id="logModal" onclick="closeLogModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📋 抓取過程 Log</h3>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px;" onclick="copyLog()">複製全部</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px;" onclick="closeLogModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="logBody">
+      <span class="log-empty">尚未執行抓取。點選「▶ 抓取今日資料」後 Log 會在此即時顯示。</span>
+    </div>
+    <div class="modal-footer">抓取失敗時，請點「複製全部」並將內容貼給開發者排查。</div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -958,14 +1017,72 @@ function showToast(msg) {
   setTimeout(() => el.classList.remove('show'), 2500);
 }
 
+// ---- Fetch Log ----
+let fetchLog = [];
+
+function addLog(level, msg) {
+  const now = new Date();
+  const time = now.toTimeString().slice(0, 8) + '.' + String(now.getMilliseconds()).padStart(3, '0');
+  fetchLog.push({ time, level, msg });
+  const modal = document.getElementById('logModal');
+  if (modal && modal.classList.contains('open')) renderLogModal();
+}
+
+function renderLogModal() {
+  const body = document.getElementById('logBody');
+  if (!body) return;
+  if (!fetchLog.length) {
+    body.innerHTML = '<span class="log-empty">尚未執行抓取。點選「▶ 抓取今日資料」後 Log 會在此即時顯示。</span>';
+    return;
+  }
+  body.innerHTML = fetchLog.map(e =>
+    `<div class="log-entry">` +
+    `<span class="log-time">${e.time}</span>` +
+    `<span class="log-lv ${e.level}">[${e.level}]</span>` +
+    `<span class="log-msg">${escHtml(e.msg)}</span>` +
+    `</div>`
+  ).join('');
+  body.scrollTop = body.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function openLogModal() {
+  document.getElementById('logModal').classList.add('open');
+  renderLogModal();
+}
+
+function closeLogModal(e) {
+  if (!e || e.target === document.getElementById('logModal'))
+    document.getElementById('logModal').classList.remove('open');
+}
+
+function copyLog() {
+  const text = fetchLog.map(e => `[${e.time}] [${e.level}] ${e.msg}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => showToast('Log 已複製到剪貼簿'));
+}
+
 // ---- Auto-fetch ----
 async function autoFetch() {
+  fetchLog = [];
+  openLogModal();
+
   const btn = document.getElementById('fetchBtn');
   btn.disabled = true;
   btn.textContent = '抓取中…';
-  ['taiex','margin','short','daytrade'].forEach(id => setDot(id, 'idle'));
+  ['taiex', 'margin', 'short', 'daytrade'].forEach(id => setDot(id, 'idle'));
+
+  addLog('INFO', '══════════ 開始自動抓取 ══════════');
+  addLog('INFO', `時間: ${new Date().toLocaleString('zh-TW')}`);
+  addLog('INFO', `User-Agent: ${navigator.userAgent.slice(0, 80)}`);
+  addLog('INFO', '');
 
   await Promise.allSettled([fetchTaiex(), fetchTWSEMargin()]);
+
+  addLog('INFO', '');
+  addLog('INFO', '══════════ 抓取完成 ══════════');
 
   btn.disabled = false;
   btn.textContent = '▶ 重新抓取';
@@ -986,31 +1103,41 @@ function setFormField(id, val) {
 
 async function fetchTaiex() {
   setDot('taiex', 'loading');
+  addLog('INFO', '--- [Yahoo Finance] 加權指數 + 季線(MA60) ---');
+  const url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=90d';
+  addLog('INFO', `URL: ${url}`);
   try {
-    const res = await fetch(
-      'https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=90d',
-      { headers: { 'Accept': 'application/json' } }
-    );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    addLog('INFO', `HTTP ${res.status} ${res.statusText}`);
+    addLog('INFO', `Content-Type: ${res.headers.get('content-type') || '(無)'}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+
     const json = await res.json();
     const result = json?.chart?.result?.[0];
-    if (!result) throw new Error('No chart result');
+    if (!result) throw new Error('json.chart.result[0] 不存在，回應結構異常');
+    addLog('INFO', `chart.result[0] 存在，meta.symbol: ${result.meta?.symbol}`);
 
-    const closes = (result.indicators?.quote?.[0]?.close || []).filter(v => v != null);
-    if (closes.length < 10) throw new Error('Insufficient close data');
+    const allCloses = result.indicators?.quote?.[0]?.close || [];
+    const closes = allCloses.filter(v => v != null);
+    addLog('INFO', `close 陣列長度: ${allCloses.length} 筆，非 null: ${closes.length} 筆`);
+    if (closes.length < 10) throw new Error(`有效收盤資料不足 (${closes.length} 筆)`);
 
     const latest = Math.round(closes[closes.length - 1]);
-    const last60  = closes.slice(-60);
-    const ma60    = Math.round(last60.reduce((a, b) => a + b, 0) / last60.length);
+    const last60 = closes.slice(-60);
+    const ma60 = Math.round(last60.reduce((a, b) => a + b, 0) / last60.length);
+    addLog('DATA', `最新收盤: ${latest.toLocaleString()}`);
+    addLog('DATA', `MA60: 取最後 ${last60.length} 根均值 = ${ma60.toLocaleString()}`);
 
     setFormField('f-index', latest);
     setFormField('f-ma60', ma60);
     setDot('taiex', 'ok');
     setFetchVal('taiex', `${latest.toLocaleString()} / MA60:${ma60.toLocaleString()}`);
-  } catch(e) {
+    addLog('OK', `已填入 加權指數=${latest}，季線MA60=${ma60}`);
+  } catch (e) {
+    addLog('ERR', `${e.name}: ${e.message}`);
+    if (e instanceof TypeError) addLog('WARN', '推測原因: CORS 被擋、無網路連線、或 Yahoo Finance API 暫時異常');
     setDot('taiex', 'err');
     setFetchVal('taiex', '失敗，請手動輸入');
-    console.error('[TAIEX]', e);
   }
 }
 
@@ -1019,7 +1146,9 @@ async function fetchTWSEMargin() {
   setDot('short', 'loading');
   setDot('daytrade', 'loading');
 
-  // Try market-aggregate endpoint (selectType=MS = 全市場合計)
+  addLog('INFO', '');
+  addLog('INFO', '--- [TWSE] 融資融券全市場合計 (MI_MARGN) ---');
+
   const candidates = [
     'https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?response=json&selectType=MS',
     'https://www.twse.com.tw/exchangeReport/MI_MARGN?response=json&selectType=MS',
@@ -1028,116 +1157,150 @@ async function fetchTWSEMargin() {
   let marginOk = false, shortOk = false;
   const parseNum = s => parseFloat(String(s ?? '0').replace(/,/g, '')) || 0;
 
-  for (const url of candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const url = candidates[i];
+    addLog('INFO', `嘗試 URL ${i + 1}/${candidates.length}: ${url}`);
     try {
       const res = await fetch(url);
-      if (!res.ok) continue;
+      addLog('INFO', `HTTP ${res.status} ${res.statusText}`);
+      addLog('INFO', `Content-Type: ${res.headers.get('content-type') || '(無)'}`);
+      if (!res.ok) { addLog('WARN', '非 2xx，跳下一個'); continue; }
+
       const json = await res.json();
-      if (json?.stat !== 'OK' && json?.stat !== 'ok') continue;
+      const topKeys = Object.keys(json).join(', ');
+      addLog('INFO', `stat: "${json?.stat}" | 頂層 keys: [${topKeys}]`);
+      if (json?.stat !== 'OK' && json?.stat !== 'ok') {
+        addLog('WARN', `stat 不是 OK，跳下一個`);
+        continue;
+      }
 
       const data   = json.data   || json.Data   || [];
       const fields = json.fields || json.Fields || [];
-      if (!data.length) continue;
+      addLog('INFO', `data 筆數: ${data.length} | fields: [${fields.slice(0, 15).join(', ')}]`);
+      if (!data.length) { addLog('WARN', 'data 為空，跳下一個'); continue; }
 
-      // Find the total/aggregate row: last row, or first row labeled '合計'
       let row = data[data.length - 1];
       for (const r of data) {
         if (Array.isArray(r) && String(r[0]).includes('合計')) { row = r; break; }
       }
-      if (!Array.isArray(row)) continue;
+      if (!Array.isArray(row)) { addLog('WARN', '找不到有效合計列'); continue; }
+      addLog('INFO', `合計列 (共 ${row.length} 欄): [${row.join(' | ')}]`);
 
-      // Locate column indices by field name, fallback to known positions:
-      // Typical MI_MARGN columns (0-indexed):
-      //  0:名稱 1:融資買進 2:融資賣出 3:現金償還 4:融資餘額 5:融資限額
-      //  6:融券賣出 7:融券買進 8:現券償還 9:融券餘額 10:融券限額 11:資券相抵
       let mIdx = fields.findIndex(f => String(f).includes('融資餘額'));
       let sIdx = fields.findIndex(f => String(f).includes('融券餘額'));
       if (mIdx < 0) mIdx = 4;
       if (sIdx < 0) sIdx = 9;
+      addLog('INFO', `融資餘額 → 欄位索引 ${mIdx}，原始值: "${row[mIdx]}"`);
+      addLog('INFO', `融券餘額 → 欄位索引 ${sIdx}，原始值: "${row[sIdx]}"`);
 
-      const marginKT = parseNum(row[mIdx]); // 千元
-      const shortKT  = parseNum(row[sIdx]); // 千元
+      const marginKT = parseNum(row[mIdx]);
+      const shortKT  = parseNum(row[sIdx]);
+      addLog('DATA', `融資餘額 = ${marginKT.toLocaleString()} 千元`);
+      addLog('DATA', `融券餘額 = ${shortKT.toLocaleString()} 千元`);
 
       if (marginKT > 0) {
-        // 千元 → 億: ÷100,000 (1億 = 100,000千元)
         const marginYi = (marginKT / 100000).toFixed(0);
+        addLog('DATA', `換算: ${marginKT.toLocaleString()} 千元 ÷ 100,000 = ${Number(marginYi).toLocaleString()} 億`);
         setFormField('f-margin', marginYi);
         setDot('margin', 'ok');
         setFetchVal('margin', `${Number(marginYi).toLocaleString()} 億`);
+        addLog('OK', `已填入 融資餘額=${marginYi} 億`);
         marginOk = true;
 
         if (shortKT > 0) {
           const shortRatio = (shortKT / marginKT * 100).toFixed(2);
+          addLog('DATA', `券資比 = ${shortKT} ÷ ${marginKT} × 100 = ${shortRatio}%`);
           setFormField('f-short', shortRatio);
           setDot('short', 'ok');
           setFetchVal('short', `${shortRatio}%`);
+          addLog('OK', `已填入 券資比=${shortRatio}%`);
           shortOk = true;
+        } else {
+          addLog('WARN', '融券餘額為 0 或解析失敗，無法計算券資比');
         }
         break;
+      } else {
+        addLog('WARN', '融資餘額解析為 0，欄位對應可能有誤，繼續嘗試');
       }
-    } catch(e) {
-      console.error('[TWSE margin]', e);
+    } catch (e) {
+      addLog('ERR', `${e.name}: ${e.message}`);
+      if (e instanceof TypeError) addLog('WARN', '推測原因: CORS 被擋（瀏覽器安全限制）或網路問題');
     }
   }
 
   if (!marginOk) {
     setDot('margin', 'err'); setFetchVal('margin', '失敗，請手動輸入');
     setDot('short',  'err'); setFetchVal('short',  '失敗，請手動輸入');
+    addLog('ERR', '所有 URL 均失敗，融資餘額 / 券資比需手動輸入');
   } else if (!shortOk) {
     setDot('short', 'err'); setFetchVal('short', '無法計算');
   }
 
+  addLog('INFO', '');
   await fetchDayTrade();
 }
 
 async function fetchDayTrade() {
-  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  addLog('INFO', '--- [TWSE] 當沖統計 (TWTB4U) ---');
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const candidates = [
     `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&date=${dateStr}&selectType=All`,
     `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&selectType=All`,
     `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${dateStr}&selectType=All`,
   ];
-  const parseNum = s => parseFloat(String(s ?? '0').replace(/,/g,'').replace(/%/g,'')) || 0;
+  const parseNum = s => parseFloat(String(s ?? '0').replace(/,/g, '').replace(/%/g, '')) || 0;
 
-  for (const url of candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const url = candidates[i];
+    addLog('INFO', `嘗試 URL ${i + 1}/${candidates.length}: ${url}`);
     try {
       const res = await fetch(url);
-      if (!res.ok) continue;
+      addLog('INFO', `HTTP ${res.status} ${res.statusText}`);
+      if (!res.ok) { addLog('WARN', '非 2xx，跳下一個'); continue; }
+
       const json = await res.json();
-      if (json?.stat !== 'OK' && json?.stat !== 'ok') continue;
+      addLog('INFO', `stat: "${json?.stat}" | 頂層 keys: [${Object.keys(json).join(', ')}]`);
+      if (json?.stat !== 'OK' && json?.stat !== 'ok') { addLog('WARN', 'stat 不是 OK，跳下一個'); continue; }
 
       const data   = json.data   || json.Data   || [];
       const fields = json.fields || json.Fields || [];
-      if (!data.length) continue;
+      addLog('INFO', `data 筆數: ${data.length} | fields: [${fields.join(', ')}]`);
+      if (!data.length) { addLog('WARN', 'data 為空，跳下一個'); continue; }
 
-      // Use most recent row (last in data array = latest trading day)
       const row = data[data.length - 1];
-      if (!Array.isArray(row)) continue;
+      if (!Array.isArray(row)) { addLog('WARN', '最新列不是陣列，跳下一個'); continue; }
+      addLog('INFO', `最新一列: [${row.join(' | ')}]`);
 
-      // TWTB4U columns (typical):
-      // [日期, 當沖買進成交金額, 買進成交金額合計, 買進佔比%, 當沖賣出成交金額, 賣出成交金額合計, 賣出佔比%]
       let bIdx = fields.findIndex(f => String(f).includes('買進') && String(f).includes('佔'));
       let sIdx = fields.findIndex(f => String(f).includes('賣出') && String(f).includes('佔'));
       if (bIdx < 0) bIdx = 3;
       if (sIdx < 0) sIdx = 6;
+      addLog('INFO', `買進佔比 → 欄位索引 ${bIdx}，值: "${row[bIdx]}"`);
+      addLog('INFO', `賣出佔比 → 欄位索引 ${sIdx}，值: "${row[sIdx]}"`);
 
       const buyPct  = parseNum(row[bIdx]);
       const sellPct = parseNum(row[sIdx]);
+      addLog('DATA', `買進佔比: ${buyPct}% | 賣出佔比: ${sellPct}%`);
 
       if (buyPct > 0 || sellPct > 0) {
         const ratio = ((buyPct + sellPct) / 2).toFixed(1);
+        addLog('DATA', `當沖比 = (${buyPct} + ${sellPct}) ÷ 2 = ${ratio}%`);
         setFormField('f-daytrade', ratio);
         setDot('daytrade', 'ok');
         setFetchVal('daytrade', `${ratio}%`);
+        addLog('OK', `已填入 當沖比=${ratio}%`);
         return;
       }
-    } catch(e) {
-      console.error('[TWSE daytrade]', e);
+      addLog('WARN', '買進/賣出佔比均解析為 0，欄位對應可能有誤');
+    } catch (e) {
+      addLog('ERR', `${e.name}: ${e.message}`);
+      if (e instanceof TypeError) addLog('WARN', '推測原因: CORS 被擋或網路問題');
     }
   }
 
   setDot('daytrade', 'err');
   setFetchVal('daytrade', '失敗，請手動輸入');
+  addLog('ERR', '所有 URL 均失敗，當沖比需手動輸入');
 }
 
 // ---- Init ----
