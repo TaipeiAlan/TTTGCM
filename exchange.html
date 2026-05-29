@@ -504,7 +504,7 @@
 
   @media (max-width: 480px) {
     .section { padding: 18px; }
-    .rate-grid { grid-template-columns: 1fr 1fr; }
+    .rate-grid { grid-template-columns: 1fr; }
   }
 
   /* ── History ── */
@@ -705,14 +705,18 @@
     </div>
     <div class="derived-box">
       <div class="derived-row">
-        <span class="d-label">推算有效匯率</span>
+        <span class="d-label">有效匯率</span>
         <span class="d-value" id="derived-rate-value">1 USD = — JPY</span>
       </div>
       <div class="derived-row">
-        <span class="d-label">折算台幣約（JPY→USD→TWD）</span>
+        <span class="d-label">折算匯率</span>
+        <span class="d-value" id="derived-twd-rate" style="color:var(--green)">1 TWD = — JPY</span>
+      </div>
+      <div class="derived-row">
+        <span class="d-label">折算台幣</span>
         <span class="d-value" id="derived-twd-cost" style="color:var(--accent)">— TWD</span>
       </div>
-      <span class="d-hint">需填右側「台幣→美金」報價才能顯示折算台幣金額</span>
+      <span class="d-hint">需填右側「台幣→美金」報價才能顯示折算結果</span>
     </div>
   </div>
 
@@ -816,6 +820,7 @@
 
   function switchMode(mode) {
     currentMode = mode;
+    localStorage.setItem('exchange-mode', mode);
     $('mode-btn-a').classList.toggle('active', mode === 'a');
     $('mode-btn-b').classList.toggle('active', mode === 'b');
     $('mode-a-section').classList.toggle('hidden', mode !== 'a');
@@ -850,7 +855,18 @@
 
       $('derived-rate-value').textContent = usdJpy > 0
         ? `1 USD = ${fmt(usdJpy, 2)} JPY`
-        : '— （請填換得日幣與花費美金）';
+        : '—';
+
+      // Implied TWD/JPY rate via USD: usdJpy / usdTwd
+      const impliedTwdJpy = (usdJpy > 0 && usdTwd > 0) ? usdJpy / usdTwd : null;
+      const twdRateEl = $('derived-twd-rate');
+      if (impliedTwdJpy != null) {
+        twdRateEl.textContent = `1 TWD = ${fmt(impliedTwdJpy, 2)} JPY`;
+        twdRateEl.style.color = 'var(--green)';
+      } else {
+        twdRateEl.textContent = '—';
+        twdRateEl.style.color = 'var(--muted)';
+      }
 
       // JPY → USD → TWD: actualUsd × usdTwd (no twd-jpy needed)
       const twdViaUsd = (actualUsd > 0 && usdTwd > 0) ? actualUsd * usdTwd : null;
@@ -859,7 +875,7 @@
         twdCostEl.textContent = fmt(twdViaUsd, 0) + ' TWD';
         twdCostEl.style.color = 'var(--accent)';
       } else {
-        twdCostEl.textContent = '— （請填台幣→美金報價）';
+        twdCostEl.textContent = '—';
         twdCostEl.style.color = 'var(--muted)';
       }
 
@@ -1076,7 +1092,9 @@
   });
 
   // ── Init ──────────────────────────────────────────────
-  calc();
+  const savedMode = localStorage.getItem('exchange-mode');
+  if (savedMode === 'b') switchMode('b');
+  else calc();
   renderHistory();
 </script>
 </body>
