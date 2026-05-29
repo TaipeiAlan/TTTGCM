@@ -247,6 +247,35 @@
     #toast.show { transform: translateY(0); opacity: 1; }
 
     .no-data { text-align: center; color: var(--muted); padding: 30px; font-size: 14px; }
+
+    /* Auto-fetch UI */
+    .fetch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px,1fr));
+      gap: 10px;
+    }
+    .fetch-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px; border-radius: 8px;
+      background: rgba(15,23,42,0.5); border: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .fetch-name { flex: 1; color: var(--muted); }
+    .fetch-val  { color: var(--accent); font-weight: 600; font-size: 11px; white-space: nowrap; }
+    .fetch-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; transition: background 0.2s; }
+    .fetch-dot.idle    { background: #475569; }
+    .fetch-dot.loading { background: #f59e0b; animation: blink 1s infinite; }
+    .fetch-dot.ok      { background: var(--green); }
+    .fetch-dot.err     { background: var(--red); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .manual-hint {
+      margin-top: 12px; padding: 10px 14px;
+      background: rgba(56,189,248,0.04); border: 1px solid rgba(56,189,248,0.15);
+      border-radius: 8px; font-size: 12px; color: var(--muted);
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    }
+    .manual-hint a { color: var(--accent); text-decoration: none; }
+    .manual-hint a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -344,6 +373,44 @@
     <div class="card">
       <div class="card-title">券資比 &amp; 當沖比（%）</div>
       <div class="chart-wrap"><canvas id="chartShort"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Auto-fetch Card -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="section-header">
+      <div class="card-title" style="margin-bottom:0;">自動抓取數據</div>
+      <button class="btn btn-primary" id="fetchBtn" onclick="autoFetch()">▶ 抓取今日資料</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+      建議收盤後（16:00後）執行，資料更完整。抓取成功後數值會填入下方表單，確認後再儲存。
+    </div>
+    <div class="fetch-grid">
+      <div class="fetch-item">
+        <span class="fetch-dot idle" id="dot-taiex"></span>
+        <span class="fetch-name">加權指數 + 季線(MA60)</span>
+        <span class="fetch-val" id="val-taiex">-</span>
+      </div>
+      <div class="fetch-item">
+        <span class="fetch-dot idle" id="dot-margin"></span>
+        <span class="fetch-name">融資餘額（億）</span>
+        <span class="fetch-val" id="val-margin">-</span>
+      </div>
+      <div class="fetch-item">
+        <span class="fetch-dot idle" id="dot-short"></span>
+        <span class="fetch-name">券資比（%）</span>
+        <span class="fetch-val" id="val-short">-</span>
+      </div>
+      <div class="fetch-item">
+        <span class="fetch-dot idle" id="dot-daytrade"></span>
+        <span class="fetch-name">當沖比（%）</span>
+        <span class="fetch-val" id="val-daytrade">-</span>
+      </div>
+    </div>
+    <div class="manual-hint">
+      <span>⚠ 需手動查詢：融資維持率、散戶融資使用率</span>
+      <a href="https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN" target="_blank" rel="noopener">TWSE 融資融券統計 →</a>
+      <a href="https://www.twse.com.tw/rwd/zh/fund/MI_MARGRATIO" target="_blank" rel="noopener">融資維持率統計 →</a>
     </div>
   </div>
 
@@ -889,6 +956,188 @@ function showToast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ---- Auto-fetch ----
+async function autoFetch() {
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  btn.textContent = '抓取中…';
+  ['taiex','margin','short','daytrade'].forEach(id => setDot(id, 'idle'));
+
+  await Promise.allSettled([fetchTaiex(), fetchTWSEMargin()]);
+
+  btn.disabled = false;
+  btn.textContent = '▶ 重新抓取';
+}
+
+function setDot(id, state) {
+  const el = document.getElementById(`dot-${id}`);
+  if (el) el.className = `fetch-dot ${state}`;
+}
+function setFetchVal(id, text) {
+  const el = document.getElementById(`val-${id}`);
+  if (el) el.textContent = text;
+}
+function setFormField(id, val) {
+  const el = document.getElementById(id);
+  if (el && val !== null && val !== undefined && String(val) !== 'NaN') el.value = val;
+}
+
+async function fetchTaiex() {
+  setDot('taiex', 'loading');
+  try {
+    const res = await fetch(
+      'https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=90d',
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    if (!result) throw new Error('No chart result');
+
+    const closes = (result.indicators?.quote?.[0]?.close || []).filter(v => v != null);
+    if (closes.length < 10) throw new Error('Insufficient close data');
+
+    const latest = Math.round(closes[closes.length - 1]);
+    const last60  = closes.slice(-60);
+    const ma60    = Math.round(last60.reduce((a, b) => a + b, 0) / last60.length);
+
+    setFormField('f-index', latest);
+    setFormField('f-ma60', ma60);
+    setDot('taiex', 'ok');
+    setFetchVal('taiex', `${latest.toLocaleString()} / MA60:${ma60.toLocaleString()}`);
+  } catch(e) {
+    setDot('taiex', 'err');
+    setFetchVal('taiex', '失敗，請手動輸入');
+    console.error('[TAIEX]', e);
+  }
+}
+
+async function fetchTWSEMargin() {
+  setDot('margin', 'loading');
+  setDot('short', 'loading');
+  setDot('daytrade', 'loading');
+
+  // Try market-aggregate endpoint (selectType=MS = 全市場合計)
+  const candidates = [
+    'https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?response=json&selectType=MS',
+    'https://www.twse.com.tw/exchangeReport/MI_MARGN?response=json&selectType=MS',
+  ];
+
+  let marginOk = false, shortOk = false;
+  const parseNum = s => parseFloat(String(s ?? '0').replace(/,/g, '')) || 0;
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      if (json?.stat !== 'OK' && json?.stat !== 'ok') continue;
+
+      const data   = json.data   || json.Data   || [];
+      const fields = json.fields || json.Fields || [];
+      if (!data.length) continue;
+
+      // Find the total/aggregate row: last row, or first row labeled '合計'
+      let row = data[data.length - 1];
+      for (const r of data) {
+        if (Array.isArray(r) && String(r[0]).includes('合計')) { row = r; break; }
+      }
+      if (!Array.isArray(row)) continue;
+
+      // Locate column indices by field name, fallback to known positions:
+      // Typical MI_MARGN columns (0-indexed):
+      //  0:名稱 1:融資買進 2:融資賣出 3:現金償還 4:融資餘額 5:融資限額
+      //  6:融券賣出 7:融券買進 8:現券償還 9:融券餘額 10:融券限額 11:資券相抵
+      let mIdx = fields.findIndex(f => String(f).includes('融資餘額'));
+      let sIdx = fields.findIndex(f => String(f).includes('融券餘額'));
+      if (mIdx < 0) mIdx = 4;
+      if (sIdx < 0) sIdx = 9;
+
+      const marginKT = parseNum(row[mIdx]); // 千元
+      const shortKT  = parseNum(row[sIdx]); // 千元
+
+      if (marginKT > 0) {
+        // 千元 → 億: ÷100,000 (1億 = 100,000千元)
+        const marginYi = (marginKT / 100000).toFixed(0);
+        setFormField('f-margin', marginYi);
+        setDot('margin', 'ok');
+        setFetchVal('margin', `${Number(marginYi).toLocaleString()} 億`);
+        marginOk = true;
+
+        if (shortKT > 0) {
+          const shortRatio = (shortKT / marginKT * 100).toFixed(2);
+          setFormField('f-short', shortRatio);
+          setDot('short', 'ok');
+          setFetchVal('short', `${shortRatio}%`);
+          shortOk = true;
+        }
+        break;
+      }
+    } catch(e) {
+      console.error('[TWSE margin]', e);
+    }
+  }
+
+  if (!marginOk) {
+    setDot('margin', 'err'); setFetchVal('margin', '失敗，請手動輸入');
+    setDot('short',  'err'); setFetchVal('short',  '失敗，請手動輸入');
+  } else if (!shortOk) {
+    setDot('short', 'err'); setFetchVal('short', '無法計算');
+  }
+
+  await fetchDayTrade();
+}
+
+async function fetchDayTrade() {
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const candidates = [
+    `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&date=${dateStr}&selectType=All`,
+    `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&selectType=All`,
+    `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${dateStr}&selectType=All`,
+  ];
+  const parseNum = s => parseFloat(String(s ?? '0').replace(/,/g,'').replace(/%/g,'')) || 0;
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      if (json?.stat !== 'OK' && json?.stat !== 'ok') continue;
+
+      const data   = json.data   || json.Data   || [];
+      const fields = json.fields || json.Fields || [];
+      if (!data.length) continue;
+
+      // Use most recent row (last in data array = latest trading day)
+      const row = data[data.length - 1];
+      if (!Array.isArray(row)) continue;
+
+      // TWTB4U columns (typical):
+      // [日期, 當沖買進成交金額, 買進成交金額合計, 買進佔比%, 當沖賣出成交金額, 賣出成交金額合計, 賣出佔比%]
+      let bIdx = fields.findIndex(f => String(f).includes('買進') && String(f).includes('佔'));
+      let sIdx = fields.findIndex(f => String(f).includes('賣出') && String(f).includes('佔'));
+      if (bIdx < 0) bIdx = 3;
+      if (sIdx < 0) sIdx = 6;
+
+      const buyPct  = parseNum(row[bIdx]);
+      const sellPct = parseNum(row[sIdx]);
+
+      if (buyPct > 0 || sellPct > 0) {
+        const ratio = ((buyPct + sellPct) / 2).toFixed(1);
+        setFormField('f-daytrade', ratio);
+        setDot('daytrade', 'ok');
+        setFetchVal('daytrade', `${ratio}%`);
+        return;
+      }
+    } catch(e) {
+      console.error('[TWSE daytrade]', e);
+    }
+  }
+
+  setDot('daytrade', 'err');
+  setFetchVal('daytrade', '失敗，請手動輸入');
 }
 
 // ---- Init ----
