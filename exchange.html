@@ -292,6 +292,25 @@
     margin-top: 6px;
   }
 
+  .result-rate {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--muted);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .result-rate .rate-val {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .winner .result-rate .rate-val { color: var(--green); }
+
   .result-sub b {
     color: var(--text);
   }
@@ -738,6 +757,10 @@
           換得 <b id="res-jpy-display-a">—</b> JPY<br>
           每萬日幣成本：<b id="res-twd-per10k">—</b> TWD
         </div>
+        <div class="result-rate">
+          換匯率
+          <span class="rate-val" id="res-twd-rate">—</span>
+        </div>
       </div>
 
       <!-- Method B: USD → JPY -->
@@ -752,6 +775,10 @@
         <div class="result-sub">
           約合台幣 <b id="res-usd-in-twd">—</b> TWD<br>
           每萬日幣成本：<b id="res-usd-per10k">—</b> TWD
+        </div>
+        <div class="result-rate">
+          換匯率
+          <span class="rate-val" id="res-usd-rate">—</span>
         </div>
       </div>
     </div>
@@ -927,6 +954,13 @@
       ? fmt(usdJpy, 2)
       : fmt((10000 / usdJpy) * usdTwd, 1);
 
+    // Card exchange rates (1 TWD = X JPY)
+    const impliedTwdJpyRate = usdJpy / usdTwd;
+    $('res-twd-rate').textContent = twdJpy > 0
+      ? `1 TWD = ${fmt(twdJpy, 2)} JPY`
+      : '—（未填台幣匯率）';
+    $('res-usd-rate').textContent = `1 TWD = ${fmt(impliedTwdJpyRate, 2)} JPY`;
+
     // Unit rates
     $('unit-twd').textContent    = twdPer10k != null ? fmt(twdPer10k, 1) + ' TWD' : '—';
     $('unit-usd').textContent    = fmt((10000 / usdJpy) * usdTwd, 1) + ' TWD';
@@ -993,8 +1027,8 @@
   }
 
   function setEmpty() {
-    ['res-twd-amount','res-jpy-display-a','res-twd-per10k',
-     'res-usd-amount','res-usd-in-twd','res-usd-per10k',
+    ['res-twd-amount','res-jpy-display-a','res-twd-per10k','res-twd-rate',
+     'res-usd-amount','res-usd-in-twd','res-usd-per10k','res-usd-rate',
      'unit-twd','unit-usd','unit-theory'].forEach(id => { const el = $(id); if (el) el.textContent = '—'; });
     $('summary-text').textContent = '請填入完整資料';
     $('summary-icon').textContent = '💡';
