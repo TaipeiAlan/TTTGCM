@@ -30,7 +30,7 @@
     background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
     color: var(--text);
     min-height: 100vh;
-    padding: 32px 20px 60px;
+    padding: 16px 16px 40px;
   }
 
   .container {
@@ -40,7 +40,7 @@
 
   header {
     text-align: center;
-    margin-bottom: 36px;
+    margin-bottom: 14px;
   }
 
   h1 {
@@ -63,8 +63,8 @@
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 20px;
+    padding: 16px;
+    margin-bottom: 10px;
   }
 
   .section-title {
@@ -73,7 +73,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
-    margin-bottom: 18px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -90,7 +90,7 @@
   .rate-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 16px;
+    gap: 10px;
   }
 
   .rate-item {
@@ -208,8 +208,8 @@
   .result-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 12px;
   }
 
   @media (max-width: 500px) {
@@ -309,7 +309,16 @@
     color: var(--text);
   }
 
+  .result-rate .rate-inv {
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--muted);
+    display: block;
+    margin-top: 1px;
+  }
+
   .winner .result-rate .rate-val { color: var(--green); }
+  .winner .result-rate .rate-inv { color: rgba(52,211,153,0.75); }
 
   .result-sub b {
     color: var(--text);
@@ -425,7 +434,7 @@
     color: var(--muted);
     font-size: 0.85rem;
     text-decoration: none;
-    margin-bottom: 28px;
+    margin-bottom: 14px;
     transition: color 0.15s;
   }
 
@@ -451,12 +460,12 @@
     border: 1px solid var(--border);
     border-radius: 14px;
     padding: 4px;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
   }
 
   .mode-btn {
     flex: 1;
-    padding: 9px 16px;
+    padding: 7px 12px;
     border: none;
     border-radius: 11px;
     font-size: 0.875rem;
@@ -522,7 +531,7 @@
   }
 
   @media (max-width: 480px) {
-    .section { padding: 18px; }
+    .section { padding: 14px; }
     .rate-grid { grid-template-columns: 1fr; }
   }
 
@@ -891,7 +900,7 @@
       const impliedTwdJpy = (usdJpy > 0 && usdTwd > 0) ? usdJpy / usdTwd : null;
       const twdRateEl = $('derived-twd-rate');
       if (impliedTwdJpy != null) {
-        twdRateEl.textContent = `1 TWD = ${fmt(impliedTwdJpy, 2)} JPY`;
+        twdRateEl.innerHTML = `1 TWD = ${fmt(impliedTwdJpy, 2)} JPY<span class="rate-inv" style="color:rgba(52,211,153,0.75)">1 JPY = ${fmt(1/impliedTwdJpy, 4)} TWD</span>`;
         twdRateEl.style.color = 'var(--green)';
       } else {
         twdRateEl.textContent = '—';
@@ -959,10 +968,10 @@
 
     // Card exchange rates (1 TWD = X JPY)
     const impliedTwdJpyRate = usdJpy / usdTwd;
-    $('res-twd-rate').textContent = twdJpy > 0
-      ? `1 TWD = ${fmt(twdJpy, 2)} JPY`
+    $('res-twd-rate').innerHTML = twdJpy > 0
+      ? `1 TWD = ${fmt(twdJpy, 2)} JPY<span class="rate-inv">1 JPY = ${fmt(1/twdJpy, 4)} TWD</span>`
       : '—（未填台幣匯率）';
-    $('res-usd-rate').textContent = `1 TWD = ${fmt(impliedTwdJpyRate, 2)} JPY`;
+    $('res-usd-rate').innerHTML = `1 TWD = ${fmt(impliedTwdJpyRate, 2)} JPY<span class="rate-inv">1 JPY = ${fmt(1/impliedTwdJpyRate, 4)} TWD</span>`;
 
     // Unit rates
     $('unit-twd').textContent    = twdPer10k != null ? fmt(twdPer10k, 1) + ' TWD' : '—';
