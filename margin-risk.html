@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台股融資風險儀表板</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --bg2: #1e293b;
+      --card: #1e293b;
+      --border: #334155;
+      --accent: #38bdf8;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --orange: #f97316;
+      --red: #ef4444;
+    }
+
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      min-height: 100vh;
+      color: var(--text);
+    }
+
+    body { padding: 0 0 60px; }
+
+    header {
+      background: rgba(30,41,59,0.9);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    header h1 {
+      font-size: 18px; font-weight: 700;
+      background: linear-gradient(90deg, #38bdf8, #a78bfa);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-nav { display: flex; gap: 10px; align-items: center; }
+    .header-nav a {
+      color: var(--muted); text-decoration: none; font-size: 13px;
+      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+      transition: all 0.15s;
+    }
+    .header-nav a:hover { color: var(--accent); border-color: var(--accent); }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 0; }
+
+    /* Risk meter */
+    .risk-banner {
+      border-radius: 16px;
+      padding: 20px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      border: 1px solid transparent;
+      transition: all 0.3s;
+    }
+    .risk-banner.low    { background: rgba(34,197,94,0.12);  border-color: #22c55e44; }
+    .risk-banner.medium { background: rgba(245,158,11,0.12); border-color: #f59e0b44; }
+    .risk-banner.high   { background: rgba(249,115,22,0.12); border-color: #f9731644; }
+    .risk-banner.alert  { background: rgba(239,68,68,0.15);  border-color: #ef444466; }
+
+    .risk-label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .risk-level { font-size: 28px; font-weight: 800; }
+    .risk-level.low    { color: var(--green); }
+    .risk-level.medium { color: var(--yellow); }
+    .risk-level.high   { color: var(--orange); }
+    .risk-level.alert  { color: var(--red); }
+
+    .risk-signals { display: flex; gap: 10px; flex-wrap: wrap; }
+    .sig-chip {
+      padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .sig-chip.on  { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid #ef444466; }
+    .sig-chip.off { background: rgba(148,163,184,0.1); color: var(--muted); border: 1px solid var(--border); }
+    .sig-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .sig-dot.on  { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .sig-dot.off { background: var(--muted); }
+
+    /* Grid layout */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 18px; }
+    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .card-title {
+      font-size: 13px; color: var(--muted); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 6px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    /* Metric cards */
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 14px; margin-bottom: 18px; }
+
+    .metric-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      position: relative; overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .metric-card.safe::before    { background: var(--green); }
+    .metric-card.caution::before { background: var(--yellow); }
+    .metric-card.danger::before  { background: var(--orange); }
+    .metric-card.alert::before   { background: var(--red); }
+
+    .metric-name { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .metric-value { font-size: 24px; font-weight: 700; color: var(--text); }
+    .metric-unit  { font-size: 13px; color: var(--muted); margin-left: 2px; }
+    .metric-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .metric-status {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+      padding: 2px 7px; border-radius: 10px; display: inline-block; margin-top: 6px;
+    }
+    .metric-status.safe    { background: rgba(34,197,94,0.2);  color: #86efac; }
+    .metric-status.caution { background: rgba(245,158,11,0.2); color: #fcd34d; }
+    .metric-status.danger  { background: rgba(249,115,22,0.2); color: #fdba74; }
+    .metric-status.alert   { background: rgba(239,68,68,0.2);  color: #fca5a5; }
+
+    /* Form */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap: 14px; }
+
+    .form-group label {
+      display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500;
+    }
+    .form-group input, .form-group select {
+      width: 100%; background: #0f172a; border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 14px;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .form-group .hint { font-size: 11px; color: #475569; margin-top: 3px; }
+
+    .btn {
+      padding: 10px 20px; border-radius: 8px; border: none;
+      cursor: pointer; font-size: 14px; font-weight: 600;
+      transition: all 0.15s;
+    }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-danger  { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid #ef444433; }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+    .btn-ghost   { background: rgba(148,163,184,0.1); color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); }
+    .form-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+    /* Chart */
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left; padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted); font-weight: 600; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;
+    }
+    td {
+      padding: 9px 12px; border-bottom: 1px solid #1e293b;
+      color: var(--text); white-space: nowrap;
+    }
+    tr:hover td { background: rgba(148,163,184,0.05); }
+    tr:last-child td { border-bottom: none; }
+
+    td.td-safe    { color: var(--green); font-weight: 600; }
+    td.td-caution { color: var(--yellow); font-weight: 600; }
+    td.td-danger  { color: var(--orange); font-weight: 600; }
+    td.td-alert   { color: var(--red); font-weight: 600; }
+
+    .del-btn {
+      background: none; border: none; cursor: pointer;
+      color: #475569; font-size: 14px; padding: 2px 6px;
+      border-radius: 4px; transition: color 0.15s;
+    }
+    .del-btn:hover { color: var(--red); }
+
+    /* Reference panel */
+    .ref-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .ref-item {
+      background: rgba(15,23,42,0.5);
+      border: 1px solid var(--border);
+      border-left: 3px solid;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .ref-item.s1 { border-left-color: #f59e0b; }
+    .ref-item.s2 { border-left-color: #f97316; }
+    .ref-item.s3 { border-left-color: #ef4444; }
+    .ref-item.s0 { border-left-color: #38bdf8; }
+    .ref-title { font-weight: 700; margin-bottom: 3px; color: var(--text); }
+    .ref-desc  { color: var(--muted); font-size: 12px; }
+
+    /* Badge for consecutive days */
+    .consec-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(239,68,68,0.15); color: #fca5a5;
+      border: 1px solid #ef444433; border-radius: 6px;
+      padding: 2px 8px; font-size: 12px; font-weight: 700;
+    }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1e293b; border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 18px;
+      color: var(--text); font-size: 14px;
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.25s; z-index: 999;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    .no-data { text-align: center; color: var(--muted); padding: 30px; font-size: 14px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>台股融資風險儀表板</h1>
+  <nav class="header-nav">
+    <a href="index.html">← 返回首頁</a>
+  </nav>
+</header>
+
+<div class="container">
+
+  <!-- Risk Banner -->
+  <div class="risk-banner" id="riskBanner">
+    <div>
+      <div class="risk-label">今日整體風險等級</div>
+      <div class="risk-level" id="riskLevel">--</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="riskDesc">尚無資料，請輸入今日數據</div>
+    </div>
+    <div class="risk-signals" id="riskSignals">
+      <div class="sig-chip off"><span class="sig-dot off"></span>訊號一</div>
+      <div class="sig-chip off"><span class="sig-dot off"></span>訊號二</div>
+      <div class="sig-chip off"><span class="sig-dot off"></span>訊號三</div>
+    </div>
+  </div>
+
+  <!-- KPI Metrics -->
+  <div class="metric-grid" id="metricGrid">
+    <div class="metric-card safe">
+      <div class="metric-name">融資餘額</div>
+      <div><span class="metric-value" id="mv-margin">--</span><span class="metric-unit">億</span></div>
+      <div class="metric-sub" id="ms-margin-chg">較前日 --</div>
+    </div>
+    <div class="metric-card safe">
+      <div class="metric-name">融資佔市值比率</div>
+      <div><span class="metric-value" id="mv-ratio">--</span><span class="metric-unit">%</span></div>
+      <div class="metric-sub">警戒 &gt;1%　歷史高點 1.2%</div>
+      <div class="metric-status safe" id="ms-ratio">--</div>
+    </div>
+    <div class="metric-card safe">
+      <div class="metric-name">融資維持率</div>
+      <div><span class="metric-value" id="mv-maintain">--</span><span class="metric-unit">%</span></div>
+      <div class="metric-sub">危險線 &lt;150%</div>
+      <div class="metric-status safe" id="ms-maintain">--</div>
+    </div>
+    <div class="metric-card safe">
+      <div class="metric-name">散戶融資使用率</div>
+      <div><span class="metric-value" id="mv-usage">--</span><span class="metric-unit">%</span></div>
+      <div class="metric-sub">危險線 &gt;60%</div>
+      <div class="metric-status safe" id="ms-usage">--</div>
+    </div>
+    <div class="metric-card safe">
+      <div class="metric-name">券資比</div>
+      <div><span class="metric-value" id="mv-short">--</span><span class="metric-unit">%</span></div>
+      <div class="metric-sub">危險線 &lt;2.5%</div>
+      <div class="metric-status safe" id="ms-short">--</div>
+    </div>
+    <div class="metric-card safe">
+      <div class="metric-name">當沖比</div>
+      <div><span class="metric-value" id="mv-daytrade">--</span><span class="metric-unit">%</span></div>
+      <div class="metric-sub">危險線 &gt;35%</div>
+      <div class="metric-status safe" id="ms-daytrade">--</div>
+    </div>
+    <div class="metric-card safe">
+      <div class="metric-name">加權指數</div>
+      <div><span class="metric-value" id="mv-index">--</span></div>
+      <div class="metric-sub" id="ms-index-ma">季線(60日MA) --</div>
+      <div class="metric-status safe" id="ms-index">--</div>
+    </div>
+    <div class="metric-card safe">
+      <div class="metric-name">連續減碼天數</div>
+      <div><span class="metric-value" id="mv-consec">--</span><span class="metric-unit">天</span></div>
+      <div class="metric-sub">危險線：連續5天大減</div>
+      <div class="metric-status safe" id="ms-consec">--</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">融資餘額趨勢（億）</div>
+      <div class="chart-wrap"><canvas id="chartMargin"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">融資佔市值比率（%）</div>
+      <div class="chart-wrap"><canvas id="chartRatio"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">融資維持率 &amp; 使用率（%）</div>
+      <div class="chart-wrap"><canvas id="chartMaintain"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">券資比 &amp; 當沖比（%）</div>
+      <div class="chart-wrap"><canvas id="chartShort"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Input Form -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="section-header">
+      <div class="card-title" style="margin-bottom:0;">輸入今日數據</div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>日期</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>融資餘額（億）</label>
+        <input type="number" id="f-margin" placeholder="例：5350" step="1">
+        <div class="hint">來源：台灣證交所融資融券統計</div>
+      </div>
+      <div class="form-group">
+        <label>台股總市值（兆）</label>
+        <input type="number" id="f-mktcap" placeholder="例：75" step="0.1">
+        <div class="hint">用於計算融資佔比，可不每日更新</div>
+      </div>
+      <div class="form-group">
+        <label>融資維持率（%）</label>
+        <input type="number" id="f-maintain" placeholder="例：160" step="0.1">
+        <div class="hint">危險線：&lt;150%</div>
+      </div>
+      <div class="form-group">
+        <label>散戶融資使用率（%）</label>
+        <input type="number" id="f-usage" placeholder="例：45" step="0.1">
+        <div class="hint">危險線：&gt;60%</div>
+      </div>
+      <div class="form-group">
+        <label>券資比（%）</label>
+        <input type="number" id="f-short" placeholder="例：5" step="0.1">
+        <div class="hint">危險線：&lt;2.5%</div>
+      </div>
+      <div class="form-group">
+        <label>當沖比（%）</label>
+        <input type="number" id="f-daytrade" placeholder="例：25" step="0.1">
+        <div class="hint">危險線：&gt;35%</div>
+      </div>
+      <div class="form-group">
+        <label>加權指數</label>
+        <input type="number" id="f-index" placeholder="例：22500" step="1">
+      </div>
+      <div class="form-group">
+        <label>季線（60日MA）</label>
+        <input type="number" id="f-ma60" placeholder="例：21000" step="1">
+        <div class="hint">指數破季線為訊號一條件之一</div>
+      </div>
+      <div class="form-group">
+        <label>融資是否單日大減</label>
+        <select id="f-bigdrop">
+          <option value="0">否</option>
+          <option value="1">是（大減 &gt;50億）</option>
+        </select>
+        <div class="hint">系統自動追蹤連續大減天數</div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveEntry()">儲存今日數據</button>
+      <button class="btn btn-ghost" onclick="fillToday()">填入今日日期</button>
+      <button class="btn btn-ghost" onclick="fillLastValues()">帶入上次數值</button>
+    </div>
+  </div>
+
+  <!-- History Table -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="section-header">
+      <div class="card-title" style="margin-bottom:0;">歷史記錄</div>
+      <button class="btn btn-danger btn-sm" onclick="clearAll()" style="font-size:12px;padding:5px 12px;">清除全部</button>
+    </div>
+    <div class="table-wrap">
+      <table id="histTable">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>融資餘額(億)</th>
+            <th>佔市值%</th>
+            <th>維持率%</th>
+            <th>使用率%</th>
+            <th>券資比%</th>
+            <th>當沖比%</th>
+            <th>指數</th>
+            <th>破季線</th>
+            <th>連減天</th>
+            <th>風險</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="histBody">
+          <tr><td colspan="12" class="no-data">尚無記錄</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Reference -->
+  <div class="card">
+    <div class="card-title">風險判斷依據</div>
+    <ul class="ref-list">
+      <li class="ref-item s0">
+        <div class="ref-title">融資佔市值比率</div>
+        <div class="ref-desc">目前 0.71% 仍健康。歷史上超過 1% 偏警戒，2007、2021 高點都到 1.2% 附近。若融資單週暴增 300 億以上且指數不過前高，需開始減碼。</div>
+      </li>
+      <li class="ref-item s1">
+        <div class="ref-title">訊號一：主力斷頭出場</div>
+        <div class="ref-desc">融資餘額連續 5 天大減 ＋ 大盤破季線（60日MA）→ 表示主力出場</div>
+      </li>
+      <li class="ref-item s2">
+        <div class="ref-title">訊號二：籌碼混亂</div>
+        <div class="ref-desc">融資維持率跌破 150% ＋ 散戶融資使用率 &gt;60% → 籌碼很亂</div>
+      </li>
+      <li class="ref-item s3">
+        <div class="ref-title">訊號三：軋空結束轉殺多</div>
+        <div class="ref-desc">券資比 &lt;2.5% ＋ 當沖比 &gt;35% → 軋空結束轉殺多</div>
+      </li>
+    </ul>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'tttgcm_margin_risk_v2';
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveData(arr) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+}
+
+// Compute consecutive large-drop days up to index i
+function calcConsecDrop(arr, i) {
+  let count = 0;
+  for (let j = i; j >= 0; j--) {
+    if (arr[j].bigdrop) count++;
+    else break;
+  }
+  return count;
+}
+
+// Compute risk level for a single entry given context of previous entries
+function calcRisk(entry, consecDrop) {
+  const ratio = entry.ratio;
+  const maintain = entry.maintain;
+  const usage = entry.usage;
+  const shortRatio = entry.shortRatio;
+  const daytrade = entry.daytrade;
+  const belowMA = entry.index > 0 && entry.ma60 > 0 && entry.index < entry.ma60;
+
+  const s1 = consecDrop >= 5 && belowMA;
+  const s2 = maintain > 0 && maintain < 150 && usage > 60;
+  const s3 = shortRatio > 0 && shortRatio < 2.5 && daytrade > 35;
+
+  const triggered = [s1, s2, s3].filter(Boolean).length;
+  const ratioHigh = ratio >= 1.2 ? 2 : ratio >= 1.0 ? 1 : 0;
+
+  const score = triggered * 2 + ratioHigh;
+
+  let level, label, desc;
+  if (score === 0) {
+    level = 'low'; label = '低風險'; desc = '各項指標正常，市場融資未見警訊';
+  } else if (score <= 1) {
+    level = 'medium'; label = '中度警示'; desc = '部分指標偏高，需密切追蹤';
+  } else if (score <= 3) {
+    level = 'high'; label = '高度警示'; desc = '多項訊號觸發，建議降低融資部位';
+  } else {
+    level = 'alert'; label = '極度危險'; desc = '多訊號同時觸發，市場面臨重大修正風險';
+  }
+
+  return { level, label, desc, s1, s2, s3, score };
+}
+
+function processEntries(raw) {
+  const sorted = [...raw].sort((a, b) => a.date.localeCompare(b.date));
+  return sorted.map((e, i) => {
+    const consec = calcConsecDrop(sorted, i);
+    const risk = calcRisk(e, consec);
+    return { ...e, consec, risk };
+  });
+}
+
+// ---- Charts ----
+let charts = {};
+
+function initCharts() {
+  const common = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#475569', font: { size: 10 } }, grid: { color: '#1e293b' } },
+      y: { ticks: { color: '#475569', font: { size: 10 } }, grid: { color: '#1e293b' } }
+    }
+  };
+
+  charts.margin = new Chart(document.getElementById('chartMargin'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: '融資餘額(億)', data: [], borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.08)', tension: 0.3, pointRadius: 3 }] },
+    options: { ...JSON.parse(JSON.stringify(common)) }
+  });
+
+  charts.ratio = new Chart(document.getElementById('chartRatio'), {
+    type: 'line',
+    data: {
+      labels: [], datasets: [
+        { label: '融資佔比(%)', data: [], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)', tension: 0.3, pointRadius: 3 },
+        { label: '警戒線1%', data: [], borderColor: '#f59e0b', borderDash: [4,3], pointRadius: 0 },
+        { label: '危險線1.2%', data: [], borderColor: '#ef4444', borderDash: [4,3], pointRadius: 0 }
+      ]
+    },
+    options: { ...JSON.parse(JSON.stringify(common)) }
+  });
+
+  charts.maintain = new Chart(document.getElementById('chartMaintain'), {
+    type: 'line',
+    data: {
+      labels: [], datasets: [
+        { label: '維持率(%)', data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.08)', tension: 0.3, pointRadius: 3, yAxisID: 'y' },
+        { label: '使用率(%)', data: [], borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.08)', tension: 0.3, pointRadius: 3, yAxisID: 'y2' }
+      ]
+    },
+    options: {
+      ...JSON.parse(JSON.stringify(common)),
+      scales: {
+        x: { ticks: { color: '#475569', font: { size: 10 } }, grid: { color: '#1e293b' } },
+        y:  { ticks: { color: '#475569', font: { size: 10 } }, grid: { color: '#1e293b' }, position: 'left' },
+        y2: { ticks: { color: '#475569', font: { size: 10 } }, grid: { drawOnChartArea: false }, position: 'right' }
+      }
+    }
+  });
+
+  charts.short = new Chart(document.getElementById('chartShort'), {
+    type: 'line',
+    data: {
+      labels: [], datasets: [
+        { label: '券資比(%)', data: [], borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', tension: 0.3, pointRadius: 3 },
+        { label: '當沖比(%)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', tension: 0.3, pointRadius: 3 }
+      ]
+    },
+    options: { ...JSON.parse(JSON.stringify(common)) }
+  });
+}
+
+function updateCharts(entries) {
+  const n = Math.max(entries.length, 1);
+  const labels = entries.map(e => e.date.slice(5)); // MM-DD
+
+  charts.margin.data.labels = labels;
+  charts.margin.data.datasets[0].data = entries.map(e => e.margin || null);
+  charts.margin.update();
+
+  charts.ratio.data.labels = labels;
+  charts.ratio.data.datasets[0].data = entries.map(e => e.ratio > 0 ? e.ratio : null);
+  charts.ratio.data.datasets[1].data = entries.map(() => 1.0);
+  charts.ratio.data.datasets[2].data = entries.map(() => 1.2);
+  charts.ratio.update();
+
+  charts.maintain.data.labels = labels;
+  charts.maintain.data.datasets[0].data = entries.map(e => e.maintain || null);
+  charts.maintain.data.datasets[1].data = entries.map(e => e.usage || null);
+  charts.maintain.update();
+
+  charts.short.data.labels = labels;
+  charts.short.data.datasets[0].data = entries.map(e => e.shortRatio || null);
+  charts.short.data.datasets[1].data = entries.map(e => e.daytrade || null);
+  charts.short.update();
+}
+
+// ---- UI Helpers ----
+function statusClass(level) {
+  return level === 'low' ? 'safe' : level === 'medium' ? 'caution' : level === 'high' ? 'danger' : 'alert';
+}
+
+function metricStatus(value, type) {
+  if (value === null || value === undefined || isNaN(value)) return { cls: 'safe', label: '--' };
+  switch(type) {
+    case 'ratio':
+      if (value >= 1.2) return { cls: 'alert', label: '極度過熱' };
+      if (value >= 1.0) return { cls: 'danger', label: '警戒' };
+      if (value >= 0.8) return { cls: 'caution', label: '偏高' };
+      return { cls: 'safe', label: '正常' };
+    case 'maintain':
+      if (value < 130) return { cls: 'alert', label: '極度危險' };
+      if (value < 150) return { cls: 'danger', label: '危險' };
+      if (value < 170) return { cls: 'caution', label: '偏低' };
+      return { cls: 'safe', label: '正常' };
+    case 'usage':
+      if (value > 70) return { cls: 'alert', label: '極高' };
+      if (value > 60) return { cls: 'danger', label: '過高' };
+      if (value > 50) return { cls: 'caution', label: '偏高' };
+      return { cls: 'safe', label: '正常' };
+    case 'short':
+      if (value < 2.0) return { cls: 'alert', label: '極低危險' };
+      if (value < 2.5) return { cls: 'danger', label: '危險' };
+      if (value < 4.0) return { cls: 'caution', label: '偏低' };
+      return { cls: 'safe', label: '正常' };
+    case 'daytrade':
+      if (value > 40) return { cls: 'alert', label: '極高' };
+      if (value > 35) return { cls: 'danger', label: '危險' };
+      if (value > 28) return { cls: 'caution', label: '偏高' };
+      return { cls: 'safe', label: '正常' };
+    case 'consec':
+      if (value >= 5) return { cls: 'alert', label: '觸發條件' };
+      if (value >= 3) return { cls: 'danger', label: '持續減碼' };
+      if (value >= 1) return { cls: 'caution', label: '減碼中' };
+      return { cls: 'safe', label: '未減碼' };
+  }
+  return { cls: 'safe', label: '正常' };
+}
+
+function renderMetrics(latest) {
+  if (!latest) return;
+
+  const chg = latest._prevMargin != null
+    ? (latest.margin - latest._prevMargin).toFixed(0)
+    : null;
+
+  set('mv-margin', latest.margin ? latest.margin.toFixed(0) : '--');
+  set('ms-margin-chg', chg != null ? (chg >= 0 ? `較前日 +${chg}億` : `較前日 ${chg}億`) : '較前日 --');
+
+  const r = latest.ratio;
+  set('mv-ratio', r > 0 ? r.toFixed(2) : '--');
+  setStatus('ms-ratio', metricStatus(r, 'ratio'));
+  updateCardBorder('mv-ratio', metricStatus(r, 'ratio').cls);
+
+  set('mv-maintain', latest.maintain > 0 ? latest.maintain.toFixed(1) : '--');
+  setStatus('ms-maintain', metricStatus(latest.maintain, 'maintain'));
+  updateCardBorder('mv-maintain', metricStatus(latest.maintain, 'maintain').cls);
+
+  set('mv-usage', latest.usage > 0 ? latest.usage.toFixed(1) : '--');
+  setStatus('ms-usage', metricStatus(latest.usage, 'usage'));
+  updateCardBorder('mv-usage', metricStatus(latest.usage, 'usage').cls);
+
+  set('mv-short', latest.shortRatio > 0 ? latest.shortRatio.toFixed(1) : '--');
+  setStatus('ms-short', metricStatus(latest.shortRatio, 'short'));
+  updateCardBorder('mv-short', metricStatus(latest.shortRatio, 'short').cls);
+
+  set('mv-daytrade', latest.daytrade > 0 ? latest.daytrade.toFixed(1) : '--');
+  setStatus('ms-daytrade', metricStatus(latest.daytrade, 'daytrade'));
+  updateCardBorder('mv-daytrade', metricStatus(latest.daytrade, 'daytrade').cls);
+
+  set('mv-index', latest.index > 0 ? latest.index.toLocaleString() : '--');
+  if (latest.index > 0 && latest.ma60 > 0) {
+    const belowMA = latest.index < latest.ma60;
+    document.getElementById('ms-index-ma').textContent = `季線 ${latest.ma60.toLocaleString()}`;
+    const idxSt = belowMA ? { cls: 'alert', label: '破季線' } : { cls: 'safe', label: '站上季線' };
+    setStatus('ms-index', idxSt);
+    updateCardBorder('mv-index', idxSt.cls);
+  }
+
+  set('mv-consec', latest.consec);
+  setStatus('ms-consec', metricStatus(latest.consec, 'consec'));
+  updateCardBorder('mv-consec', metricStatus(latest.consec, 'consec').cls);
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function setStatus(id, st) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = st.label;
+  el.className = `metric-status ${st.cls}`;
+}
+
+function updateCardBorder(metricId, cls) {
+  const el = document.getElementById(metricId);
+  if (!el) return;
+  const card = el.closest('.metric-card');
+  if (card) card.className = `metric-card ${cls}`;
+}
+
+function renderBanner(latest) {
+  const banner = document.getElementById('riskBanner');
+  const levelEl = document.getElementById('riskLevel');
+  const descEl = document.getElementById('riskDesc');
+  const sigsEl = document.getElementById('riskSignals');
+
+  if (!latest) {
+    banner.className = 'risk-banner low';
+    levelEl.className = 'risk-level low';
+    levelEl.textContent = '--';
+    descEl.textContent = '尚無資料，請輸入今日數據';
+    return;
+  }
+
+  const { level, label, desc, s1, s2, s3 } = latest.risk;
+  const sc = statusClass(level);
+  banner.className = `risk-banner ${sc}`;
+  levelEl.className = `risk-level ${sc}`;
+  levelEl.textContent = label;
+  descEl.textContent = `${latest.date} — ${desc}`;
+
+  const sigs = [
+    { on: s1, label: '訊號一：主力出場' },
+    { on: s2, label: '訊號二：籌碼混亂' },
+    { on: s3, label: '訊號三：轉殺多' }
+  ];
+  sigsEl.innerHTML = sigs.map(s =>
+    `<div class="sig-chip ${s.on ? 'on' : 'off'}">
+      <span class="sig-dot ${s.on ? 'on' : 'off'}"></span>${s.label}
+    </div>`
+  ).join('');
+}
+
+function riskLabel(r) {
+  if (!r) return '--';
+  const map = { low: '低', medium: '中', high: '高', alert: '極危' };
+  return map[r.level] || '--';
+}
+
+function riskTdClass(r) {
+  if (!r) return '';
+  const map = { low: 'td-safe', medium: 'td-caution', high: 'td-danger', alert: 'td-alert' };
+  return map[r.level] || '';
+}
+
+function renderTable(entries) {
+  const tbody = document.getElementById('histBody');
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="12" class="no-data">尚無記錄</td></tr>';
+    return;
+  }
+  const rev = [...entries].reverse();
+  tbody.innerHTML = rev.map((e, rawIdx) => {
+    const belowMA = e.index > 0 && e.ma60 > 0 && e.index < e.ma60;
+    const ratioStr = e.ratio > 0 ? e.ratio.toFixed(2) : '--';
+    const origIdx = entries.length - 1 - rawIdx;
+    return `<tr>
+      <td>${e.date}</td>
+      <td>${e.margin ? e.margin.toFixed(0) : '--'}</td>
+      <td class="${e.ratio >= 1.0 ? 'td-danger' : ''}">${ratioStr}</td>
+      <td class="${e.maintain > 0 && e.maintain < 150 ? 'td-alert' : ''}">${e.maintain > 0 ? e.maintain.toFixed(1) : '--'}</td>
+      <td class="${e.usage > 60 ? 'td-danger' : ''}">${e.usage > 0 ? e.usage.toFixed(1) : '--'}</td>
+      <td class="${e.shortRatio > 0 && e.shortRatio < 2.5 ? 'td-alert' : ''}">${e.shortRatio > 0 ? e.shortRatio.toFixed(1) : '--'}</td>
+      <td class="${e.daytrade > 35 ? 'td-danger' : ''}">${e.daytrade > 0 ? e.daytrade.toFixed(1) : '--'}</td>
+      <td>${e.index > 0 ? e.index.toLocaleString() : '--'}</td>
+      <td class="${belowMA ? 'td-alert' : 'td-safe'}">${e.index > 0 && e.ma60 > 0 ? (belowMA ? '破季線' : '站上') : '--'}</td>
+      <td class="${e.consec >= 5 ? 'td-alert' : e.consec >= 3 ? 'td-danger' : ''}">${e.consec}</td>
+      <td class="${riskTdClass(e.risk)}">${riskLabel(e.risk)}</td>
+      <td><button class="del-btn" onclick="deleteEntry(${origIdx})" title="刪除">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function render() {
+  const raw = loadData();
+  const entries = processEntries(raw);
+  const latest = entries.length ? entries[entries.length - 1] : null;
+
+  // Attach prev margin for delta display
+  if (entries.length >= 2) {
+    entries[entries.length - 1]._prevMargin = entries[entries.length - 2].margin;
+  }
+
+  renderBanner(latest);
+  renderMetrics(latest);
+  renderTable(entries);
+  updateCharts(entries);
+}
+
+// ---- Actions ----
+function saveEntry() {
+  const date = document.getElementById('f-date').value;
+  if (!date) { showToast('請填入日期'); return; }
+
+  const margin   = parseFloat(document.getElementById('f-margin').value) || 0;
+  const mktcap   = parseFloat(document.getElementById('f-mktcap').value) || 0;
+  const maintain = parseFloat(document.getElementById('f-maintain').value) || 0;
+  const usage    = parseFloat(document.getElementById('f-usage').value) || 0;
+  const shortR   = parseFloat(document.getElementById('f-short').value) || 0;
+  const daytrade = parseFloat(document.getElementById('f-daytrade').value) || 0;
+  const index    = parseFloat(document.getElementById('f-index').value) || 0;
+  const ma60     = parseFloat(document.getElementById('f-ma60').value) || 0;
+  const bigdrop  = document.getElementById('f-bigdrop').value === '1';
+
+  // ratio: margin(億) / mktcap(兆*10000億) * 100
+  const ratio = mktcap > 0 ? (margin / (mktcap * 10000)) * 100 : 0;
+
+  const raw = loadData();
+  const existIdx = raw.findIndex(e => e.date === date);
+  const entry = { date, margin, mktcap, ratio, maintain, usage, shortRatio: shortR, daytrade, index, ma60, bigdrop };
+
+  if (existIdx >= 0) {
+    raw[existIdx] = entry;
+    showToast(`已更新 ${date} 的數據`);
+  } else {
+    raw.push(entry);
+    showToast(`已儲存 ${date} 的數據`);
+  }
+
+  saveData(raw);
+  render();
+}
+
+function deleteEntry(idx) {
+  const raw = loadData();
+  raw.splice(idx, 1);
+  saveData(raw);
+  render();
+}
+
+function clearAll() {
+  if (!confirm('確定要清除所有記錄嗎？')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  render();
+  showToast('已清除所有記錄');
+}
+
+function fillToday() {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  document.getElementById('f-date').value = `${y}-${m}-${d}`;
+}
+
+function fillLastValues() {
+  const raw = loadData();
+  if (!raw.length) { showToast('尚無歷史數據'); return; }
+  const sorted = [...raw].sort((a, b) => a.date.localeCompare(b.date));
+  const last = sorted[sorted.length - 1];
+  if (last.mktcap)   document.getElementById('f-mktcap').value   = last.mktcap;
+  if (last.maintain) document.getElementById('f-maintain').value = last.maintain;
+  if (last.usage)    document.getElementById('f-usage').value    = last.usage;
+  if (last.shortRatio) document.getElementById('f-short').value  = last.shortRatio;
+  if (last.daytrade) document.getElementById('f-daytrade').value = last.daytrade;
+  if (last.ma60)     document.getElementById('f-ma60').value     = last.ma60;
+  showToast('已帶入上次數值');
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ---- Init ----
+fillToday();
+initCharts();
+render();
+</script>
+</body>
+</html>
