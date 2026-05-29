@@ -709,10 +709,10 @@
         <span class="d-value" id="derived-rate-value">1 USD = — JPY</span>
       </div>
       <div class="derived-row">
-        <span class="d-label">台幣直換需要</span>
+        <span class="d-label">折算台幣約（JPY→USD→TWD）</span>
         <span class="d-value" id="derived-twd-cost" style="color:var(--accent)">— TWD</span>
       </div>
-      <span class="d-hint">需填左側「台幣→日幣」才能顯示台幣直換金額</span>
+      <span class="d-hint">需填右側「台幣→美金」報價才能顯示折算台幣金額</span>
     </div>
   </div>
 
@@ -852,13 +852,14 @@
         ? `1 USD = ${fmt(usdJpy, 2)} JPY`
         : '— （請填換得日幣與花費美金）';
 
-      const twdCost = (twdJpy > 0 && actualJpy > 0) ? actualJpy / twdJpy : null;
+      // JPY → USD → TWD: actualUsd × usdTwd (no twd-jpy needed)
+      const twdViaUsd = (actualUsd > 0 && usdTwd > 0) ? actualUsd * usdTwd : null;
       const twdCostEl = $('derived-twd-cost');
-      if (twdCost != null) {
-        twdCostEl.textContent = fmt(twdCost, 0) + ' TWD';
+      if (twdViaUsd != null) {
+        twdCostEl.textContent = fmt(twdViaUsd, 0) + ' TWD';
         twdCostEl.style.color = 'var(--accent)';
       } else {
-        twdCostEl.textContent = '— （請填台幣→日幣報價）';
+        twdCostEl.textContent = '— （請填台幣→美金報價）';
         twdCostEl.style.color = 'var(--muted)';
       }
 
@@ -877,30 +878,68 @@
   function calc() {
     const { twdJpy, usdJpy, usdTwd, jpyGoal, actualUsd } = getInputs();
 
-    if (twdJpy <= 0 || usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0) {
+    // Mode B can run without twd-jpy; mode A requires all four
+    const needsAllRates = currentMode !== 'b';
+    if (needsAllRates && (twdJpy <= 0 || usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0)) {
+      setEmpty(); return;
+    }
+    if (usdJpy <= 0 || usdTwd <= 0 || jpyGoal <= 0) {
       setEmpty(); return;
     }
 
-    const twdNeeded = jpyGoal / twdJpy;
     const usdNeeded = actualUsd != null ? actualUsd : jpyGoal / usdJpy;
     const twdForUsd = usdNeeded * usdTwd;
-    const twdPer10k = 10000 / twdJpy;
-    const usdPer10k = currentMode === 'b' ? usdJpy : (10000 / usdJpy) * usdTwd;
+    const hasTwdRate = twdJpy > 0;
+    const twdNeeded  = hasTwdRate ? jpyGoal / twdJpy : null;
+    const twdPer10k  = hasTwdRate ? 10000 / twdJpy : null;
     const theoryPer10k = (usdTwd / usdJpy) * 10000;
 
-    $('res-twd-amount').textContent     = fmt(twdNeeded, 0);
-    $('res-jpy-display-a').textContent  = fmt(jpyGoal, 0);
-    $('res-twd-per10k').textContent     = fmt(twdPer10k, 1);
-    $('res-usd-amount').textContent     = fmt(usdNeeded, 2);
-    $('res-usd-in-twd').textContent     = fmt(twdForUsd, 0);
-    $('res-usd-per10k').textContent     = currentMode === 'b'
+    // Method A card
+    if (twdNeeded != null) {
+      $('res-twd-amount').textContent    = fmt(twdNeeded, 0);
+      $('res-twd-per10k').textContent    = fmt(twdPer10k, 1);
+    } else {
+      $('res-twd-amount').textContent    = '—';
+      $('res-twd-per10k').textContent    = '需填台幣匯率';
+    }
+    $('res-jpy-display-a').textContent = fmt(jpyGoal, 0);
+
+    // Method B card
+    $('res-usd-amount').textContent  = fmt(usdNeeded, 2);
+    $('res-usd-in-twd').textContent  = fmt(twdForUsd, 0);
+    $('res-usd-per10k').textContent  = currentMode === 'b'
       ? fmt(usdJpy, 2)
       : fmt((10000 / usdJpy) * usdTwd, 1);
 
-    $('unit-twd').textContent    = fmt(twdPer10k, 1) + ' TWD';
+    // Unit rates
+    $('unit-twd').textContent    = twdPer10k != null ? fmt(twdPer10k, 1) + ' TWD' : '—';
     $('unit-usd').textContent    = fmt((10000 / usdJpy) * usdTwd, 1) + ' TWD';
     $('unit-theory').textContent = fmt(theoryPer10k, 1) + ' TWD';
 
+    const cardTwd = $('card-twd'), cardUsd = $('card-usd');
+    const flagTwd = $('flag-twd'), flagUsd = $('flag-usd');
+    const summaryIcon = $('summary-icon'), summaryText = $('summary-text');
+    cardTwd.classList.remove('winner', 'loser');
+    cardUsd.classList.remove('winner', 'loser');
+
+    // If no twd-jpy in mode B: show USD result only, no comparison
+    if (!hasTwdRate) {
+      cardUsd.classList.add('winner');
+      flagUsd.textContent = '已知花費';
+      flagTwd.textContent = '';
+      $('bar-twd').style.width = '50%';
+      $('bar-usd').style.width = '50%';
+      $('bar-diff-label').textContent = '填入「台幣→日幣」可進行比較';
+      summaryIcon.textContent = '💱';
+      summaryText.innerHTML =
+        `你花了 <span class="diff-twd">${fmt(usdNeeded,2)} USD</span>，` +
+        `折算台幣約 <span class="diff-twd">${fmt(twdForUsd,0)} TWD</span>` +
+        `（推算匯率 1 USD = ${fmt(usdJpy,2)} JPY）。<br>` +
+        `填入左側「台幣→日幣」匯率可比較台幣直換的差異。`;
+      return;
+    }
+
+    // Full comparison
     const total  = twdNeeded + twdForUsd;
     const pctTwd = (twdNeeded / total) * 100;
     $('bar-twd').style.width = pctTwd + '%';
@@ -911,12 +950,6 @@
     $('bar-diff-label').textContent = `差距 ${fmt(diff, 0)} TWD (${diffPct}%)`;
 
     const EPS = 0.5;
-    const cardTwd = $('card-twd'), cardUsd = $('card-usd');
-    const flagTwd = $('flag-twd'), flagUsd = $('flag-usd');
-    const summaryIcon = $('summary-icon'), summaryText = $('summary-text');
-    cardTwd.classList.remove('winner', 'loser');
-    cardUsd.classList.remove('winner', 'loser');
-
     const isEqual = diff < EPS;
     const twdWins = twdNeeded < twdForUsd;
 
@@ -924,21 +957,21 @@
       flagTwd.innerHTML = flagUsd.innerHTML = '<span class="equal-badge">相當</span>';
       summaryIcon.textContent = '⚖️';
       summaryText.innerHTML = currentMode === 'b'
-        ? `你花了 <span class="diff-twd">${fmt(actualUsd,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，與台幣直換成本幾乎相同。`
+        ? `你花了 <span class="diff-twd">${fmt(usdNeeded,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，與台幣直換成本幾乎相同。`
         : `兩種換法幾乎相同，換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，台幣成本差距不到 1 元。`;
     } else if (twdWins) {
       cardTwd.classList.add('winner'); cardUsd.classList.add('loser');
       flagTwd.textContent = '較划算 ✓'; flagUsd.textContent = '較貴';
       summaryIcon.textContent = '🏆';
       summaryText.innerHTML = currentMode === 'b'
-        ? `你花了 <span class="diff-twd">${fmt(actualUsd,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>。<strong>若改用台幣直換</strong>，同樣金額只需 <span class="diff-twd">${fmt(twdNeeded,0)} TWD</span>，比你實際花費<strong>省了 ${fmt(diff,0)} TWD</strong>（${diffPct}%）。`
+        ? `你花了 <span class="diff-twd">${fmt(usdNeeded,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>。<strong>若改用台幣直換</strong>只需 <span class="diff-twd">${fmt(twdNeeded,0)} TWD</span>，比你實際花費<strong>省了 ${fmt(diff,0)} TWD</strong>（${diffPct}%）。`
         : `<strong>直接用台幣換日幣比較划算！</strong><br>換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，台幣直換只需 <span class="diff-twd">${fmt(twdNeeded,0)} TWD</span>，比用美金換少花 <span class="diff-twd">${fmt(diff,0)} TWD</span>（省 ${diffPct}%）。`;
     } else {
       cardUsd.classList.add('winner'); cardTwd.classList.add('loser');
       flagUsd.textContent = '較划算 ✓'; flagTwd.textContent = '較貴';
       summaryIcon.textContent = '🏆';
       summaryText.innerHTML = currentMode === 'b'
-        ? `你花了 <span class="diff-twd">${fmt(actualUsd,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>。<strong>比台幣直換便宜</strong>，用台幣換同樣需要 ${fmt(twdNeeded,0)} TWD，<strong>實際省了 <span class="diff-twd">${fmt(diff,0)} TWD</span></strong>（${diffPct}%）。`
+        ? `你花了 <span class="diff-twd">${fmt(usdNeeded,2)} USD</span>（≈ ${fmt(twdForUsd,0)} TWD）換得 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>。比台幣直換便宜，台幣換需要 ${fmt(twdNeeded,0)} TWD，<strong>實際省了 <span class="diff-twd">${fmt(diff,0)} TWD</span></strong>（${diffPct}%）。`
         : `<strong>用美金換日幣比較划算！</strong><br>換 <strong style="color:var(--accent)">${fmt(jpyGoal,0)} JPY</strong>，用美金換台幣成本僅 <span class="diff-twd">${fmt(twdForUsd,0)} TWD</span>，比台幣直換省了 <span class="diff-twd">${fmt(diff,0)} TWD</span>（省 ${diffPct}%）。`;
     }
   }
