@@ -645,7 +645,10 @@
 
   <!-- ── 匯率設定 ── -->
   <div class="section">
-    <div class="section-title">匯率設定</div>
+    <div class="history-header">
+      <div class="section-title">匯率設定</div>
+      <button class="clear-btn" id="clear-inputs-btn">清除輸入</button>
+    </div>
     <div class="rate-grid">
       <div class="rate-item">
         <div class="rate-label"><span>台幣 → 日幣</span></div>
@@ -1112,20 +1115,48 @@
     }, 1500);
   }
 
+
+  // ── Input persistence ────────────────────────────────
+  const INPUT_FIELDS = ['twd-jpy','usd-jpy','usd-twd','jpy-target','actual-jpy','actual-usd'];
+  const INPUT_STORE  = 'exchange-inputs';
+
+  function saveInputs() {
+    const data = {};
+    INPUT_FIELDS.forEach(id => { data[id] = $(id).value; });
+    localStorage.setItem(INPUT_STORE, JSON.stringify(data));
+  }
+
+  function restoreInputs() {
+    try {
+      const data = JSON.parse(localStorage.getItem(INPUT_STORE));
+      if (!data) return;
+      INPUT_FIELDS.forEach(id => { if (data[id] != null) $(id).value = data[id]; });
+    } catch {}
+  }
+
+  function clearInputs() {
+    INPUT_FIELDS.forEach(id => { $(id).value = ''; });
+    localStorage.removeItem(INPUT_STORE);
+    calc();
+  }
+
+  $('clear-inputs-btn').addEventListener('click', clearInputs);
+
+  // ── Live calc ─────────────────────────────────────────
+  INPUT_FIELDS.forEach(id => {
+    $(id).addEventListener('input', () => { calc(); scheduleAutoSave(); saveInputs(); });
+  });
+
   // ── Quick buttons ─────────────────────────────────────
   document.querySelectorAll('.quick-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       $('jpy-target').value = btn.dataset.v;
-      calc(); scheduleAutoSave();
+      calc(); scheduleAutoSave(); saveInputs();
     });
   });
 
-  // ── Live calc ─────────────────────────────────────────
-  ['twd-jpy','usd-jpy','usd-twd','jpy-target','actual-jpy','actual-usd'].forEach(id => {
-    $(id).addEventListener('input', () => { calc(); scheduleAutoSave(); });
-  });
-
   // ── Init ──────────────────────────────────────────────
+  restoreInputs();
   const savedMode = localStorage.getItem('exchange-mode');
   if (savedMode === 'b') switchMode('b');
   else calc();
