@@ -1101,44 +1101,69 @@ function setFormField(id, val) {
   if (el && val !== null && val !== undefined && String(val) !== 'NaN') el.value = val;
 }
 
+// Extract { data, fields } from TWSE response, handling both old flat format
+// and new "tables" format (as of 2026 TWSE API).
+function extractTWSETable(json) {
+  if (Array.isArray(json.tables) && json.tables.length > 0) {
+    const t = json.tables[0];
+    const data   = t.data   || t.Data   || [];
+    const fields = t.fields || t.Fields || [];
+    addLog('INFO', `tables 格式 (共 ${json.tables.length} 個)，使用 tables[0] title="${t.title || '(無)'}", ${data.length} 筆`);
+    return { data, fields };
+  }
+  return { data: json.data || json.Data || [], fields: json.fields || json.Fields || [] };
+}
+
 async function fetchTaiex() {
   setDot('taiex', 'loading');
   addLog('INFO', '--- [Yahoo Finance] 加權指數 + 季線(MA60) ---');
-  const url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=90d';
-  addLog('INFO', `URL: ${url}`);
-  try {
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    addLog('INFO', `HTTP ${res.status} ${res.statusText}`);
-    addLog('INFO', `Content-Type: ${res.headers.get('content-type') || '(無)'}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const urls = [
+    'https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=90d',
+    'https://query2.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=90d',
+  ];
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    addLog('INFO', `嘗試 URL ${i + 1}/${urls.length}: ${url}`);
+    try {
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      addLog('INFO', `HTTP ${res.status} ${res.statusText}`);
+      addLog('INFO', `Content-Type: ${res.headers.get('content-type') || '(無)'}`);
+      if (!res.ok) { addLog('WARN', '非 2xx，跳下一個'); continue; }
 
-    const json = await res.json();
-    const result = json?.chart?.result?.[0];
-    if (!result) throw new Error('json.chart.result[0] 不存在，回應結構異常');
-    addLog('INFO', `chart.result[0] 存在，meta.symbol: ${result.meta?.symbol}`);
+      const json = await res.json();
+      const result = json?.chart?.result?.[0];
+      if (!result) throw new Error('json.chart.result[0] 不存在，回應結構異常');
+      addLog('INFO', `chart.result[0] 存在，meta.symbol: ${result.meta?.symbol}`);
 
-    const allCloses = result.indicators?.quote?.[0]?.close || [];
-    const closes = allCloses.filter(v => v != null);
-    addLog('INFO', `close 陣列長度: ${allCloses.length} 筆，非 null: ${closes.length} 筆`);
-    if (closes.length < 10) throw new Error(`有效收盤資料不足 (${closes.length} 筆)`);
+      const allCloses = result.indicators?.quote?.[0]?.close || [];
+      const closes = allCloses.filter(v => v != null);
+      addLog('INFO', `close 陣列長度: ${allCloses.length} 筆，非 null: ${closes.length} 筆`);
+      if (closes.length < 10) throw new Error(`有效收盤資料不足 (${closes.length} 筆)`);
 
-    const latest = Math.round(closes[closes.length - 1]);
-    const last60 = closes.slice(-60);
-    const ma60 = Math.round(last60.reduce((a, b) => a + b, 0) / last60.length);
-    addLog('DATA', `最新收盤: ${latest.toLocaleString()}`);
-    addLog('DATA', `MA60: 取最後 ${last60.length} 根均值 = ${ma60.toLocaleString()}`);
+      const latest = Math.round(closes[closes.length - 1]);
+      const last60 = closes.slice(-60);
+      const ma60 = Math.round(last60.reduce((a, b) => a + b, 0) / last60.length);
+      addLog('DATA', `最新收盤: ${latest.toLocaleString()}`);
+      addLog('DATA', `MA60: 取最後 ${last60.length} 根均值 = ${ma60.toLocaleString()}`);
 
-    setFormField('f-index', latest);
-    setFormField('f-ma60', ma60);
-    setDot('taiex', 'ok');
-    setFetchVal('taiex', `${latest.toLocaleString()} / MA60:${ma60.toLocaleString()}`);
-    addLog('OK', `已填入 加權指數=${latest}，季線MA60=${ma60}`);
-  } catch (e) {
-    addLog('ERR', `${e.name}: ${e.message}`);
-    if (e instanceof TypeError) addLog('WARN', '推測原因: CORS 被擋、無網路連線、或 Yahoo Finance API 暫時異常');
-    setDot('taiex', 'err');
-    setFetchVal('taiex', '失敗，請手動輸入');
+      setFormField('f-index', latest);
+      setFormField('f-ma60', ma60);
+      setDot('taiex', 'ok');
+      setFetchVal('taiex', `${latest.toLocaleString()} / MA60:${ma60.toLocaleString()}`);
+      addLog('OK', `已填入 加權指數=${latest}，季線MA60=${ma60}`);
+      return;
+    } catch (e) {
+      addLog('ERR', `${e.name}: ${e.message}`);
+      if (e instanceof TypeError) {
+        addLog('WARN', '推測原因: CORS 被擋、無網路連線、或 Yahoo Finance API 暫時異常');
+        if (/iPhone|iPad|iOS|Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent))
+          addLog('WARN', 'iOS/Safari 偵測：Safari 可能封鎖跨來源財經 API，建議改用 Chrome 或手動輸入');
+      }
+    }
   }
+  setDot('taiex', 'err');
+  setFetchVal('taiex', '失敗，請手動輸入');
+  addLog('ERR', '所有 Yahoo Finance URL 均失敗，加權指數/季線請手動輸入');
 }
 
 async function fetchTWSEMargin() {
@@ -1174,8 +1199,7 @@ async function fetchTWSEMargin() {
         continue;
       }
 
-      const data   = json.data   || json.Data   || [];
-      const fields = json.fields || json.Fields || [];
+      const { data, fields } = extractTWSETable(json);
       addLog('INFO', `data 筆數: ${data.length} | fields: [${fields.slice(0, 15).join(', ')}]`);
       if (!data.length) { addLog('WARN', 'data 為空，跳下一個'); continue; }
 
@@ -1262,8 +1286,7 @@ async function fetchDayTrade() {
       addLog('INFO', `stat: "${json?.stat}" | 頂層 keys: [${Object.keys(json).join(', ')}]`);
       if (json?.stat !== 'OK' && json?.stat !== 'ok') { addLog('WARN', 'stat 不是 OK，跳下一個'); continue; }
 
-      const data   = json.data   || json.Data   || [];
-      const fields = json.fields || json.Fields || [];
+      const { data, fields } = extractTWSETable(json);
       addLog('INFO', `data 筆數: ${data.length} | fields: [${fields.join(', ')}]`);
       if (!data.length) { addLog('WARN', 'data 為空，跳下一個'); continue; }
 
