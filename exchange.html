@@ -629,6 +629,46 @@
   .h-badge.twd  { background: rgba(56,189,248,0.15); color: #38bdf8; }
   .h-badge.usd  { background: rgba(167,139,250,0.15); color: #a78bfa; }
   .h-badge.equal { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+  /* ── Info button ── */
+  .info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    border: 1px solid var(--muted);
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.6rem;
+    font-style: italic;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 5px;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+    -webkit-user-select: none;
+    vertical-align: middle;
+  }
+
+  .info-btn:hover, .info-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .rate-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    opacity: 0.85;
+    display: none;
+    padding-top: 3px;
+  }
+
+  .rate-hint.visible { display: block; }
 </style>
 </head>
 <body>
@@ -638,7 +678,6 @@
 
   <header>
     <h1>換匯比較計算器</h1>
-    <p class="subtitle">試算「台幣換日幣」vs「美金換日幣」哪種方式更划算</p>
   </header>
 
   <div class="mode-toggle">
@@ -660,7 +699,7 @@
     </div>
     <div class="rate-grid">
       <div class="rate-item">
-        <div class="rate-label"><span>台幣 → 日幣</span></div>
+        <div class="rate-label"><span>台幣 → 日幣</span><button class="info-btn">i</button></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">1 TWD =</div>
           <input type="number" id="twd-jpy" min="0.01" step="0.01" placeholder="例：4.50">
@@ -670,7 +709,7 @@
       </div>
 
       <div class="rate-item" id="usd-jpy-rate-item">
-        <div class="rate-label"><span>美金 → 日幣</span></div>
+        <div class="rate-label"><span>美金 → 日幣</span><button class="info-btn">i</button></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">1 USD =</div>
           <input type="number" id="usd-jpy" min="1" step="0.1" placeholder="例：155">
@@ -680,7 +719,7 @@
       </div>
 
       <div class="rate-item">
-        <div class="rate-label"><span>台幣 → 美金</span></div>
+        <div class="rate-label"><span>台幣 → 美金</span><button class="info-btn">i</button></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">1 USD =</div>
           <input type="number" id="usd-twd" min="1" step="0.1" placeholder="例：32.5">
@@ -716,7 +755,7 @@
     <div class="section-title">你的實際花費</div>
     <div class="rate-grid" style="grid-template-columns: 1fr 1fr">
       <div class="rate-item">
-        <div class="rate-label"><span>換得日幣</span></div>
+        <div class="rate-label"><span>換得日幣</span><button class="info-btn">i</button></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">換得</div>
           <input type="number" id="actual-jpy" value="50000" min="1" step="100" placeholder="50000">
@@ -725,7 +764,7 @@
         <div class="rate-hint">你實際拿到的日幣金額</div>
       </div>
       <div class="rate-item">
-        <div class="rate-label"><span>花費美金</span></div>
+        <div class="rate-label"><span>花費美金</span><button class="info-btn">i</button></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">花費</div>
           <input type="number" id="actual-usd" value="118.73" min="0.01" step="0.01" placeholder="118.73">
@@ -900,7 +939,7 @@
       const impliedTwdJpy = (usdJpy > 0 && usdTwd > 0) ? usdJpy / usdTwd : null;
       const twdRateEl = $('derived-twd-rate');
       if (impliedTwdJpy != null) {
-        twdRateEl.innerHTML = `1 TWD = ${fmt(impliedTwdJpy, 2)} JPY<span class="rate-inv" style="color:rgba(52,211,153,0.75)">1 JPY = ${fmt(1/impliedTwdJpy, 4)} TWD</span>`;
+        twdRateEl.innerHTML = `1 TWD = ${fmt(impliedTwdJpy, 2)} JPY<span style="display:block;font-size:0.78rem;color:rgba(52,211,153,0.65);margin-top:1px">1 JPY = ${fmt(1/impliedTwdJpy, 4)} TWD</span>`;
         twdRateEl.style.color = 'var(--green)';
       } else {
         twdRateEl.textContent = '—';
@@ -1161,6 +1200,17 @@
     btn.addEventListener('click', () => {
       $('jpy-target').value = btn.dataset.v;
       calc(); scheduleAutoSave(); saveInputs();
+    });
+  });
+
+  // ── Info buttons ──────────────────────────────────────
+  document.querySelectorAll('.info-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      const hint = btn.closest('.rate-item').querySelector('.rate-hint');
+      if (!hint) return;
+      const open = hint.classList.toggle('visible');
+      btn.classList.toggle('active', open);
     });
   });
 
