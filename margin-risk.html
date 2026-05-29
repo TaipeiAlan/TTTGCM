@@ -1217,13 +1217,17 @@ async function fetchTWSEMargin() {
       if (balIdx < 0) balIdx = fields.length - 1;
       addLog('INFO', `餘額欄位: index=${balIdx} → "${fields[balIdx] || '?'}"`);
 
+      // Log all row labels for diagnostics
+      addLog('INFO', `tables[0] 列標籤: ${data.map((r, i) => `[${i}]${Array.isArray(r) ? r[0] : '?'}`).join(' | ')}`);
+
       // Find margin and short rows by label in column 0
+      // Use broad 融券 match to handle variants: 融券金額, 融券（仟元）, 融券股數 etc.
       let marginRow = null, shortRow = null;
       for (const r of data) {
         if (!Array.isArray(r)) continue;
         const lbl = String(r[0] || '');
         if (!marginRow && (lbl.includes('融資金額') || lbl.includes('融資餘額'))) marginRow = r;
-        if (!shortRow  && (lbl.includes('融券金額') || lbl.includes('融券餘額'))) shortRow  = r;
+        if (!shortRow  && lbl.includes('融券')) shortRow = r;
       }
       if (!marginRow) { marginRow = data[data.length - 1]; addLog('WARN', '未找到融資金額列，使用最後一列'); }
       if (!Array.isArray(marginRow)) { addLog('WARN', '合計列無效，跳下一個'); continue; }
@@ -1329,10 +1333,12 @@ async function fetchDayTrade() {
       if (!Array.isArray(row)) { addLog('WARN', '最新列不是陣列，跳下一個'); continue; }
       addLog('INFO', `最新一列: [${row.join(' | ')}]`);
 
-      let bIdx = fields.findIndex(f => String(f).includes('買進') && String(f).includes('佔'));
-      let sIdx = fields.findIndex(f => String(f).includes('賣出') && String(f).includes('佔'));
+      // TWSE uses 占 (U+5360) not 佔 (U+4F54) — match both
+      const hasOccupy = f => String(f).includes('占') || String(f).includes('佔');
+      let bIdx = fields.findIndex(f => String(f).includes('買進') && hasOccupy(f));
+      let sIdx = fields.findIndex(f => String(f).includes('賣出') && hasOccupy(f));
       if (bIdx < 0) bIdx = 3;
-      if (sIdx < 0) sIdx = 6;
+      if (sIdx < 0) sIdx = fields.length - 1; // last column (賣出比重 is always last)
       addLog('INFO', `買進佔比 → 欄位索引 ${bIdx}，值: "${row[bIdx]}"`);
       addLog('INFO', `賣出佔比 → 欄位索引 ${sIdx}，值: "${row[sIdx]}"`);
 
