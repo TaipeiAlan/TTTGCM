@@ -1203,22 +1203,49 @@ async function fetchTWSEMargin() {
       addLog('INFO', `data 筆數: ${data.length} | fields: [${fields.slice(0, 15).join(', ')}]`);
       if (!data.length) { addLog('WARN', 'data 為空，跳下一個'); continue; }
 
-      let row = data[data.length - 1];
+      // Balance column: prefer 今日餘額, then 融資餘額, then last column
+      let balIdx = fields.findIndex(f => String(f).includes('今日餘額'));
+      if (balIdx < 0) balIdx = fields.findIndex(f => String(f).includes('融資餘額'));
+      if (balIdx < 0) balIdx = fields.length - 1;
+      addLog('INFO', `餘額欄位: index=${balIdx} → "${fields[balIdx] || '?'}"`);
+
+      // Find margin and short rows by label in column 0
+      let marginRow = null, shortRow = null;
       for (const r of data) {
-        if (Array.isArray(r) && String(r[0]).includes('合計')) { row = r; break; }
+        if (!Array.isArray(r)) continue;
+        const lbl = String(r[0] || '');
+        if (!marginRow && (lbl.includes('融資金額') || lbl.includes('融資餘額'))) marginRow = r;
+        if (!shortRow  && (lbl.includes('融券金額') || lbl.includes('融券餘額'))) shortRow  = r;
       }
-      if (!Array.isArray(row)) { addLog('WARN', '找不到有效合計列'); continue; }
-      addLog('INFO', `合計列 (共 ${row.length} 欄): [${row.join(' | ')}]`);
+      if (!marginRow) { marginRow = data[data.length - 1]; addLog('WARN', '未找到融資金額列，使用最後一列'); }
+      if (!Array.isArray(marginRow)) { addLog('WARN', '合計列無效，跳下一個'); continue; }
+      addLog('INFO', `融資金額列: [${marginRow.join(' | ')}]`);
 
-      let mIdx = fields.findIndex(f => String(f).includes('融資餘額'));
-      let sIdx = fields.findIndex(f => String(f).includes('融券餘額'));
-      if (mIdx < 0) mIdx = 4;
-      if (sIdx < 0) sIdx = 9;
-      addLog('INFO', `融資餘額 → 欄位索引 ${mIdx}，原始值: "${row[mIdx]}"`);
-      addLog('INFO', `融券餘額 → 欄位索引 ${sIdx}，原始值: "${row[sIdx]}"`);
+      // If short row not in tables[0], check tables[1]
+      if (!shortRow && Array.isArray(json.tables) && json.tables.length > 1) {
+        const t1 = json.tables[1];
+        const d1 = t1.data || t1.Data || [];
+        const f1 = t1.fields || t1.Fields || [];
+        addLog('INFO', `tables[1] title="${t1.title || ''}", ${d1.length} 筆, fields: [${f1.join(', ')}]`);
+        // Use same 今日餘額 logic for tables[1]
+        let b1 = f1.findIndex(f => String(f).includes('今日餘額'));
+        if (b1 < 0) b1 = f1.length - 1;
+        for (const r of d1) {
+          if (!Array.isArray(r)) continue;
+          const lbl = String(r[0] || '');
+          if (lbl.includes('融券金額') || lbl.includes('融券餘額')) {
+            shortRow = r;
+            balIdx = b1; // use this table's balance column index for short
+            break;
+          }
+        }
+      }
+      if (shortRow) addLog('INFO', `融券金額列: [${shortRow.join(' | ')}]`);
+      else addLog('WARN', '找不到融券金額列，券資比無法計算');
 
-      const marginKT = parseNum(row[mIdx]);
-      const shortKT  = parseNum(row[sIdx]);
+      const marginKT = parseNum(marginRow[balIdx]);
+      // Short row may use a different balIdx from tables[1]; re-derive if needed
+      const shortKT  = shortRow ? parseNum(shortRow[balIdx]) : 0;
       addLog('DATA', `融資餘額 = ${marginKT.toLocaleString()} 千元`);
       addLog('DATA', `融券餘額 = ${shortKT.toLocaleString()} 千元`);
 
