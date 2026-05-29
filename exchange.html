@@ -125,7 +125,7 @@
   }
 
   .rate-unit {
-    padding: 0 12px;
+    padding: 0 10px;
     font-size: 0.82rem;
     color: var(--muted);
     background: rgba(255,255,255,0.04);
@@ -134,10 +134,12 @@
     height: 42px;
     display: flex;
     align-items: center;
+    flex-shrink: 0;
   }
 
   input[type="number"] {
     flex: 1;
+    min-width: 70px;
     background: transparent;
     border: none;
     outline: none;
@@ -476,7 +478,15 @@
     flex-wrap: wrap;
   }
 
-  .derived-box .d-label { color: var(--muted); font-size: 0.8rem; }
+  .derived-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .derived-box .d-label { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
 
   .derived-box .d-value {
     color: #a78bfa;
@@ -488,8 +498,8 @@
     font-size: 0.75rem;
     color: var(--muted);
     opacity: 0.75;
-    flex-basis: 100%;
-    margin-top: -6px;
+    width: 100%;
+    margin-top: -4px;
   }
 
   @media (max-width: 480px) {
@@ -622,7 +632,7 @@
         <div class="rate-label"><span>台幣 → 日幣</span></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">1 TWD =</div>
-          <input type="number" id="twd-jpy" value="4.50" min="0.01" step="0.01" placeholder="4.50">
+          <input type="number" id="twd-jpy" min="0.01" step="0.01" placeholder="例：4.50">
           <div class="rate-unit">JPY</div>
         </div>
         <div class="rate-hint">例：銀行掛牌或換匯所的報價</div>
@@ -632,7 +642,7 @@
         <div class="rate-label"><span>美金 → 日幣</span></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">1 USD =</div>
-          <input type="number" id="usd-jpy" value="155" min="1" step="0.1" placeholder="155">
+          <input type="number" id="usd-jpy" min="1" step="0.1" placeholder="例：155">
           <div class="rate-unit">JPY</div>
         </div>
         <div class="rate-hint">例：機場/換匯所/信用卡報價</div>
@@ -642,7 +652,7 @@
         <div class="rate-label"><span>台幣 → 美金</span></div>
         <div class="rate-input-wrap">
           <div class="rate-unit">1 USD =</div>
-          <input type="number" id="usd-twd" value="32.5" min="1" step="0.1" placeholder="32.5">
+          <input type="number" id="usd-twd" min="1" step="0.1" placeholder="例：32.5">
           <div class="rate-unit">TWD</div>
         </div>
         <div class="rate-hint">用於換算美金的台幣成本</div>
@@ -694,9 +704,15 @@
       </div>
     </div>
     <div class="derived-box">
-      <span class="d-label">推算有效匯率</span>
-      <span class="d-value" id="derived-rate-value">1 USD = — JPY</span>
-      <span class="d-hint">比較台幣直換仍需填左側「台幣→日幣」與「台幣→美金」報價</span>
+      <div class="derived-row">
+        <span class="d-label">推算有效匯率</span>
+        <span class="d-value" id="derived-rate-value">1 USD = — JPY</span>
+      </div>
+      <div class="derived-row">
+        <span class="d-label">台幣直換需要</span>
+        <span class="d-value" id="derived-twd-cost" style="color:var(--accent)">— TWD</span>
+      </div>
+      <span class="d-hint">需填左側「台幣→日幣」才能顯示台幣直換金額</span>
     </div>
   </div>
 
@@ -830,9 +846,22 @@
     if (currentMode === 'b') {
       const actualJpy = parseFloat($('actual-jpy').value) || 0;
       const actualUsd = parseFloat($('actual-usd').value) || 0;
-      const usdJpy = actualUsd > 0 ? actualJpy / actualUsd : 0;
-      if (usdJpy > 0) $('derived-rate-value').textContent = `1 USD = ${fmt(usdJpy, 2)} JPY`;
-      else $('derived-rate-value').textContent = '1 USD = — JPY';
+      const usdJpy = (actualUsd > 0 && actualJpy > 0) ? actualJpy / actualUsd : 0;
+
+      $('derived-rate-value').textContent = usdJpy > 0
+        ? `1 USD = ${fmt(usdJpy, 2)} JPY`
+        : '— （請填換得日幣與花費美金）';
+
+      const twdCost = (twdJpy > 0 && actualJpy > 0) ? actualJpy / twdJpy : null;
+      const twdCostEl = $('derived-twd-cost');
+      if (twdCost != null) {
+        twdCostEl.textContent = fmt(twdCost, 0) + ' TWD';
+        twdCostEl.style.color = 'var(--accent)';
+      } else {
+        twdCostEl.textContent = '— （請填台幣→日幣報價）';
+        twdCostEl.style.color = 'var(--muted)';
+      }
+
       return { twdJpy, usdJpy, usdTwd, jpyGoal: actualJpy, actualUsd };
     }
     return {
