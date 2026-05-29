@@ -1103,13 +1103,21 @@ function setFormField(id, val) {
 
 // Extract { data, fields } from TWSE response, handling both old flat format
 // and new "tables" format (as of 2026 TWSE API).
+// Returns the first table that has at least one data row.
 function extractTWSETable(json) {
   if (Array.isArray(json.tables) && json.tables.length > 0) {
-    const t = json.tables[0];
-    const data   = t.data   || t.Data   || [];
-    const fields = t.fields || t.Fields || [];
-    addLog('INFO', `tables 格式 (共 ${json.tables.length} 個)，使用 tables[0] title="${t.title || '(無)'}", ${data.length} 筆`);
-    return { data, fields };
+    for (let i = 0; i < json.tables.length; i++) {
+      const t = json.tables[i];
+      const data   = t.data   || t.Data   || [];
+      const fields = t.fields || t.Fields || [];
+      if (data.length > 0) {
+        addLog('INFO', `tables 格式 (共 ${json.tables.length} 個)，使用 tables[${i}] title="${t.title || '(無)'}", ${data.length} 筆`);
+        return { data, fields };
+      }
+      addLog('INFO', `tables[${i}] title="${t.title || '(無)'}" 無資料，繼續`);
+    }
+    addLog('WARN', `所有 ${json.tables.length} 個 table 均無資料`);
+    return { data: [], fields: [] };
   }
   return { data: json.data || json.Data || [], fields: json.fields || json.Fields || [] };
 }
