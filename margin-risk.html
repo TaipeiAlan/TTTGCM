@@ -1018,7 +1018,7 @@ function showToast(msg) {
 }
 
 // ---- Fetch Log ----
-const FETCH_VERSION = 'v150';
+const FETCH_VERSION = 'v151';
 let fetchLog = [];
 
 function addLog(level, msg) {
@@ -1161,18 +1161,22 @@ async function fetchTaiex() {
     }
   }
 
-  // --- TWSE MI_INDEX fallback (exchangeReport, Safari-compatible, 3 months in parallel) ---
-  addLog('INFO', '[TWSE MI_INDEX] 備援：抓近 3 個月日線計算 MA60');
+  // --- TWSE BWIBBU_d fallback (大盤統計，exchangeReport，Safari 相容，3 個月並行) ---
+  // MI_INDEX?type=IND 是「一行一種指數」的橫截面，非時序 → 改用 BWIBBU_d
+  // BWIBBU_d 是「一行一個交易日」的時序，含加權指數收盤，每次回傳整個月資料
+  addLog('INFO', '[TWSE BWIBBU_d] 備援：抓近 3 個月大盤統計，取加權指數收盤算 MA60');
   const today = new Date();
-  // Oldest first so allRows ends up in chronological order
+  // Use local date parts to avoid UTC timezone shift (toISOString shifts -8h for Taiwan)
   const monthDates = [2, 1, 0].map(n => {
     const d = new Date(today.getFullYear(), today.getMonth() - n, 1);
-    return d.toISOString().slice(0, 7).replace(/-/g, '') + '01';
+    const yy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${yy}${mm}01`;
   });
   addLog('INFO', `查詢月份: ${monthDates.join(', ')}`);
 
   const miAll = await Promise.allSettled(monthDates.map(async dateStr => {
-    const url = `https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date=${dateStr}&type=IND`;
+    const url = `https://www.twse.com.tw/exchangeReport/BWIBBU_d?response=json&date=${dateStr}&selectType=ALL`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
@@ -1184,10 +1188,10 @@ async function fetchTaiex() {
   let sharedFields = [];
   miAll.forEach((r, i) => {
     const lbl = monthDates[i];
-    if (r.status === 'rejected') { addLog('WARN', `[MI_INDEX/${lbl}] ${r.reason.message}`); return; }
+    if (r.status === 'rejected') { addLog('WARN', `[BWIBBU_d/${lbl}] ${r.reason.message}`); return; }
     const { data, fields } = extractTWSETable(r.value);
     if (!sharedFields.length) sharedFields = fields;
-    addLog('INFO', `[MI_INDEX/${lbl}] ${data.length}筆 | fields: [${fields.slice(0, 6).join(', ')}]`);
+    addLog('INFO', `[BWIBBU_d/${lbl}] ${data.length}筆 | fields: [${fields.slice(0, 6).join(', ')}]`);
     if (data.length) addLog('INFO', `  樣例: [${data[0].slice(0, 5).join(' | ')}]`);
     allRows.push(...data.filter(Array.isArray));
   });
@@ -1198,13 +1202,14 @@ async function fetchTaiex() {
     return;
   }
 
-  // Locate 加權指數 column
+  // Locate 加權指數 closing column (skip col 0 = date)
+  // BWIBBU_d fields: [日期, 本益比, 股利殖利率(%), 股價淨值比, 發行量加權股價指數]
   let idxCol = sharedFields.findIndex(f => String(f).includes('加權'));
-  if (idxCol < 0) idxCol = sharedFields.findIndex(f => String(f).includes('指數'));
-  if (idxCol < 0) idxCol = 1;
+  if (idxCol < 0) idxCol = sharedFields.findIndex((f, i) => i > 0 && String(f).includes('指數'));
+  if (idxCol < 0) idxCol = sharedFields.length - 1; // last column is typically the index
   addLog('INFO', `加權指數欄 → index=${idxCol} "${sharedFields[idxCol] || '?'}"`);
 
-  // Filter rows where value looks like TAIEX (>1000)
+  // Filter rows where value looks like TAIEX (>1000); also skip total/header rows
   const closes = allRows.map(r => parseNum(r[idxCol])).filter(v => v > 1000);
   addLog('DATA', `有效收盤筆數: ${closes.length}，最後值: ${closes.at(-1)?.toLocaleString()}`);
 
