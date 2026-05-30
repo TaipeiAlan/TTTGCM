@@ -1018,7 +1018,7 @@ function showToast(msg) {
 }
 
 // ---- Fetch Log ----
-const FETCH_VERSION = 'v148';
+const FETCH_VERSION = 'v149';
 let fetchLog = [];
 
 function addLog(level, msg) {
@@ -1294,73 +1294,81 @@ async function fetchTWSEMargin() {
 async function fetchDayTrade() {
   addLog('INFO', '--- [TWSE] 當沖統計 (TWTB4U) ---');
   const today = new Date();
-  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-  const prev = new Date(today); prev.setDate(today.getDate() - 1);
-  const prevDateStr = prev.toISOString().slice(0, 10).replace(/-/g, '');
-  const prev2 = new Date(today); prev2.setDate(today.getDate() - 3);
-  const prev2DateStr = prev2.toISOString().slice(0, 10).replace(/-/g, '');
-  const candidates = [
-    `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&date=${dateStr}&selectType=All`,
-    `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&selectType=All`,
-    `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${dateStr}&selectType=All`,
-    `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&selectType=All`,
-    `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${prevDateStr}&selectType=All`,
-    `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${prev2DateStr}&selectType=All`,
-  ];
+  const fmt = d => d.toISOString().slice(0, 10).replace(/-/g, '');
+  const d0 = fmt(today);
+  const d1 = fmt(new Date(today.getTime() - 86400000));
+  const d3 = fmt(new Date(today.getTime() - 3 * 86400000));
   const parseNum = s => parseFloat(String(s ?? '0').replace(/,/g, '').replace(/%/g, '')) || 0;
 
-  for (let i = 0; i < candidates.length; i++) {
-    const url = candidates[i];
-    addLog('INFO', `嘗試 URL ${i + 1}/${candidates.length}: ${url}`);
-    try {
-      const res = await fetch(url);
-      addLog('INFO', `HTTP ${res.status} ${res.statusText}`);
-      if (!res.ok) { addLog('WARN', '非 2xx，跳下一個'); continue; }
+  const candidates = [
+    { lbl: `rwd/${d0}`,  url: `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&date=${d0}&selectType=All` },
+    { lbl: `rwd/latest`, url: `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&selectType=All` },
+    { lbl: `old/${d0}`,  url: `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${d0}&selectType=All` },
+    { lbl: `old/${d1}`,  url: `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${d1}&selectType=All` },
+    { lbl: `old/${d3}`,  url: `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${d3}&selectType=All` },
+  ];
 
-      const json = await res.json();
-      addLog('INFO', `stat: "${json?.stat}" | 頂層 keys: [${Object.keys(json).join(', ')}]`);
-      if (json?.stat !== 'OK' && json?.stat !== 'ok') { addLog('WARN', 'stat 不是 OK，跳下一個'); continue; }
+  addLog('INFO', `並行嘗試 ${candidates.length} 個 URL…`);
 
-      const { data, fields } = extractTWSETable(json);
-      addLog('INFO', `data 筆數: ${data.length} | fields: [${fields.join(', ')}]`);
-      if (!data.length) { addLog('WARN', 'data 為空，跳下一個'); continue; }
+  const results = await Promise.allSettled(candidates.map(async ({ url }) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json?.stat !== 'OK' && json?.stat !== 'ok') throw new Error(`stat=${json?.stat}`);
+    const { data, fields } = extractTWSETable(json);
+    // Statistics table has 比重 columns; eligibility list (個股清單) does not
+    const isStats = fields.some(f => String(f).includes('比重'));
+    return { data, fields, isStats };
+  }));
 
-      const row = data[data.length - 1];
-      if (!Array.isArray(row)) { addLog('WARN', '最新列不是陣列，跳下一個'); continue; }
-      addLog('INFO', `最新一列: [${row.join(' | ')}]`);
-
-      // TWSE uses 占 (U+5360) not 佔 (U+4F54) — match both
-      const hasOccupy = f => String(f).includes('占') || String(f).includes('佔');
-      let bIdx = fields.findIndex(f => String(f).includes('買進') && hasOccupy(f));
-      let sIdx = fields.findIndex(f => String(f).includes('賣出') && hasOccupy(f));
-      if (bIdx < 0) bIdx = 3;
-      if (sIdx < 0) sIdx = fields.length - 1; // last column (賣出比重 is always last)
-      addLog('INFO', `買進佔比 → 欄位索引 ${bIdx}，值: "${row[bIdx]}"`);
-      addLog('INFO', `賣出佔比 → 欄位索引 ${sIdx}，值: "${row[sIdx]}"`);
-
-      const buyPct  = parseNum(row[bIdx]);
-      const sellPct = parseNum(row[sIdx]);
-      addLog('DATA', `買進佔比: ${buyPct}% | 賣出佔比: ${sellPct}%`);
-
-      if (buyPct > 0 || sellPct > 0) {
-        const ratio = ((buyPct + sellPct) / 2).toFixed(1);
-        addLog('DATA', `當沖比 = (${buyPct} + ${sellPct}) ÷ 2 = ${ratio}%`);
-        setFormField('f-daytrade', ratio);
-        setDot('daytrade', 'ok');
-        setFetchVal('daytrade', `${ratio}%`);
-        addLog('OK', `已填入 當沖比=${ratio}%`);
-        return;
-      }
-      addLog('WARN', '買進/賣出佔比均解析為 0，欄位對應可能有誤');
-    } catch (e) {
-      addLog('ERR', `${e.name}: ${e.message}`);
-      if (e instanceof TypeError) addLog('WARN', '推測原因: CORS 被擋或網路問題');
+  // Log all outcomes in order
+  results.forEach((r, i) => {
+    const lbl = candidates[i].lbl;
+    if (r.status === 'rejected') {
+      addLog('WARN', `[${lbl}] ${r.reason.message}`);
+    } else {
+      const { data, isStats } = r.value;
+      const tag = !data.length ? '空' : isStats ? `✓ ${data.length}筆統計` : `✗ ${data.length}筆(非統計)`;
+      addLog(isStats && data.length ? 'OK' : 'WARN', `[${lbl}] ${tag}`);
     }
+  });
+
+  // Use first valid statistics result
+  const bestIdx = results.findIndex(r => r.status === 'fulfilled' && r.value.isStats && r.value.data.length > 0);
+  if (bestIdx < 0) {
+    setDot('daytrade', 'err');
+    setFetchVal('daytrade', '失敗，請手動輸入');
+    addLog('ERR', '所有 URL 均無統計資料，當沖比需手動輸入');
+    return;
   }
 
-  setDot('daytrade', 'err');
-  setFetchVal('daytrade', '失敗，請手動輸入');
-  addLog('ERR', '所有 URL 均失敗，當沖比需手動輸入');
+  const { data, fields } = results[bestIdx].value;
+  const row = data[data.length - 1];
+  addLog('INFO', `採用 [${candidates[bestIdx].lbl}] | 最新列: [${row.join(' | ')}]`);
+
+  const hasOccupy = f => String(f).includes('占') || String(f).includes('佔');
+  let bIdx = fields.findIndex(f => String(f).includes('買進') && hasOccupy(f));
+  let sIdx = fields.findIndex(f => String(f).includes('賣出') && hasOccupy(f));
+  if (bIdx < 0) bIdx = 3;
+  if (sIdx < 0) sIdx = fields.length - 1;
+  addLog('INFO', `買進佔比 → index=${bIdx} "${row[bIdx]}" | 賣出佔比 → index=${sIdx} "${row[sIdx]}"`);
+
+  const buyPct  = parseNum(row[bIdx]);
+  const sellPct = parseNum(row[sIdx]);
+  addLog('DATA', `買進佔比: ${buyPct}% | 賣出佔比: ${sellPct}%`);
+
+  if (buyPct > 0 || sellPct > 0) {
+    const ratio = ((buyPct + sellPct) / 2).toFixed(1);
+    addLog('DATA', `當沖比 = (${buyPct}+${sellPct})÷2 = ${ratio}%`);
+    setFormField('f-daytrade', ratio);
+    setDot('daytrade', 'ok');
+    setFetchVal('daytrade', `${ratio}%`);
+    addLog('OK', `已填入 當沖比=${ratio}%`);
+  } else {
+    addLog('WARN', '佔比均 0，欄位對應可能有誤');
+    setDot('daytrade', 'err');
+    setFetchVal('daytrade', '解析失敗');
+  }
 }
 
 // ---- Init ----
