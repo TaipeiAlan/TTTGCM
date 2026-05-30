@@ -1018,7 +1018,7 @@ function showToast(msg) {
 }
 
 // ---- Fetch Log ----
-const FETCH_VERSION = 'v151';
+const FETCH_VERSION = 'v152';
 let fetchLog = [];
 
 function addLog(level, msg) {
@@ -1161,22 +1161,22 @@ async function fetchTaiex() {
     }
   }
 
-  // --- TWSE BWIBBU_d fallback (大盤統計，exchangeReport，Safari 相容，3 個月並行) ---
-  // MI_INDEX?type=IND 是「一行一種指數」的橫截面，非時序 → 改用 BWIBBU_d
-  // BWIBBU_d 是「一行一個交易日」的時序，含加權指數收盤，每次回傳整個月資料
-  addLog('INFO', '[TWSE BWIBBU_d] 備援：抓近 3 個月大盤統計，取加權指數收盤算 MA60');
+  // --- TWSE BWIBBU fallback (大盤本益比/指數時序，exchangeReport，Safari 相容，3 個月並行) ---
+  // BWIBBU_d?selectType=ALL = 個股資料（1070+ 筆） → 錯誤
+  // BWIBBU（無 _d）= 市場層級每日時序，含加權指數收盤 → 正確
+  // 日期用 15 號，避免月初可能是假日/週末造成 stat=沒有符合條件
+  addLog('INFO', '[TWSE BWIBBU] 備援：抓近 3 個月大盤統計，取加權指數收盤算 MA60');
   const today = new Date();
-  // Use local date parts to avoid UTC timezone shift (toISOString shifts -8h for Taiwan)
   const monthDates = [2, 1, 0].map(n => {
-    const d = new Date(today.getFullYear(), today.getMonth() - n, 1);
+    const d = new Date(today.getFullYear(), today.getMonth() - n, 15);
     const yy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
-    return `${yy}${mm}01`;
+    return `${yy}${mm}15`;
   });
   addLog('INFO', `查詢月份: ${monthDates.join(', ')}`);
 
   const miAll = await Promise.allSettled(monthDates.map(async dateStr => {
-    const url = `https://www.twse.com.tw/exchangeReport/BWIBBU_d?response=json&date=${dateStr}&selectType=ALL`;
+    const url = `https://www.twse.com.tw/exchangeReport/BWIBBU?response=json&date=${dateStr}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
@@ -1188,10 +1188,10 @@ async function fetchTaiex() {
   let sharedFields = [];
   miAll.forEach((r, i) => {
     const lbl = monthDates[i];
-    if (r.status === 'rejected') { addLog('WARN', `[BWIBBU_d/${lbl}] ${r.reason.message}`); return; }
+    if (r.status === 'rejected') { addLog('WARN', `[BWIBBU/${lbl}] ${r.reason.message}`); return; }
     const { data, fields } = extractTWSETable(r.value);
     if (!sharedFields.length) sharedFields = fields;
-    addLog('INFO', `[BWIBBU_d/${lbl}] ${data.length}筆 | fields: [${fields.slice(0, 6).join(', ')}]`);
+    addLog('INFO', `[BWIBBU/${lbl}] ${data.length}筆 | fields: [${fields.slice(0, 6).join(', ')}]`);
     if (data.length) addLog('INFO', `  樣例: [${data[0].slice(0, 5).join(' | ')}]`);
     allRows.push(...data.filter(Array.isArray));
   });
