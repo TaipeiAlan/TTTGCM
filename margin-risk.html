@@ -1018,7 +1018,7 @@ function showToast(msg) {
 }
 
 // ---- Fetch Log ----
-const FETCH_VERSION = 'v152';
+const FETCH_VERSION = 'v153';
 let fetchLog = [];
 
 function addLog(level, msg) {
@@ -1161,22 +1161,66 @@ async function fetchTaiex() {
     }
   }
 
-  // --- TWSE BWIBBU fallback (大盤本益比/指數時序，exchangeReport，Safari 相容，3 個月並行) ---
-  // BWIBBU_d?selectType=ALL = 個股資料（1070+ 筆） → 錯誤
-  // BWIBBU（無 _d）= 市場層級每日時序，含加權指數收盤 → 正確
-  // 日期用 15 號，避免月初可能是假日/週末造成 stat=沒有符合條件
-  addLog('INFO', '[TWSE BWIBBU] 備援：抓近 3 個月大盤統計，取加權指數收盤算 MA60');
+  // --- TWSE 備援：並行探測多種端點，找出可用的加權指數時序 ---
+  addLog('INFO', '[TWSE 備援] 並行探測多個端點…');
   const today = new Date();
-  const monthDates = [2, 1, 0].map(n => {
-    const d = new Date(today.getFullYear(), today.getMonth() - n, 15);
+  const fmtDate = d => {
     const yy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
-    return `${yy}${mm}15`;
-  });
-  addLog('INFO', `查詢月份: ${monthDates.join(', ')}`);
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yy}${mm}${dd}`;
+  };
+  // Use 15th to avoid month-start holidays; probe current month only
+  const probe15 = fmtDate(new Date(today.getFullYear(), today.getMonth(), 15));
 
-  const miAll = await Promise.allSettled(monthDates.map(async dateStr => {
-    const url = `https://www.twse.com.tw/exchangeReport/BWIBBU?response=json&date=${dateStr}`;
+  // Try 5 variants — different paths / selectType combos
+  const probeList = [
+    { lbl: 'BWIBBU_d?MS',     url: `https://www.twse.com.tw/exchangeReport/BWIBBU_d?response=json&date=${probe15}&selectType=MS` },
+    { lbl: 'rwd/bwibbu',      url: `https://www.twse.com.tw/rwd/zh/TWSE/bwibbu?response=json&date=${probe15}` },
+    { lbl: 'rwd/BWIBBU_d?MS', url: `https://www.twse.com.tw/rwd/zh/TWSE/BWIBBU_d?response=json&date=${probe15}&selectType=MS` },
+    { lbl: 'BWIBBU?MS',       url: `https://www.twse.com.tw/exchangeReport/BWIBBU?response=json&date=${probe15}&selectType=MS` },
+    { lbl: 'BWIBBU_d',        url: `https://www.twse.com.tw/exchangeReport/BWIBBU_d?response=json&date=${probe15}` },
+  ];
+
+  const probeResults = await Promise.allSettled(probeList.map(async ({ url }) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return json;
+  }));
+
+  // Log all probe outcomes; detect a time-series (5~100 rows with a TAIEX-range column)
+  const isTaiexVal = v => { const n = parseNum(v); return n > 5000 && n < 50000; };
+  let hitIdx = -1;
+  probeResults.forEach((r, i) => {
+    const { lbl } = probeList[i];
+    if (r.status === 'rejected') { addLog('WARN', `[${lbl}] ${r.reason.message}`); return; }
+    const json = r.value;
+    const stat = json?.stat;
+    if (stat !== 'OK' && stat !== 'ok') { addLog('WARN', `[${lbl}] stat="${stat}"`); return; }
+    const { data, fields } = extractTWSETable(json);
+    const hasIndex = data.length > 5 && data.length < 200 &&
+      data.some(row => Array.isArray(row) && row.slice(1).some(isTaiexVal));
+    addLog(hasIndex ? 'OK' : 'INFO',
+      `[${lbl}] ${data.length}筆 | [${fields.slice(0, 4).join(', ')}] | ${hasIndex ? '✓時序' : '✗非時序'}`);
+    if (data.length) addLog('INFO', `  樣例: [${data[0].slice(0, 4).join(' | ')}]`);
+    if (hitIdx < 0 && hasIndex) hitIdx = i;
+  });
+
+  if (hitIdx < 0) {
+    setDot('taiex', 'err'); setFetchVal('taiex', '失敗，請手動輸入');
+    addLog('ERR', '所有 TWSE 端點均無加權指數時序，請手動輸入');
+    return;
+  }
+
+  // Fetch remaining 2 months with the working URL
+  const hitUrl = probeList[hitIdx].url;
+  const hitLbl = probeList[hitIdx].lbl;
+  addLog('INFO', `採用 [${hitLbl}]，抓取剩餘 2 個月…`);
+  const prev2Dates = [1, 2].map(n => fmtDate(new Date(today.getFullYear(), today.getMonth() - n, 15)));
+
+  const moreResults = await Promise.allSettled(prev2Dates.map(async d => {
+    const url = hitUrl.replace(probe15, d);
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
@@ -1184,33 +1228,35 @@ async function fetchTaiex() {
     return json;
   }));
 
+  // Collect all rows oldest-first
   const allRows = [];
   let sharedFields = [];
-  miAll.forEach((r, i) => {
-    const lbl = monthDates[i];
-    if (r.status === 'rejected') { addLog('WARN', `[BWIBBU/${lbl}] ${r.reason.message}`); return; }
+  [...moreResults].reverse().forEach((r, i) => {
+    const lbl = prev2Dates[[1, 0][i]];
+    if (r.status === 'rejected') { addLog('WARN', `[${hitLbl}/${lbl}] ${r.reason.message}`); return; }
     const { data, fields } = extractTWSETable(r.value);
     if (!sharedFields.length) sharedFields = fields;
-    addLog('INFO', `[BWIBBU/${lbl}] ${data.length}筆 | fields: [${fields.slice(0, 6).join(', ')}]`);
-    if (data.length) addLog('INFO', `  樣例: [${data[0].slice(0, 5).join(' | ')}]`);
+    addLog('INFO', `[${hitLbl}/${lbl}] ${data.length}筆`);
     allRows.push(...data.filter(Array.isArray));
   });
+  // Current month (newest) from probe result
+  const { data: curData, fields: curFields } = extractTWSETable(probeResults[hitIdx].value);
+  if (!sharedFields.length) sharedFields = curFields;
+  allRows.push(...curData.filter(Array.isArray));
 
-  if (!allRows.length) {
-    setDot('taiex', 'err'); setFetchVal('taiex', '失敗，請手動輸入');
-    addLog('ERR', '所有 URL 均失敗，加權指數/季線請手動輸入');
-    return;
-  }
-
-  // Locate 加權指數 closing column (skip col 0 = date)
-  // BWIBBU_d fields: [日期, 本益比, 股利殖利率(%), 股價淨值比, 發行量加權股價指數]
+  // Locate 加權指數 closing column
   let idxCol = sharedFields.findIndex(f => String(f).includes('加權'));
   if (idxCol < 0) idxCol = sharedFields.findIndex((f, i) => i > 0 && String(f).includes('指數'));
-  if (idxCol < 0) idxCol = sharedFields.length - 1; // last column is typically the index
+  if (idxCol < 0) {
+    // Auto-detect: first non-date column where values are in TAIEX range
+    for (let c = 1; c < sharedFields.length; c++) {
+      if (allRows.slice(0, 5).filter(r => isTaiexVal(r[c])).length >= 3) { idxCol = c; break; }
+    }
+  }
+  if (idxCol < 0) idxCol = sharedFields.length - 1;
   addLog('INFO', `加權指數欄 → index=${idxCol} "${sharedFields[idxCol] || '?'}"`);
 
-  // Filter rows where value looks like TAIEX (>1000); also skip total/header rows
-  const closes = allRows.map(r => parseNum(r[idxCol])).filter(v => v > 1000);
+  const closes = allRows.map(r => parseNum(r[idxCol])).filter(v => v > 5000 && v < 50000);
   addLog('DATA', `有效收盤筆數: ${closes.length}，最後值: ${closes.at(-1)?.toLocaleString()}`);
 
   if (closes.length < 10) {
