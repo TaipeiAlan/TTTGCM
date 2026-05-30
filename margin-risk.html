@@ -1018,7 +1018,7 @@ function showToast(msg) {
 }
 
 // ---- Fetch Log ----
-const FETCH_VERSION = 'v153';
+const FETCH_VERSION = 'v154';
 let fetchLog = [];
 
 function addLog(level, msg) {
@@ -1161,7 +1161,7 @@ async function fetchTaiex() {
     }
   }
 
-  // --- TWSE 備援：並行探測多種端點，找出可用的加權指數時序 ---
+  // --- TWSE 備援：MI_INDEX 逐日加權指數收盤 (BWIBBU 是個股本益比，不含指數時序) ---
   addLog('INFO', '[TWSE 備援] 並行探測多個端點…');
   const today = new Date();
   const fmtDate = d => {
@@ -1173,13 +1173,17 @@ async function fetchTaiex() {
   // Use 15th to avoid month-start holidays; probe current month only
   const probe15 = fmtDate(new Date(today.getFullYear(), today.getMonth(), 15));
 
-  // Try 5 variants — different paths / selectType combos
+  // MI_INDEX?type=MS: 每月逐日「發行量加權股價指數」收盤 (正確端點)
+  // MI_INDEX?type=IND / 無 type: 備用不同路徑
+  // FMTQIK: 另一個月別指數端點
   const probeList = [
-    { lbl: 'BWIBBU_d?MS',     url: `https://www.twse.com.tw/exchangeReport/BWIBBU_d?response=json&date=${probe15}&selectType=MS` },
-    { lbl: 'rwd/bwibbu',      url: `https://www.twse.com.tw/rwd/zh/TWSE/bwibbu?response=json&date=${probe15}` },
-    { lbl: 'rwd/BWIBBU_d?MS', url: `https://www.twse.com.tw/rwd/zh/TWSE/BWIBBU_d?response=json&date=${probe15}&selectType=MS` },
-    { lbl: 'BWIBBU?MS',       url: `https://www.twse.com.tw/exchangeReport/BWIBBU?response=json&date=${probe15}&selectType=MS` },
-    { lbl: 'BWIBBU_d',        url: `https://www.twse.com.tw/exchangeReport/BWIBBU_d?response=json&date=${probe15}` },
+    { lbl: 'rwd/MI_INDEX?MS',  url: `https://www.twse.com.tw/rwd/zh/index/MI_INDEX?response=json&date=${probe15}&type=MS` },
+    { lbl: 'MI_INDEX?MS',      url: `https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date=${probe15}&type=MS` },
+    { lbl: 'rwd/MI_INDEX?IND', url: `https://www.twse.com.tw/rwd/zh/index/MI_INDEX?response=json&date=${probe15}&type=IND` },
+    { lbl: 'MI_INDEX?IND',     url: `https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date=${probe15}&type=IND` },
+    { lbl: 'rwd/MI_INDEX',     url: `https://www.twse.com.tw/rwd/zh/index/MI_INDEX?response=json&date=${probe15}` },
+    { lbl: 'FMTQIK',           url: `https://www.twse.com.tw/exchangeReport/FMTQIK?response=json&date=${probe15}` },
+    { lbl: 'rwd/FMTQIK',       url: `https://www.twse.com.tw/rwd/zh/TWSE/FMTQIK?response=json&date=${probe15}` },
   ];
 
   const probeResults = await Promise.allSettled(probeList.map(async ({ url }) => {
@@ -1208,18 +1212,52 @@ async function fetchTaiex() {
   });
 
   if (hitIdx < 0) {
+    // --- Stooq CSV 備援 (第三道防線) ---
+    addLog('INFO', '[Stooq 備援] 嘗試 stooq.com CSV…');
+    const d1 = fmtDate(new Date(today.getFullYear(), today.getMonth() - 4, 1)).replace(/(\d{4})(\d{2})(\d{2})/, '$1$2$3');
+    const d2 = fmtDate(today);
+    const stooqUrl = `https://stooq.com/q/d/l/?s=%5Etwii&i=d&d1=${d1}&d2=${d2}`;
+    addLog('INFO', `[Stooq] URL: ${stooqUrl}`);
+    try {
+      const res = await fetch(stooqUrl);
+      addLog(res.ok ? 'INFO' : 'WARN', `[Stooq] HTTP ${res.status}`);
+      if (res.ok) {
+        const csv = await res.text();
+        const lines = csv.trim().split('\n').slice(1); // skip header
+        addLog('INFO', `[Stooq] CSV 共 ${lines.length} 行`);
+        const stooqCloses = lines.map(l => {
+          const cols = l.split(',');
+          return parseFloat(cols[4]); // Close column index 4
+        }).filter(v => v > 5000 && v < 50000);
+        addLog('DATA', `[Stooq] 有效收盤 ${stooqCloses.length} 筆，最後: ${stooqCloses.at(-1)?.toLocaleString()}`);
+        if (stooqCloses.length >= 10) {
+          const latest = Math.round(stooqCloses[stooqCloses.length - 1]);
+          const last60 = stooqCloses.slice(-60);
+          const ma60 = Math.round(last60.reduce((a, b) => a + b, 0) / last60.length);
+          addLog('DATA', `最新收盤: ${latest.toLocaleString()} | MA60(${last60.length}筆): ${ma60.toLocaleString()}`);
+          setFormField('f-index', latest); setFormField('f-ma60', ma60);
+          setDot('taiex', 'ok');
+          setFetchVal('taiex', `${latest.toLocaleString()} / MA60:${ma60.toLocaleString()}`);
+          addLog('OK', `[Stooq] 已填入 加權指數=${latest}，季線MA60=${ma60}`);
+          return;
+        }
+      }
+    } catch (e) {
+      addLog('WARN', `[Stooq] ${e.message}`);
+    }
+
     setDot('taiex', 'err'); setFetchVal('taiex', '失敗，請手動輸入');
-    addLog('ERR', '所有 TWSE 端點均無加權指數時序，請手動輸入');
+    addLog('ERR', '所有端點均無加權指數時序，請手動輸入');
     return;
   }
 
-  // Fetch remaining 2 months with the working URL
+  // Fetch remaining 3 months with the working URL (3+1=4 months ≈ 80 trading days, MA60 才夠)
   const hitUrl = probeList[hitIdx].url;
   const hitLbl = probeList[hitIdx].lbl;
-  addLog('INFO', `採用 [${hitLbl}]，抓取剩餘 2 個月…`);
-  const prev2Dates = [1, 2].map(n => fmtDate(new Date(today.getFullYear(), today.getMonth() - n, 15)));
+  addLog('INFO', `採用 [${hitLbl}]，抓取剩餘 3 個月…`);
+  const prevDates = [1, 2, 3].map(n => fmtDate(new Date(today.getFullYear(), today.getMonth() - n, 15)));
 
-  const moreResults = await Promise.allSettled(prev2Dates.map(async d => {
+  const moreResults = await Promise.allSettled(prevDates.map(async d => {
     const url = hitUrl.replace(probe15, d);
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1232,7 +1270,7 @@ async function fetchTaiex() {
   const allRows = [];
   let sharedFields = [];
   [...moreResults].reverse().forEach((r, i) => {
-    const lbl = prev2Dates[[1, 0][i]];
+    const lbl = prevDates[prevDates.length - 1 - i];
     if (r.status === 'rejected') { addLog('WARN', `[${hitLbl}/${lbl}] ${r.reason.message}`); return; }
     const { data, fields } = extractTWSETable(r.value);
     if (!sharedFields.length) sharedFields = fields;
@@ -1242,21 +1280,25 @@ async function fetchTaiex() {
   // Current month (newest) from probe result
   const { data: curData, fields: curFields } = extractTWSETable(probeResults[hitIdx].value);
   if (!sharedFields.length) sharedFields = curFields;
+  addLog('INFO', `[${hitLbl}/當月] ${curData.length}筆`);
   allRows.push(...curData.filter(Array.isArray));
+
+  addLog('INFO', `fields: [${sharedFields.slice(0, 6).join(', ')}]`);
+  if (allRows.length) addLog('INFO', `  首列樣例: [${allRows[0].slice(0, 4).join(' | ')}]`);
 
   // Locate 加權指數 closing column
   let idxCol = sharedFields.findIndex(f => String(f).includes('加權'));
-  if (idxCol < 0) idxCol = sharedFields.findIndex((f, i) => i > 0 && String(f).includes('指數'));
+  if (idxCol < 0) idxCol = sharedFields.findIndex((f, ci) => ci > 0 && String(f).includes('指數'));
   if (idxCol < 0) {
     // Auto-detect: first non-date column where values are in TAIEX range
     for (let c = 1; c < sharedFields.length; c++) {
-      if (allRows.slice(0, 5).filter(r => isTaiexVal(r[c])).length >= 3) { idxCol = c; break; }
+      if (allRows.slice(0, 5).filter(rr => isTaiexVal(rr[c])).length >= 3) { idxCol = c; break; }
     }
   }
-  if (idxCol < 0) idxCol = sharedFields.length - 1;
+  if (idxCol < 0) idxCol = 1; // fallback: column 1
   addLog('INFO', `加權指數欄 → index=${idxCol} "${sharedFields[idxCol] || '?'}"`);
 
-  const closes = allRows.map(r => parseNum(r[idxCol])).filter(v => v > 5000 && v < 50000);
+  const closes = allRows.map(rr => parseNum(rr[idxCol])).filter(v => v > 5000 && v < 50000);
   addLog('DATA', `有效收盤筆數: ${closes.length}，最後值: ${closes.at(-1)?.toLocaleString()}`);
 
   if (closes.length < 10) {
