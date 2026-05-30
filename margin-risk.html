@@ -1018,7 +1018,7 @@ function showToast(msg) {
 }
 
 // ---- Fetch Log ----
-const FETCH_VERSION = 'v154';
+const FETCH_VERSION = 'v155';
 let fetchLog = [];
 
 function addLog(level, msg) {
@@ -1193,8 +1193,10 @@ async function fetchTaiex() {
     return json;
   }));
 
-  // Log all probe outcomes; detect a time-series (5~100 rows with a TAIEX-range column)
+  // Log all probe outcomes; detect a time-series with date rows + TAIEX-range values
+  // firstColIsDate: 第一欄需為民國日期格式 (e.g. "115/05/04")，排除類別列 (e.g. "1.一般股票")
   const isTaiexVal = v => { const n = parseNum(v); return n > 5000 && n < 50000; };
+  const isRocDate = v => /^\d{2,3}\/\d{2}\/\d{2}/.test(String(v ?? '').trim());
   let hitIdx = -1;
   probeResults.forEach((r, i) => {
     const { lbl } = probeList[i];
@@ -1203,11 +1205,12 @@ async function fetchTaiex() {
     const stat = json?.stat;
     if (stat !== 'OK' && stat !== 'ok') { addLog('WARN', `[${lbl}] stat="${stat}"`); return; }
     const { data, fields } = extractTWSETable(json);
-    const hasIndex = data.length > 5 && data.length < 200 &&
+    const firstColIsDate = data.some(row => Array.isArray(row) && isRocDate(row[0]));
+    const hasIndex = data.length > 5 && data.length < 200 && firstColIsDate &&
       data.some(row => Array.isArray(row) && row.slice(1).some(isTaiexVal));
     addLog(hasIndex ? 'OK' : 'INFO',
-      `[${lbl}] ${data.length}筆 | [${fields.slice(0, 4).join(', ')}] | ${hasIndex ? '✓時序' : '✗非時序'}`);
-    if (data.length) addLog('INFO', `  樣例: [${data[0].slice(0, 4).join(' | ')}]`);
+      `[${lbl}] ${data.length}筆 | [${fields.join(', ')}] | 日期列:${firstColIsDate ? '✓' : '✗'} | ${hasIndex ? '✓時序' : '✗非時序'}`);
+    if (data.length) addLog('INFO', `  樣例: [${data[0].join(' | ')}]`);
     if (hitIdx < 0 && hasIndex) hitIdx = i;
   });
 
