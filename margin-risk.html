@@ -1018,7 +1018,7 @@ function showToast(msg) {
 }
 
 // ---- Fetch Log ----
-const FETCH_VERSION = 'v147';
+const FETCH_VERSION = 'v148';
 let fetchLog = [];
 
 function addLog(level, msg) {
@@ -1293,11 +1293,19 @@ async function fetchTWSEMargin() {
 
 async function fetchDayTrade() {
   addLog('INFO', '--- [TWSE] 當沖統計 (TWTB4U) ---');
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const prev = new Date(today); prev.setDate(today.getDate() - 1);
+  const prevDateStr = prev.toISOString().slice(0, 10).replace(/-/g, '');
+  const prev2 = new Date(today); prev2.setDate(today.getDate() - 3);
+  const prev2DateStr = prev2.toISOString().slice(0, 10).replace(/-/g, '');
   const candidates = [
     `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&date=${dateStr}&selectType=All`,
     `https://www.twse.com.tw/rwd/zh/trading/TWTB4U?response=json&selectType=All`,
     `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${dateStr}&selectType=All`,
+    `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&selectType=All`,
+    `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${prevDateStr}&selectType=All`,
+    `https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&date=${prev2DateStr}&selectType=All`,
   ];
   const parseNum = s => parseFloat(String(s ?? '0').replace(/,/g, '').replace(/%/g, '')) || 0;
 
