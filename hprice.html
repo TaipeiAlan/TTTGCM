@@ -969,12 +969,6 @@
         });
         hoveredIdx=idx;
         trendChartInst.update('none');
-        // 圖例標籤同步淡化
-        document.querySelectorAll('#trendLegend .trend-legend-item').forEach((el,i)=>{
-          el.style.opacity=idx<0||i===idx?'1':'0.3';
-          el.style.position=i===idx?'relative':'';
-          el.style.zIndex=i===idx?'10':'';
-        });
       }
 
       function renderLegend(){
@@ -1010,12 +1004,15 @@
           ghost=item.cloneNode(true);
           ghost.style.cssText+=`;position:fixed;left:${startRect.left}px;top:${startRect.top}px;width:${startRect.width}px;opacity:0.75;z-index:9999;pointer-events:none;box-shadow:0 3px 10px #0003`;
           document.body.appendChild(ghost);
-          item.style.opacity='0.3';
           document.body.style.userSelect='none';
           document.body.style.webkitUserSelect='none';
           document.addEventListener('selectstart',noSelect);
-          // 按下時淡化其他線條
+          // 按下時淡化其他線條和tag
           applyFocus(parseInt(item.dataset.idx));
+          items().forEach(el=>{
+            const focused=el===item;
+            el.style.opacity=focused?'1':'0.3';
+          });
         },{passive:false});
         container.addEventListener('pointermove',e=>{
           if(!dragEl)return;
@@ -1030,12 +1027,11 @@
         const endDrag=e=>{
           if(!dragEl)return;
           if(ghost){ghost.remove();ghost=null;}
-          dragEl.style.opacity='';
-          items().forEach(i=>i.style.outline='');
+          items().forEach(i=>{i.style.outline='';i.style.opacity='';});
           document.body.style.userSelect='';
           document.body.style.webkitUserSelect='';
           document.removeEventListener('selectstart',noSelect);
-          // 放開時恢復所有線條
+          // 放開時恢復所有線條和tag
           applyFocus(-1);
           const over=document.elementFromPoint(e.clientX,e.clientY)?.closest('.trend-legend-item');
           if(over&&over!==dragEl){
