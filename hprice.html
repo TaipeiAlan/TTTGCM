@@ -388,7 +388,12 @@
       // 只取有樓層的 CSV 紀錄來決定欄位/列位
       const csvRecordsAll=csvLatestMap?[...csvLatestMap.values()]:[];
       // 也從 null-floor 群組中補充欄位（純 CSV 場景下 XLS 可能尚未載入）
-      const csvNullUnits=csvNullFloor?[...csvNullFloor.values()].map(g=>g.latest.棟及號):[];
+      // 若 null-floor CSV 的戶別已在 XLS 欄位中（unitKeyMatch），沿用 XLS 欄位名，避免重複欄
+      const xlsAndCsvKnownUnits=[...records.map(r=>r.棟及號),...csvRecordsAll.map(r=>r.棟及號)];
+      const csvNullUnits=csvNullFloor?[...csvNullFloor.values()].map(g=>{
+        const c=g.latest.棟及號;
+        return xlsAndCsvKnownUnits.find(u=>unitKeyMatch(u,c))||c;
+      }):[];
       const allUnits=[...new Set([...records.map(r=>r.棟及號),...csvRecordsAll.map(r=>r.棟及號),...csvNullUnits])].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
       // 不把 null 樓層加進 floors
       const allFloors=[...new Set([...records.map(r=>r.樓層),...csvRecordsAll.map(r=>r.樓層)])].filter(f=>f!==null&&f!==undefined).sort((a,b)=>b-a);
