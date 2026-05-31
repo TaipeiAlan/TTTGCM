@@ -843,7 +843,7 @@
           pointBorderColor:color,
           pointBorderWidth:csvOnly.map(f=>f?2:1),
           segment:{borderDash:ctx=>{
-            const gap=ctx.p1DataIndex-ctx.p0DataIndex>1;
+            const gap=ctx.p0.skip||ctx.p1.skip;
             const csv=csvOnly[ctx.p1DataIndex];
             return(gap||csv)?[5,4]:undefined;
           }},
@@ -983,6 +983,7 @@
       function initLegendDrag(container){
         let dragEl=null,ghost=null,startX=0,startY=0,startRect=null;
         const items=()=>[...container.querySelectorAll('.trend-legend-item')];
+        const noSelect=e=>e.preventDefault();
         container.addEventListener('pointerdown',e=>{
           const item=e.target.closest('.trend-legend-item');
           if(!item)return;
@@ -994,6 +995,9 @@
           ghost.style.cssText+=`;position:fixed;left:${startRect.left}px;top:${startRect.top}px;width:${startRect.width}px;opacity:0.75;z-index:9999;pointer-events:none;box-shadow:0 3px 10px #0003`;
           document.body.appendChild(ghost);
           item.style.opacity='0.3';
+          document.body.style.userSelect='none';
+          document.body.style.webkitUserSelect='none';
+          document.addEventListener('selectstart',noSelect);
         },{passive:false});
         container.addEventListener('pointermove',e=>{
           if(!dragEl)return;
@@ -1010,6 +1014,9 @@
           if(ghost){ghost.remove();ghost=null;}
           dragEl.style.opacity='';
           items().forEach(i=>i.style.outline='');
+          document.body.style.userSelect='';
+          document.body.style.webkitUserSelect='';
+          document.removeEventListener('selectstart',noSelect);
           const over=document.elementFromPoint(e.clientX,e.clientY)?.closest('.trend-legend-item');
           if(over&&over!==dragEl){
             const all=items();
