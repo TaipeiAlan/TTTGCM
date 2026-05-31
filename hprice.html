@@ -158,7 +158,7 @@
         <h2 class="modal-title">交易趨勢圖</h2>
         <button id="closeChartModal" class="close-btn">×</button>
       </div>
-      <p style="font-size:12px;color:#999;margin:4px 0 8px">X 軸：月份（資料起迄，含無交易月份）　Y 軸：交易戶數　每條線代表一個棟及號</p>
+      <p style="font-size:12px;color:#999;margin:4px 0 8px">X 軸：月份（資料起迄，含無交易月份）　Y 軸：交易戶數　每條線代表一個棟及號　<span style="color:#1a5f7a">空心點／虛線＝CSV 搶先版（可於上方隱藏）</span></p>
       <div style="position:relative;height:400px"><canvas id="trendChart"></canvas></div>
       <div id="trendDetail" style="display:none;margin-top:10px;background:#f7f1e5;border-radius:8px;padding:10px 14px;font-size:13px"></div>
     </div>
@@ -580,6 +580,19 @@
       return groups;
     }
 
+    // 交易趨勢圖用：可見且未與 XLS 重複的 CSV 紀錄（戶別名稱對應到既有 XLS 欄位，標記 _csv）
+    function getCsvTrendRecords(xlsRecords){
+      if(!csvState.visible||!csvState.records.length)return [];
+      const xlsSet=buildXlsMatchSet();
+      const xlsUnits=[...new Set(xlsRecords.map(r=>r.棟及號))];
+      return csvState.records
+        .filter(r=>!isCsvDupOfXls(r,xlsSet)&&rocToISO(r.交易日期))
+        .map(r=>{
+          const mapped=xlsUnits.find(u=>unitKeyMatch(u,r.棟及號))||r.棟及號;
+          return {...r,棟及號:mapped,_csv:true};
+        });
+    }
+
     function updateCsvBanner(){
       const banner=document.getElementById('csvBanner');
       const info=document.getElementById('csvBannerInfo');
@@ -801,25 +814,57 @@
       const datasets=units.map((unit,i)=>{
         const color=unitColors[i];
         const detailData=allMonths.map(ym=>withMonthFull.filter(r=>r.unit===unit&&r.ym===ym).map(r=>r.record));
-        return{label:unit,data:detailData.map(d=>d.length||null),detailData,borderColor:color,backgroundColor:color+'33',pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,spanGaps:false};
+        // 該月份是否「全部」來自 CSV（搶先版）→ 用空心點 + 虛線段標示
+        const csvOnly=detailData.map(d=>d.length>0&&d.every(r=>r._csv));
+        return{
+          label:unit,data:detailData.map(d=>d.length||null),detailData,
+          borderColor:color,backgroundColor:color+'33',
+          pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,spanGaps:false,
+          pointBackgroundColor:csvOnly.map(f=>f?'#fff':color),
+          pointBorderColor:color,
+          pointBorderWidth:csvOnly.map(f=>f?2:1),
+          segment:{borderDash:ctx=>csvOnly[ctx.p1DataIndex]?[5,4]:undefined},
+        };
       });
 
-      // 線尾直接繪製棟及號標籤（固定顏色，向上偏移避免被線遮擋）
+      // 線尾繪製棟及號標籤；座標重疊時垂直堆疊避免文字相互覆蓋
       const endLabelPlugin={
         id:'endLabel',
         afterDraw(chart){
           const c=chart.ctx;c.save();
+          c.font=`bold 11px -apple-system,sans-serif`;
+          c.textAlign='left';c.textBaseline='middle';c.globalAlpha=1;
+          const lineH=14;
+          // 收集所有線尾標籤位置
+          const labels=[];
           chart.data.datasets.forEach((ds,i)=>{
             const meta=chart.getDatasetMeta(i);
             if(meta.hidden||!meta.data.length)return;
             const lastNonNullIdx=ds.data.reduce((last,v,idx)=>v!==null?idx:last,-1);
             if(lastNonNullIdx<0)return;
             const pt=meta.data[lastNonNullIdx];
-            c.globalAlpha=1;
-            c.fillStyle=unitColors[i];
-            c.font=`bold 11px -apple-system,sans-serif`;
-            c.textAlign='left';c.textBaseline='bottom';
-            c.fillText(ds.label,pt.x+6,pt.y-4);
+            labels.push({x:pt.x+6,y:pt.y,text:ds.label,color:unitColors[i],w:c.measureText(ds.label).width});
+          });
+          // 依 x、y 排序後逐一擺放，若與已放置標籤在 x 範圍重疊且 y 太近，則向上堆疊
+          labels.sort((a,b)=>a.x-b.x||a.y-b.y);
+          const placed=[];
+          labels.forEach(l=>{
+            let y=l.y,guard=0,collision=true;
+            while(collision&&guard++<60){
+              collision=false;
+              for(const p of placed){
+                const xOverlap=l.x<p.x+p.w+4&&p.x<l.x+l.w+4;
+                if(xOverlap&&Math.abs(p.y-y)<lineH){y=p.y-lineH;collision=true;}
+              }
+            }
+            l.y=y;placed.push(l);
+          });
+          // 夾在繪圖區內並輸出
+          const area=chart.chartArea;
+          placed.forEach(l=>{
+            const y=Math.max(area.top+7,Math.min(l.y,area.bottom-7));
+            c.fillStyle=l.color;
+            c.fillText(l.text,l.x,y);
           });
           c.restore();
         }
@@ -856,8 +901,9 @@
             const tdStyle='padding:4px 6px;border-top:1px solid #e4dfd4';
             const rows=details.map(r=>{
               const up=calcUnitPrice(r,withParkingPrice);
+              const csvTag=r._csv?'<span style="background:#5ba8bf;color:#fff;font-size:10px;padding:1px 4px;border-radius:3px;margin-left:4px">CSV</span>':'';
               return`<tr>
-                <td style="${tdStyle}">${r.交易日期||'-'}</td>
+                <td style="${tdStyle}">${r.交易日期||'-'}${csvTag}</td>
                 <td style="${tdStyle};text-align:right">${formatAmount(r.總價,0)} 萬</td>
                 <td style="${tdStyle};text-align:right">${up!==null?formatAmount(up,1)+' 萬/坪':'-'}</td>
                 <td style="${tdStyle};text-align:right">${r.總面積?formatAmount(r.總面積,1)+' 坪':'-'}</td>
@@ -897,9 +943,11 @@
     const trendBtn=document.getElementById('trendBtn');
 
     trendBtn.addEventListener('click',()=>{
-      if(!currentRecords.length){alert('請先載入資料');return;}
+      const csvRecs=getCsvTrendRecords(currentRecords);
+      const merged=[...currentRecords,...csvRecs];
+      if(!merged.length){alert('請先載入資料');return;}
       chartModal.classList.add('show');
-      buildTrendChart(currentRecords);
+      buildTrendChart(merged);
     });
     closeChartModalBtn.addEventListener('click',()=>{chartModal.classList.remove('show');document.getElementById('trendDetail').style.display='none';});
     chartModal.addEventListener('click',e=>{if(e.target===chartModal)chartModal.classList.remove('show');});
