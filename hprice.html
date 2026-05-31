@@ -374,34 +374,6 @@
         <h3 style="font-size:15px;margin:10px 0 6px;">車位分頁</h3><table class="summary-grid"><tr><th>序號</th><th>車位類別</th><th>車位價格</th><th>車位面積(坪)</th><th>所在樓層</th></tr>${parkingRows}</table>`)
     }
 
-    function showCsvNullFloorList(csvRecs,unit){
-      const sorted=[...csvRecs].sort((a,b)=>parseROCDate(b.交易日期)-parseROCDate(a.交易日期));
-      const rows=sorted.map(r=>{
-        const up=calcUnitPrice(r,withParkingPrice);
-        const tdS='padding:5px 7px;border-top:1px solid #e4dfd4';
-        return`<tr>
-          <td style="${tdS}">${r.交易日期||'-'}</td>
-          <td style="${tdS};text-align:right;color:#d64f41;font-weight:700">${up!==null?formatAmount(up,2)+' 萬/坪':'-'}</td>
-          <td style="${tdS};text-align:right;font-weight:700">${r.總價?formatAmount(r.總價,0)+' 萬':'-'}</td>
-          <td style="${tdS}">${r.建物格局||'-'}</td>
-          <td style="${tdS};text-align:right">${r.總面積?formatAmount(r.總面積,1)+' 坪':'-'}</td>
-        </tr>`;
-      }).join('');
-      openModal(`CSV 未知樓層｜${unit}（${sorted.length} 筆）`,
-        `<p style="font-size:12px;color:#1a5f7a;margin:0 0 8px;background:#e0f2f7;padding:6px 10px;border-radius:6px">以下為 CSV 搶先版資料，尚無樓層資訊。</p>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead><tr style="color:#7f7a72">
-            <th style="padding:4px 7px;text-align:left">交易日期</th>
-            <th style="padding:4px 7px;text-align:right">單坪價</th>
-            <th style="padding:4px 7px;text-align:right">總價</th>
-            <th style="padding:4px 7px;text-align:left">格局</th>
-            <th style="padding:4px 7px;text-align:right">坪數</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>`
-      );
-    }
-
     function clearHover(){gridWrap.querySelectorAll('.hover-row,.hover-col,.hover-head,.hover-floor').forEach(el=>el.classList.remove('hover-row','hover-col','hover-head','hover-floor'))}
     function applyHover(floor,unit){
       clearHover();
@@ -596,13 +568,13 @@
         return !isCsvDupOfXls(r,xlsSet);
       });
       if(!nullFloor.length)return null;
-      // 按 normalizeUnitKey 分組，保留所有記錄及最新一筆
+      // 按 normalizeUnitKey 分組，保留所有記錄及最新一筆（latest 用於決定欄位名稱）
       const groups=new Map();
       nullFloor.forEach(r=>{
         const k=normalizeUnitKey(r.棟及號);
-        if(!groups.has(k))groups.set(k,{records:[],latest:null,count:0});
+        if(!groups.has(k))groups.set(k,{records:[],latest:null});
         const g=groups.get(k);
-        g.records.push(r);g.count++;
+        g.records.push(r);
         if(!g.latest||parseROCDate(r.交易日期)>=parseROCDate(g.latest.交易日期))g.latest=r;
       });
       return groups;
