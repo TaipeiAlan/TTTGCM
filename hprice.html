@@ -556,7 +556,7 @@
       return x===c||c.startsWith(x)||x.startsWith(c);
     }
 
-    // 建立 XLS 已知交易的 matchSet（unitKey + 四捨五入總價，不含月份）
+    // 建立 XLS 已知交易的 matchSet（同戶別 + 同總價視為重複）
     function buildXlsMatchSet(){
       const s=new Set();
       currentRecords.forEach(r=>{
