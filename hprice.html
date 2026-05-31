@@ -486,36 +486,41 @@
         tbody.appendChild(tr);
       });
 
-      // ── 未知樓層列（CSV 搶先版無樓層資訊的紀錄）──────────────────────────
+      // ── 未知樓層列（CSV 搶先版無樓層資訊的紀錄，每筆獨立一行）────────────
       if(csvNullFloor?.size){
-        const unknownTr=document.createElement('tr');
-        const ufth=document.createElement('th');
-        ufth.className='floor csv-unknown';
-        ufth.title='CSV 搶先版資料（未知樓層）';
-        ufth.innerHTML=`<span class="f">?</span><span class="s">CSV</span>`;
-        unknownTr.appendChild(ufth);
-        units.forEach(unit=>{
-          const td=document.createElement('td');td.className='cell';
-          td.dataset.floor='csv-unknown';td.dataset.unit=unit;
-          td.addEventListener('mouseenter',()=>applyHover(undefined,unit));td.addEventListener('mouseleave',clearHover);
-          // 用 normalizeUnitKey 比對：找出哪個 CSV group 對應此 XLS 欄位
-          const matchKey=[...csvNullFloor.keys()].find(k=>unitKeyMatch(unit,k));
-          if(!matchKey){
-            td.classList.add('csv-unknown-empty');td.textContent='-';
-          } else {
-            const{records:csvRecs,latest,count}=csvNullFloor.get(matchKey);
-            const up=calcUnitPrice(latest,withParkingPrice);
-            td.classList.add('csv-only');
-            td.innerHTML=`<span class="badge" style="background:#5ba8bf">CSV${count>1?'×'+count:''}</span><div class="date" style="color:#1a5f7a">${latest.交易日期||'-'}</div><div class="unit-price"><span class="num" style="color:#1a5f7a">${up!==null?formatAmount(up,2):'-'}</span><span class="u">萬/坪</span></div><div class="total" style="color:#1a5f7a">${latest.總價?formatAmount(latest.總價,0)+' 萬':'-'}</div>`;
-            td.addEventListener('click',()=>{
-              removeActive();td.classList.add('active');
-              if(count>1)showCsvNullFloorList(csvRecs,unit);
-              else showRecordDetail(latest,'?',unit);
-            });
-          }
-          unknownTr.appendChild(td);
-        });
-        tbody.insertBefore(unknownTr,tbody.firstChild);
+        // 每個 group 的 records 依日期排序（新→舊），取最多行數
+        const sortedGroups=new Map([...csvNullFloor.entries()].map(([k,g])=>[k,{
+          ...g,
+          sorted:[...g.records].sort((a,b)=>parseROCDate(b.交易日期)-parseROCDate(a.交易日期))
+        }]));
+        const maxRows=Math.max(...[...sortedGroups.values()].map(g=>g.sorted.length));
+        const unknownRows=[];
+        for(let ri=0;ri<maxRows;ri++){
+          const tr=document.createElement('tr');
+          const th=document.createElement('th');
+          th.className='floor csv-unknown';th.title='CSV 搶先版資料（未知樓層）';
+          th.innerHTML=`<span class="f">?</span><span class="s">CSV</span>`;
+          tr.appendChild(th);
+          units.forEach(unit=>{
+            const td=document.createElement('td');td.className='cell';
+            td.dataset.floor='csv-unknown';td.dataset.unit=unit;
+            td.addEventListener('mouseenter',()=>applyHover(undefined,unit));td.addEventListener('mouseleave',clearHover);
+            const matchKey=[...sortedGroups.keys()].find(k=>unitKeyMatch(unit,k));
+            if(!matchKey||ri>=sortedGroups.get(matchKey).sorted.length){
+              td.classList.add('csv-unknown-empty');td.textContent='-';
+            } else {
+              const rec=sortedGroups.get(matchKey).sorted[ri];
+              const up=calcUnitPrice(rec,withParkingPrice);
+              td.classList.add('csv-only');
+              td.innerHTML=`<span class="badge" style="background:#5ba8bf">CSV</span><div class="date" style="color:#1a5f7a">${rec.交易日期||'-'}</div><div class="unit-price"><span class="num" style="color:#1a5f7a">${up!==null?formatAmount(up,2):'-'}</span><span class="u">萬/坪</span></div><div class="total" style="color:#1a5f7a">${rec.總價?formatAmount(rec.總價,0)+' 萬':'-'}</div>`;
+              td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(rec,'?',unit);});
+            }
+            tr.appendChild(td);
+          });
+          unknownRows.push(tr);
+        }
+        // 由下往上插入，讓 row 0 在最頂
+        for(let i=unknownRows.length-1;i>=0;i--) tbody.insertBefore(unknownRows[i],tbody.firstChild);
       }
       // ─────────────────────────────────────────────────────────────────────
 
