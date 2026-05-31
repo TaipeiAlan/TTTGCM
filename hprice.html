@@ -556,15 +556,19 @@
       return x===c||c.startsWith(x)||x.startsWith(c);
     }
 
-    // 建立 XLS 已知交易的 matchSet（unitKey + 交易月份 + 四捨五入總價）
+    // 建立 XLS 已知交易的 matchSet（unitKey + 四捨五入總價，不含月份）
     function buildXlsMatchSet(){
       const s=new Set();
       currentRecords.forEach(r=>{
-        const iso=rocToISO(r.交易日期);const ym=iso?iso.slice(0,7):'';
         const price=Math.round(Number(r.總價)||0);
-        s.add(`${normalizeUnitKey(r.棟及號)}_${ym}_${price}`);
+        s.add(`${normalizeUnitKey(r.棟及號)}_${price}`);
       });
       return s;
+    }
+
+    function isCsvDupOfXls(r,xlsSet){
+      const price=Math.round(Number(r.總價)||0);
+      return xlsSet.has(`${normalizeUnitKey(r.棟及號)}_${price}`);
     }
 
     function getCsvLatestMap(){
@@ -573,9 +577,7 @@
       // 只取有樓層資訊的 CSV 紀錄（用於格子疊層），並去除 XLS 已有的重複
       const filtered=csvState.records.filter(r=>{
         if(r.樓層===null||r.樓層===undefined)return false;
-        const iso=rocToISO(r.交易日期);const ym=iso?iso.slice(0,7):'';
-        const price=Math.round(Number(r.總價)||0);
-        return !xlsSet.has(`${normalizeUnitKey(r.棟及號)}_${ym}_${price}`);
+        return !isCsvDupOfXls(r,xlsSet);
       });
       return filtered.length?pickLatest(filtered):null;
     }
@@ -586,9 +588,7 @@
       const xlsSet=buildXlsMatchSet();
       const nullFloor=csvState.records.filter(r=>{
         if(r.樓層!==null&&r.樓層!==undefined)return false;
-        const iso=rocToISO(r.交易日期);const ym=iso?iso.slice(0,7):'';
-        const price=Math.round(Number(r.總價)||0);
-        return !xlsSet.has(`${normalizeUnitKey(r.棟及號)}_${ym}_${price}`);
+        return !isCsvDupOfXls(r,xlsSet);
       });
       if(!nullFloor.length)return null;
       // 按 normalizeUnitKey 分組，保留所有記錄及最新一筆
