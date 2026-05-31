@@ -764,7 +764,11 @@
     setEmph(localStorage.getItem(EMPH_KEY)||'none');
 
     // ── 交易趨勢圖 ──────────────────────────────────────────────────────────
-    const TREND_COLORS=['#e8953f','#d64f41','#4a90d9','#5ba85a','#9b59b6','#16a085','#f39c12','#8e44ad','#2980b9','#c0392b'];
+    const TREND_COLORS=[
+      '#e8953f','#d64f41','#4a90d9','#5ba85a','#9b59b6',
+      '#16a085','#c9a227','#8e44ad','#2471a3','#cb4335',
+      '#1e8449','#117a65','#d35400','#e84393','#626567',
+    ];
 
     function rocToISO(v){
       const s=String(v||'').trim();
@@ -827,25 +831,25 @@
         };
       });
 
-      // 線尾繪製棟及號標籤；座標重疊時垂直堆疊避免文字相互覆蓋
+      // 標籤顯示在點正下方；x 重疊時往下堆疊
       const endLabelPlugin={
         id:'endLabel',
         afterDraw(chart){
           const c=chart.ctx;c.save();
           c.font=`bold 11px -apple-system,sans-serif`;
-          c.textAlign='left';c.textBaseline='middle';c.globalAlpha=1;
-          const lineH=14;
-          // 收集所有線尾標籤位置
+          c.textAlign='center';c.textBaseline='top';c.globalAlpha=1;
+          const padY=7,lineH=15;
           const labels=[];
           chart.data.datasets.forEach((ds,i)=>{
             const meta=chart.getDatasetMeta(i);
             if(meta.hidden||!meta.data.length)return;
-            const lastNonNullIdx=ds.data.reduce((last,v,idx)=>v!==null?idx:last,-1);
-            if(lastNonNullIdx<0)return;
-            const pt=meta.data[lastNonNullIdx];
-            labels.push({x:pt.x+6,y:pt.y,text:ds.label,color:unitColors[i],w:c.measureText(ds.label).width});
+            const lastIdx=ds.data.reduce((last,v,idx)=>v!==null?idx:last,-1);
+            if(lastIdx<0)return;
+            const pt=meta.data[lastIdx];
+            const hw=c.measureText(ds.label).width/2+3;
+            labels.push({x:pt.x,y:pt.y+padY,text:ds.label,color:unitColors[i],hw});
           });
-          // 依 x、y 排序後逐一擺放，若與已放置標籤在 x 範圍重疊且 y 太近，則向上堆疊
+          // 左→右排序後，x 範圍重疊時往下堆疊
           labels.sort((a,b)=>a.x-b.x||a.y-b.y);
           const placed=[];
           labels.forEach(l=>{
@@ -853,16 +857,16 @@
             while(collision&&guard++<60){
               collision=false;
               for(const p of placed){
-                const xOverlap=l.x<p.x+p.w+4&&p.x<l.x+l.w+4;
-                if(xOverlap&&Math.abs(p.y-y)<lineH){y=p.y-lineH;collision=true;}
+                if(Math.abs(l.x-p.x)<l.hw+p.hw&&Math.abs(y-p.y)<lineH){
+                  y=Math.max(p.y,y)+lineH;collision=true;break;
+                }
               }
             }
             l.y=y;placed.push(l);
           });
-          // 夾在繪圖區內並輸出
           const area=chart.chartArea;
           placed.forEach(l=>{
-            const y=Math.max(area.top+7,Math.min(l.y,area.bottom-7));
+            const y=Math.min(l.y,area.bottom-4);
             c.fillStyle=l.color;
             c.fillText(l.text,l.x,y);
           });
@@ -877,7 +881,7 @@
         plugins:[endLabelPlugin],
         options:{
           responsive:true,maintainAspectRatio:false,
-          layout:{padding:{right:80}},
+          layout:{padding:{right:10,bottom:40}},
           interaction:{mode:'nearest',intersect:true},
           onHover:(_,active,chart)=>{
             const idx=active.length?active[0].datasetIndex:-1;
