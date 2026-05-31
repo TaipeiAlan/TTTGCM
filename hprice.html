@@ -556,19 +556,21 @@
       return x===c||c.startsWith(x)||x.startsWith(c);
     }
 
-    // 建立 XLS 已知交易的 matchSet（unitKey + 四捨五入總價，不含月份）
+    // 建立 XLS 已知交易的 matchSet（unitKey + 交易月份 + 四捨五入總價）
     function buildXlsMatchSet(){
       const s=new Set();
       currentRecords.forEach(r=>{
+        const iso=rocToISO(r.交易日期);const ym=iso?iso.slice(0,7):'';
         const price=Math.round(Number(r.總價)||0);
-        s.add(`${normalizeUnitKey(r.棟及號)}_${price}`);
+        s.add(`${normalizeUnitKey(r.棟及號)}_${ym}_${price}`);
       });
       return s;
     }
 
     function isCsvDupOfXls(r,xlsSet){
+      const iso=rocToISO(r.交易日期);const ym=iso?iso.slice(0,7):'';
       const price=Math.round(Number(r.總價)||0);
-      return xlsSet.has(`${normalizeUnitKey(r.棟及號)}_${price}`);
+      return xlsSet.has(`${normalizeUnitKey(r.棟及號)}_${ym}_${price}`);
     }
 
     function getCsvLatestMap(){
