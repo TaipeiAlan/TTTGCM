@@ -969,6 +969,12 @@
         });
         hoveredIdx=idx;
         trendChartInst.update('none');
+        // 圖例標籤同步淡化
+        document.querySelectorAll('#trendLegend .trend-legend-item').forEach((el,i)=>{
+          el.style.opacity=idx<0||i===idx?'1':'0.3';
+          el.style.position=i===idx?'relative':'';
+          el.style.zIndex=i===idx?'10':'';
+        });
       }
 
       function renderLegend(){
