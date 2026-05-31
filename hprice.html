@@ -961,6 +961,16 @@
       });
 
       // ── 圖例列（可拖曳改變疊加順序）─────────────────────────────────────
+      function applyFocus(idx){
+        trendChartInst.data.datasets.forEach((ds,i)=>{
+          if(idx<0){ds.borderColor=unitColors[i];ds.borderWidth=2;}
+          else if(i===idx){ds.borderColor=unitColors[i];ds.borderWidth=3;}
+          else{ds.borderColor=unitColors[i]+'33';ds.borderWidth=1;}
+        });
+        hoveredIdx=idx;
+        trendChartInst.update('none');
+      }
+
       function renderLegend(){
         const leg=document.getElementById('trendLegend');
         leg.innerHTML='';
@@ -998,6 +1008,8 @@
           document.body.style.userSelect='none';
           document.body.style.webkitUserSelect='none';
           document.addEventListener('selectstart',noSelect);
+          // 按下時淡化其他線條
+          applyFocus(parseInt(item.dataset.idx));
         },{passive:false});
         container.addEventListener('pointermove',e=>{
           if(!dragEl)return;
@@ -1009,7 +1021,7 @@
           items().forEach(i=>i.style.outline='');
           if(over&&over!==dragEl)over.style.outline='2px dashed #aaa';
         },{passive:false});
-        container.addEventListener('pointerup',e=>{
+        const endDrag=e=>{
           if(!dragEl)return;
           if(ghost){ghost.remove();ghost=null;}
           dragEl.style.opacity='';
@@ -1017,6 +1029,8 @@
           document.body.style.userSelect='';
           document.body.style.webkitUserSelect='';
           document.removeEventListener('selectstart',noSelect);
+          // 放開時恢復所有線條
+          applyFocus(-1);
           const over=document.elementFromPoint(e.clientX,e.clientY)?.closest('.trend-legend-item');
           if(over&&over!==dragEl){
             const all=items();
@@ -1032,7 +1046,9 @@
             }
           }
           dragEl=null;
-        });
+        };
+        container.addEventListener('pointerup',endDrag);
+        container.addEventListener('pointercancel',endDrag);
       }
       renderLegend();
       // ──────────────────────────────────────────────────────────────────────
