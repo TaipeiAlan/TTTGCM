@@ -835,7 +835,7 @@
         // 該月份是否「全部」來自 CSV → 空心點；月份間距>1（中間有空月）→ 虛線橋接
         const csvOnly=detailData.map(d=>d.length>0&&d.every(r=>r._csv));
         return{
-          label:unit,data:rawData,detailData,
+          label:unit,data:rawData,detailData,_csvOnly:csvOnly,
           borderColor:color,backgroundColor:color+'33',
           pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,
           spanGaps:true,
@@ -866,7 +866,7 @@
             if(lastIdx<0)return;
             const pt=meta.data[lastIdx];
             const hw=c.measureText(ds.label).width/2+3;
-            labels.push({x:pt.x,y:pt.y+padY,text:ds.label,color:unitColors[i],hw});
+            labels.push({x:pt.x,y:pt.y+padY,text:ds.label,color:ds.borderColor,hw});
           });
           // 左→右排序後，x 範圍重疊時往下堆疊
           labels.sort((a,b)=>a.x-b.x||a.y-b.y);
@@ -963,9 +963,13 @@
       // ── 圖例列（可拖曳改變疊加順序）─────────────────────────────────────
       function applyFocus(idx){
         trendChartInst.data.datasets.forEach((ds,i)=>{
-          if(idx<0){ds.borderColor=unitColors[i];ds.borderWidth=2;}
-          else if(i===idx){ds.borderColor=unitColors[i];ds.borderWidth=3;}
-          else{ds.borderColor=unitColors[i]+'33';ds.borderWidth=1;}
+          const col=unitColors[i];
+          const faded=idx>=0&&i!==idx;
+          const c=faded?col+'33':col;
+          ds.borderColor=c;
+          ds.borderWidth=faded?1:(idx>=0?3:2);
+          ds.pointBorderColor=c;
+          if(ds._csvOnly)ds.pointBackgroundColor=ds._csvOnly.map(f=>f?(faded?'#ffffff44':'#fff'):c);
         });
         hoveredIdx=idx;
         trendChartInst.update('none');
