@@ -76,6 +76,15 @@
     .deadline-pill.all-mode .darrow{color:#79552a}
     .deadline-pill.all-mode .darrow:hover,.deadline-pill.all-mode .dlabel:hover{background:#ead4ab}
     .deadline-pill.all-mode .darrow + .darrow,.deadline-pill.all-mode .dlabel{border-color:#dcbf8a}
+    /* CSV overlay */
+    .csv-banner{background:#e0f2f7;border:1.5px solid #5ba8bf;border-radius:8px;padding:5px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .csv-banner-info{font-size:12px;color:#1a5f7a;font-weight:600;flex:1;min-width:0}
+    .btn.csv-btn{border-color:#5ba8bf;background:#d0ecf5;color:#1a5f7a}
+    .btn.csv-hide{background:#5ba8bf;color:#fff;border-color:#3d8fa8}
+    td.cell.csv-only{background:#eaf6fb}
+    td.cell.csv-only.active{outline:2px solid #5ba8bf;outline-offset:-2px;background:#d4eef7}
+    .csv-overlay-strip{position:absolute;bottom:0;left:0;right:0;background:#bce5f5cc;border-top:1px solid #8dcde0;padding:1px 4px;font-size:10px;color:#0d4f6b;font-weight:700;line-height:1.4;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    body.size-xs .csv-overlay-strip{display:none}
     #chartModal{align-items:center}
     #chartModal .modal-card{width:min(880px,100%);max-height:92vh}
   </style>
@@ -122,6 +131,11 @@
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
       </div>
+      <div id="csvBanner" class="top-row csv-banner" style="display:none;">
+        <span id="csvBannerInfo" class="csv-banner-info">CSV 預覽資料</span>
+        <button id="csvToggleBtn" class="btn csv-btn">隱藏 CSV 疊層</button>
+        <button id="csvClearBtn" class="btn csv-btn">清除 CSV</button>
+      </div>
     </section>
     <div class="grid-wrap" id="gridWrap"></div>
   </div>
@@ -154,6 +168,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script>
     const CACHE_KEY='hprice_cache_v5';
+    const CSV_OVERLAY_KEY='hprice_csv_overlay_v1';
     const LEGACY_CACHE_KEYS=['hprice_cache','hprice_cache_v1','hprice_cache_v2','hprice_cache_v3','hprice_cache_v4'];
     const SIZE_KEY='hprice_size';
     const EMPH_KEY='hprice_emph';
@@ -172,6 +187,7 @@
     let currentRecords=[];
     let deadlineYM=null;
     let deadlineMonthRange=[];
+    let csvState={records:[],dataDate:'',visible:true};
 
     function parseROCDate(v){const m=String(v||'').match(/(\d+)[^\d]+(\d+)[^\d]+(\d+)/);return m?Number(m[1])*10000+Number(m[2])*100+Number(m[3]):0}
     function cleanNumber(v){if(v===undefined||v===null||v==='')return '';const n=Number(String(v).replace(/,/g,'').trim());return Number.isNaN(n)?String(v).trim():n}
@@ -364,11 +380,14 @@
     }
     function removeActive(){gridWrap.querySelectorAll('td.cell.active').forEach(c=>c.classList.remove('active'))}
 
-    function renderTable(records,info={}){
-      if(!records.length){gridWrap.innerHTML='<div style="padding:16px;color:#777;">沒有資料</div>';return}
+    function renderTable(records,info={},csvLatestMap=null){
+      if(!records.length&&!csvLatestMap?.size){gridWrap.innerHTML='<div style="padding:16px;color:#777;">沒有資料</div>';return}
       const latestMap=pickLatest(records);
-      const units=[...new Set(records.map(r=>r.棟及號))].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
-      const floors=[...new Set(records.map(r=>r.樓層))].sort((a,b)=>b-a);
+      const csvRecordsAll=csvLatestMap?[...csvLatestMap.values()]:[];
+      const allUnits=[...new Set([...records.map(r=>r.棟及號),...csvRecordsAll.map(r=>r.棟及號)])].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      const allFloors=[...new Set([...records.map(r=>r.樓層),...csvRecordsAll.map(r=>r.樓層)])].sort((a,b)=>b-a);
+      const units=allUnits;
+      const floors=allFloors;
       const latestRecords=[...latestMap.values()];
 
       const table=document.createElement('table');const thead=document.createElement('thead');const hr=document.createElement('tr');
@@ -396,14 +415,32 @@
         units.forEach(unit=>{
           const td=document.createElement('td');td.className='cell';td.dataset.floor=floor;td.dataset.unit=unit;
           const record=latestMap.get(`${floor}__${unit}`);
+          const csvRecord=csvLatestMap?csvLatestMap.get(`${floor}__${unit}`):null;
           td.addEventListener('mouseenter',()=>applyHover(floor,unit));td.addEventListener('mouseleave',clearHover);
-          if(!record){td.classList.add('empty');td.textContent='尚未登錄';td.addEventListener('click',()=>{removeActive();td.classList.add('active')})}
-          else{
+          if(!record&&!csvRecord){
+            td.classList.add('empty');td.textContent='尚未登錄';
+            td.addEventListener('click',()=>{removeActive();td.classList.add('active')});
+          } else if(!record&&csvRecord){
+            // CSV-only cell (no XLS data for this position)
+            td.classList.add('csv-only');
+            const hasParking=String(csvRecord.交易標的).includes('車位')||Number(csvRecord.車位總價)>0;
+            const unitPrice=calcUnitPrice(csvRecord,withParkingPrice);
+            td.dataset.parking=hasParking?'1':'0';
+            td.innerHTML=`<span class="badge" style="background:#5ba8bf">CSV</span><div class="date" style="color:#1a5f7a">${csvRecord.交易日期||'-'}</div><div class="unit-price"><span class="num" style="color:#1a5f7a">${unitPrice!==null?formatAmount(unitPrice,2):'-'}</span><span class="u">萬/坪</span></div><div class="total" style="color:#1a5f7a">${csvRecord.總價?formatAmount(csvRecord.總價,0)+' 萬':'-'}</div>`;
+            td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(csvRecord,floor,unit)});
+          } else {
+            // XLS cell — show normally, add CSV strip if available
             const hasParking=String(record.交易標的).includes('車位')||Number(record.車位總價)>0;
             const unitPrice=calcUnitPrice(record,withParkingPrice);
             td.dataset.parking=hasParking?'1':'0';
             td.innerHTML=`<span class="badge">${hasParking?'含車位':'無車位'}</span><div class="date">${record.交易日期||'-'}</div><div class="unit-price"><span class="num">${unitPrice!==null?formatAmount(unitPrice,2):'-'}</span><span class="u">萬/坪</span></div><div class="total">${formatAmount(record.總價,0)} 萬</div>`;
-            td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(record,floor,unit)})
+            if(csvRecord){
+              const csvUp=calcUnitPrice(csvRecord,withParkingPrice);
+              const strip=document.createElement('div');strip.className='csv-overlay-strip';
+              strip.textContent=`新 ${csvRecord.交易日期||'?'}${csvUp!==null?' '+formatAmount(csvUp,2)+'萬/坪':''}`;
+              td.appendChild(strip);
+            }
+            td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(record,floor,unit)});
           }
           tr.appendChild(td);
         });
@@ -413,7 +450,8 @@
       table.appendChild(tbody);gridWrap.innerHTML='';gridWrap.appendChild(table);
       const dataDate=info.dataDate||'-';const cachedAt=info.cachedAt?new Date(info.cachedAt).toLocaleString('zh-TW'):new Date().toLocaleString('zh-TW');
       const deadlineStr=deadlineYM?`截止：${toROCYM(deadlineYM)}｜`:'';
-      statusEl.textContent=`${deadlineStr}資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}｜單價模式：${withParkingPrice?'含車位':'不含車位'}`;
+      const csvStr=csvLatestMap?`｜CSV疊層：${csvState.records.length}筆`:'';
+      statusEl.textContent=`${deadlineStr}資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}${csvStr}｜單價模式：${withParkingPrice?'含車位':'不含車位'}`;
     }
 
     function saveCache(records,dataDate){localStorage.setItem(CACHE_KEY,JSON.stringify({records,dataDate,cachedAt:new Date().toISOString()}))}
@@ -431,6 +469,26 @@
         return null
       }
     }
+
+    function saveCsvCache(records,dataDate){try{localStorage.setItem(CSV_OVERLAY_KEY,JSON.stringify({records,dataDate,cachedAt:new Date().toISOString()}))}catch(e){}}
+    function loadCsvCache(){try{const raw=localStorage.getItem(CSV_OVERLAY_KEY);if(!raw)return null;const p=JSON.parse(raw);return(p&&Array.isArray(p.records))?p:null}catch{return null}}
+    function clearCsvCache(){localStorage.removeItem(CSV_OVERLAY_KEY)}
+
+    function getCsvLatestMap(){
+      if(!csvState.visible||!csvState.records.length)return null;
+      return pickLatest(csvState.records);
+    }
+    function updateCsvBanner(){
+      const banner=document.getElementById('csvBanner');
+      const info=document.getElementById('csvBannerInfo');
+      const toggleBtn=document.getElementById('csvToggleBtn');
+      if(!csvState.records.length){banner.style.display='none';return}
+      banner.style.display='flex';
+      info.textContent=`CSV 預覽疊層：${csvState.dataDate}　共 ${csvState.records.length} 筆`;
+      toggleBtn.textContent=csvState.visible?'隱藏 CSV 疊層':'顯示 CSV 疊層';
+      toggleBtn.classList.toggle('csv-hide',!csvState.visible);
+    }
+    function renderWithCsv(records,info={}){renderTable(records,info,getCsvLatestMap())}
 
     async function handleUpload(file){
       const buf=await file.arrayBuffer();
@@ -456,7 +514,7 @@
       saveCache(records,dataDate);
       currentRecords=records;
       computeDeadlineRange();updateDeadlineUI();
-      renderTable(getFilteredRecords(),{dataDate,cachedAt:new Date().toISOString()});
+      renderWithCsv(getFilteredRecords(),{dataDate,cachedAt:new Date().toISOString()});
     }
 
     function setSize(s){document.body.classList.remove('size-l','size-m','size-s','size-xs');document.body.classList.add(`size-${s}`);sizeBtns.forEach(b=>b.classList.toggle('active',b.dataset.size===s));localStorage.setItem(SIZE_KEY,s)}
@@ -540,11 +598,20 @@
       try{
         const text=await f.text();
         const{records,skipped,dataDate}=parseCsvData(text);
-        saveCache(records,dataDate);
-        currentRecords=records;
-        computeDeadlineRange();updateDeadlineUI();
-        renderTable(getFilteredRecords(),{dataDate,cachedAt:new Date().toISOString()});
-        if(skipped)statusEl.textContent+=` （${skipped} 筆無樓層資訊略過）`;
+        // Store CSV separately — do NOT touch the main XLS cache
+        csvState={records,dataDate,visible:true};
+        saveCsvCache(records,dataDate);
+        updateCsvBanner();
+        // If no XLS loaded yet, load from cache for the base grid
+        if(!currentRecords.length){
+          const cached=loadCache();
+          if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();}
+        }
+        const cached=loadCache();
+        renderWithCsv(getFilteredRecords(),cached||{dataDate,cachedAt:new Date().toISOString()});
+        let msg=`CSV 疊層已載入：${records.length} 筆（${dataDate}）`;
+        if(skipped)msg+=`，${skipped} 筆無樓層資訊略過`;
+        statusEl.textContent=msg;
       }catch(err){
         statusEl.textContent=`CSV 解析失敗：${err.message}`;
       }
@@ -563,11 +630,14 @@
       withParkingPrice=priceToggle.checked;
       localStorage.setItem(PRICE_MODE_KEY,withParkingPrice?'1':'0');
       const cached=loadCache();
-      if(currentRecords.length)renderTable(getFilteredRecords(),cached||{});
-      else if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();renderTable(getFilteredRecords(),cached)}
+      if(currentRecords.length)renderWithCsv(getFilteredRecords(),cached||{});
+      else if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();renderWithCsv(getFilteredRecords(),cached)}
     });
 
-    const cached=loadCache();if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();renderTable(getFilteredRecords(),cached);}
+    const cached=loadCache();
+    const csvCached=loadCsvCache();
+    if(csvCached){csvState={records:csvCached.records,dataDate:csvCached.dataDate,visible:true};updateCsvBanner();}
+    if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();renderWithCsv(getFilteredRecords(),cached);}
     setSize(localStorage.getItem(SIZE_KEY)||'l');
     setEmph(localStorage.getItem(EMPH_KEY)||'none');
 
@@ -726,6 +796,22 @@
     chartModal.addEventListener('click',e=>{if(e.target===chartModal)chartModal.classList.remove('show');});
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── CSV 疊層控制 ──────────────────────────────────────────────────────────
+    document.getElementById('csvToggleBtn').addEventListener('click',()=>{
+      csvState.visible=!csvState.visible;
+      updateCsvBanner();
+      const cached=loadCache();
+      renderWithCsv(getFilteredRecords(),cached||{});
+    });
+    document.getElementById('csvClearBtn').addEventListener('click',()=>{
+      clearCsvCache();
+      csvState={records:[],dataDate:'',visible:true};
+      updateCsvBanner();
+      const cached=loadCache();
+      renderWithCsv(getFilteredRecords(),cached||{});
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
     // ── 截止月份拖曳控制 ─────────────────────────────────────────────────────
     function toROCYM(ym){const[y,m]=ym.split('-').map(Number);return `${y-1911}年${m}月`}
 
@@ -773,7 +859,7 @@
     function setDeadlineYM(ym){
       deadlineYM=ym;updateDeadlineUI();
       const cached=loadCache();
-      renderTable(getFilteredRecords(),cached||{});
+      renderWithCsv(getFilteredRecords(),cached||{});
     }
 
     (function(){
@@ -802,7 +888,7 @@
         const shift=Math.round((clientX-dragStartX)/PXPM);
         const newIdx=Math.max(0,Math.min(deadlineMonthRange.length-1,dragStartIdx+shift));
         const newYm=deadlineMonthRange[newIdx];
-        if(newYm!==deadlineYM){deadlineYM=newYm;updateDeadlineUI();const cached=loadCache();renderTable(getFilteredRecords(),cached||{});}
+        if(newYm!==deadlineYM){deadlineYM=newYm;updateDeadlineUI();const cached=loadCache();renderWithCsv(getFilteredRecords(),cached||{});}
       }
       function endDrag(){if(dragging){dragging=false;pill.classList.remove('dragging');}}
 
