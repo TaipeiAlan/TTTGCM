@@ -85,6 +85,8 @@
     td.cell.csv-only.active{outline:2px solid #5ba8bf;outline-offset:-2px;background:#d4eef7}
     .csv-overlay-strip{position:absolute;bottom:0;left:0;right:0;background:#bce5f5cc;border-top:1px solid #8dcde0;padding:1px 4px;font-size:10px;color:#0d4f6b;font-weight:700;line-height:1.4;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     body.size-xs .csv-overlay-strip{display:none}
+    tbody th.floor.csv-unknown{background:#c8e9f3;color:#0d4f6b}
+    td.cell.csv-unknown-empty{background:#f0fafd;color:#7fb8c8;text-align:center;vertical-align:middle;font-size:calc(var(--sub-size) + 1px);font-weight:600}
     #chartModal{align-items:center}
     #chartModal .modal-card{width:min(880px,100%);max-height:92vh}
   </style>
@@ -380,12 +382,16 @@
     }
     function removeActive(){gridWrap.querySelectorAll('td.cell.active').forEach(c=>c.classList.remove('active'))}
 
-    function renderTable(records,info={},csvLatestMap=null){
-      if(!records.length&&!csvLatestMap?.size){gridWrap.innerHTML='<div style="padding:16px;color:#777;">沒有資料</div>';return}
+    function renderTable(records,info={},csvLatestMap=null,csvNullFloor=null){
+      if(!records.length&&!csvLatestMap?.size&&!csvNullFloor?.size){gridWrap.innerHTML='<div style="padding:16px;color:#777;">沒有資料</div>';return}
       const latestMap=pickLatest(records);
+      // 只取有樓層的 CSV 紀錄來決定欄位/列位
       const csvRecordsAll=csvLatestMap?[...csvLatestMap.values()]:[];
-      const allUnits=[...new Set([...records.map(r=>r.棟及號),...csvRecordsAll.map(r=>r.棟及號)])].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
-      const allFloors=[...new Set([...records.map(r=>r.樓層),...csvRecordsAll.map(r=>r.樓層)])].sort((a,b)=>b-a);
+      // 也從 null-floor 群組中補充欄位（純 CSV 場景下 XLS 可能尚未載入）
+      const csvNullUnits=csvNullFloor?[...csvNullFloor.values()].map(g=>g.latest.棟及號):[];
+      const allUnits=[...new Set([...records.map(r=>r.棟及號),...csvRecordsAll.map(r=>r.棟及號),...csvNullUnits])].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
+      // 不把 null 樓層加進 floors
+      const allFloors=[...new Set([...records.map(r=>r.樓層),...csvRecordsAll.map(r=>r.樓層)])].filter(f=>f!==null&&f!==undefined).sort((a,b)=>b-a);
       const units=allUnits;
       const floors=allFloors;
       const latestRecords=[...latestMap.values()];
@@ -447,10 +453,41 @@
         tbody.appendChild(tr);
       });
 
+      // ── 未知樓層列（CSV 搶先版無樓層資訊的紀錄）──────────────────────────
+      if(csvNullFloor?.size){
+        const unknownTr=document.createElement('tr');
+        const ufth=document.createElement('th');
+        ufth.className='floor csv-unknown';
+        ufth.title='CSV 搶先版資料（未知樓層）';
+        ufth.innerHTML=`<span class="f">?</span><span class="s">CSV</span>`;
+        unknownTr.appendChild(ufth);
+        units.forEach(unit=>{
+          const td=document.createElement('td');td.className='cell';
+          td.dataset.floor='csv-unknown';td.dataset.unit=unit;
+          td.addEventListener('mouseenter',()=>applyHover(undefined,unit));td.addEventListener('mouseleave',clearHover);
+          // 用 normalizeUnitKey 比對：找出哪個 CSV group 對應此 XLS 欄位
+          const matchKey=[...csvNullFloor.keys()].find(k=>unitKeyMatch(unit,k));
+          if(!matchKey){
+            td.classList.add('csv-unknown-empty');td.textContent='-';
+          } else {
+            const{latest,count}=csvNullFloor.get(matchKey);
+            const up=calcUnitPrice(latest,withParkingPrice);
+            const hasParking=String(latest.交易標的||'').includes('車位')||Number(latest.車位總價)>0;
+            td.classList.add('csv-only');
+            td.innerHTML=`<span class="badge" style="background:#5ba8bf">CSV${count>1?'×'+count:''}</span><div class="date" style="color:#1a5f7a">${latest.交易日期||'-'}</div><div class="unit-price"><span class="num" style="color:#1a5f7a">${up!==null?formatAmount(up,2):'-'}</span><span class="u">萬/坪</span></div><div class="total" style="color:#1a5f7a">${latest.總價?formatAmount(latest.總價,0)+' 萬':'-'}</div>`;
+            td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(latest,'?',unit)});
+          }
+          unknownTr.appendChild(td);
+        });
+        tbody.insertBefore(unknownTr,tbody.firstChild);
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       table.appendChild(tbody);gridWrap.innerHTML='';gridWrap.appendChild(table);
       const dataDate=info.dataDate||'-';const cachedAt=info.cachedAt?new Date(info.cachedAt).toLocaleString('zh-TW'):new Date().toLocaleString('zh-TW');
       const deadlineStr=deadlineYM?`截止：${toROCYM(deadlineYM)}｜`:'';
-      const csvStr=csvLatestMap?`｜CSV疊層：${csvState.records.length}筆`:'';
+      const csvCount=csvState.records.length;const csvNullCount=csvState.records.filter(r=>r.樓層===null||r.樓層===undefined).length;
+      const csvStr=(csvLatestMap||csvNullFloor)?`｜CSV：${csvCount}筆${csvNullCount?'（'+csvNullCount+'筆未知樓層）':''}`:'';
       statusEl.textContent=`${deadlineStr}資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}${csvStr}｜單價模式：${withParkingPrice?'含車位':'不含車位'}`;
     }
 
@@ -474,21 +511,76 @@
     function loadCsvCache(){try{const raw=localStorage.getItem(CSV_OVERLAY_KEY);if(!raw)return null;const p=JSON.parse(raw);return(p&&Array.isArray(p.records))?p:null}catch{return null}}
     function clearCsvCache(){localStorage.removeItem(CSV_OVERLAY_KEY)}
 
+    // 正規化戶別 key：移除棟/號/樓等字，提取字母+數字，用於跨來源比對
+    function normalizeUnitKey(unit){
+      return String(unit||'').replace(/[棟號樓]/g,'').replace(/\s+/g,'').toUpperCase();
+    }
+    function unitKeyMatch(xlsUnit,csvUnit){
+      const x=normalizeUnitKey(xlsUnit),c=normalizeUnitKey(csvUnit);
+      return x===c||c.startsWith(x)||x.startsWith(c);
+    }
+
+    // 建立 XLS 已知交易的 matchSet（unitKey + 交易月份 + 四捨五入總價）
+    function buildXlsMatchSet(){
+      const s=new Set();
+      currentRecords.forEach(r=>{
+        const iso=rocToISO(r.交易日期);const ym=iso?iso.slice(0,7):'';
+        const price=Math.round(Number(r.總價)||0);
+        s.add(`${normalizeUnitKey(r.棟及號)}_${ym}_${price}`);
+      });
+      return s;
+    }
+
     function getCsvLatestMap(){
       if(!csvState.visible||!csvState.records.length)return null;
-      return pickLatest(csvState.records);
+      const xlsSet=buildXlsMatchSet();
+      // 只取有樓層資訊的 CSV 紀錄（用於格子疊層），並去除 XLS 已有的重複
+      const filtered=csvState.records.filter(r=>{
+        if(r.樓層===null||r.樓層===undefined)return false;
+        const iso=rocToISO(r.交易日期);const ym=iso?iso.slice(0,7):'';
+        const price=Math.round(Number(r.總價)||0);
+        return !xlsSet.has(`${normalizeUnitKey(r.棟及號)}_${ym}_${price}`);
+      });
+      return filtered.length?pickLatest(filtered):null;
     }
+
+    // 取無樓層 CSV 紀錄（加到「未知樓層」列），同樣去除 XLS 重複
+    function getCsvNullFloor(){
+      if(!csvState.visible||!csvState.records.length)return null;
+      const xlsSet=buildXlsMatchSet();
+      const nullFloor=csvState.records.filter(r=>{
+        if(r.樓層!==null&&r.樓層!==undefined)return false;
+        const iso=rocToISO(r.交易日期);const ym=iso?iso.slice(0,7):'';
+        const price=Math.round(Number(r.總價)||0);
+        return !xlsSet.has(`${normalizeUnitKey(r.棟及號)}_${ym}_${price}`);
+      });
+      if(!nullFloor.length)return null;
+      // 按 normalizeUnitKey 分組，每組保留最新，並記錄筆數
+      const groups=new Map();
+      nullFloor.forEach(r=>{
+        const k=normalizeUnitKey(r.棟及號);
+        if(!groups.has(k))groups.set(k,{latest:null,count:0});
+        const g=groups.get(k);g.count++;
+        if(!g.latest||parseROCDate(r.交易日期)>=parseROCDate(g.latest.交易日期))g.latest=r;
+      });
+      return groups;
+    }
+
     function updateCsvBanner(){
       const banner=document.getElementById('csvBanner');
       const info=document.getElementById('csvBannerInfo');
       const toggleBtn=document.getElementById('csvToggleBtn');
       if(!csvState.records.length){banner.style.display='none';return}
       banner.style.display='flex';
-      info.textContent=`CSV 預覽疊層：${csvState.dataDate}　共 ${csvState.records.length} 筆`;
+      const noFloorCount=csvState.records.filter(r=>r.樓層===null||r.樓層===undefined).length;
+      const floorCount=csvState.records.length-noFloorCount;
+      let detail=`共 ${csvState.records.length} 筆`;
+      if(noFloorCount)detail+=`（${floorCount} 筆有樓層，${noFloorCount} 筆未知樓層）`;
+      info.textContent=`CSV 預覽疊層：${csvState.dataDate}　${detail}`;
       toggleBtn.textContent=csvState.visible?'隱藏 CSV 疊層':'顯示 CSV 疊層';
       toggleBtn.classList.toggle('csv-hide',!csvState.visible);
     }
-    function renderWithCsv(records,info={}){renderTable(records,info,getCsvLatestMap())}
+    function renderWithCsv(records,info={}){renderTable(records,info,getCsvLatestMap(),getCsvNullFloor())}
 
     async function handleUpload(file){
       const buf=await file.arrayBuffer();
@@ -549,18 +641,20 @@
       const g=(row,field)=>col[field]!==undefined?String(row[col[field]]||'').trim():'';
       const gv=(row,field)=>{const v=g(row,field);return(v&&v!=='undefined')?v:'';};
       const gn=(row,field)=>{const v=parseFloat(g(row,field));return Number.isFinite(v)?v:null;};
-      const records=[];let skipped=0,dataDate='';
+      const records=[];let skipped=0,noFloor=0,dataDate='';
       for(let i=1;i<lines.length;i++){
         const row=parseCsvLine(lines[i]);
         if(!row.length||!row.some(c=>c))continue;
-        const addr=gv(row,'建物座落(門牌地址)');if(!addr)continue;
+        const addr=gv(row,'建物座落(門牌地址)');if(!addr){skipped++;continue;}
         if(!dataDate){const ym=g(row,'申報年月').replace(/[^\d]/g,'');if(ym.length>=5)dataDate=`${ym.slice(0,ym.length-2)}年${ym.slice(-2)}月`;}
         const 樓層概況=gv(row,'樓層概況');
         let floor=null;
         if(樓層概況){const m=樓層概況.match(/(-?\d+)\s*樓/);if(m)floor=Number(m[1]);}
         if(floor===null)floor=extractFloorFromAddr(addr);
-        if(floor===null){skipped++;continue;}
-        const unit=normalizeUnit(extractUnitFromAddr(addr));
+        if(floor===null)noFloor++;
+        // 從門牌提取戶別，移除末尾「號」讓格式與 XLS 相容（A7號→A7）
+        const rawUnit=extractUnitFromAddr(addr).replace(/號\s*$/,'');
+        const unit=normalizeUnit(rawUnit);
         const totalYuan=gn(row,'總價');
         const totalWan=totalYuan!==null?totalYuan/10000:null;
         const unitPrice=gn(row,'每坪單價(萬)');
@@ -582,22 +676,22 @@
           交易日期:txDate,總價:totalWan,單價:unitPrice,
           總面積:totalPing,室內坪數:'',陽台坪數:'',車位坪數:'',土地坪數:landPing,
           主建物佔比:'',型態:gv(row,'型態'),
-          樓別樓高:`${floor}樓`,樓層:floor,
+          樓別樓高:floor!==null?`${floor}樓`:'未知',樓層:floor,
           交易標的:物件數,交易筆棟數:物件數,建物格局:layout,
           車位總價:null,車位數量:hasParking?1:0,
           主要用途:gv(row,'申報用途'),主要建材:gv(row,'結構'),備註:gv(row,'車位類型'),
           土地明細:[],建物明細:[],車位明細:[],房屋總面積:totalPing
         });
       }
-      if(!records.length)throw new Error(`CSV 中沒有可解析的記錄${skipped?`（${skipped} 筆因缺少樓層資訊被略過）`:''}`);
-      return{records,skipped,dataDate:dataDate||new Date().toISOString().slice(0,10)};
+      if(!records.length)throw new Error(`CSV 中沒有可解析的記錄${skipped?`（${skipped} 筆略過）`:''}`);
+      return{records,skipped,noFloor,dataDate:dataDate||new Date().toISOString().slice(0,10)};
     }
     csvInput.addEventListener('change',async e=>{
       const f=e.target.files[0];if(!f)return;
       statusEl.textContent=`讀取中：${f.name}`;
       try{
         const text=await f.text();
-        const{records,skipped,dataDate}=parseCsvData(text);
+        const{records,skipped,noFloor,dataDate}=parseCsvData(text);
         // Store CSV separately — do NOT touch the main XLS cache
         csvState={records,dataDate,visible:true};
         saveCsvCache(records,dataDate);
@@ -610,7 +704,8 @@
         const cached=loadCache();
         renderWithCsv(getFilteredRecords(),cached||{dataDate,cachedAt:new Date().toISOString()});
         let msg=`CSV 疊層已載入：${records.length} 筆（${dataDate}）`;
-        if(skipped)msg+=`，${skipped} 筆無樓層資訊略過`;
+        if(noFloor)msg+=`，${noFloor} 筆無樓層→顯示於「?CSV」列`;
+        if(skipped)msg+=`，${skipped} 筆略過`;
         statusEl.textContent=msg;
       }catch(err){
         statusEl.textContent=`CSV 解析失敗：${err.message}`;
