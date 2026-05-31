@@ -159,7 +159,8 @@
         <button id="closeChartModal" class="close-btn">×</button>
       </div>
       <p style="font-size:12px;color:#999;margin:4px 0 8px">X 軸：月份（資料起迄，含無交易月份）　Y 軸：交易戶數　每條線代表一個棟及號　<span style="color:#1a5f7a">空心點／虛線＝CSV 搶先版（可於上方隱藏）</span></p>
-      <div style="position:relative;height:400px"><canvas id="trendChart"></canvas></div>
+      <div style="position:relative;height:380px"><canvas id="trendChart"></canvas></div>
+      <div id="trendLegend" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;padding:4px 0;touch-action:none;user-select:none"></div>
       <div id="trendDetail" style="display:none;margin-top:10px;background:#f7f1e5;border-radius:8px;padding:10px 14px;font-size:13px"></div>
     </div>
   </div>
@@ -765,9 +766,21 @@
 
     // ── 交易趨勢圖 ──────────────────────────────────────────────────────────
     const TREND_COLORS=[
-      '#e8953f','#d64f41','#4a90d9','#5ba85a','#9b59b6',
-      '#16a085','#c9a227','#8e44ad','#2471a3','#cb4335',
-      '#1e8449','#117a65','#d35400','#e84393','#626567',
+      '#d32f2f', // red
+      '#1976d2', // blue
+      '#388e3c', // green
+      '#f57c00', // orange
+      '#7b1fa2', // purple
+      '#0097a7', // cyan-teal
+      '#c2185b', // pink/rose
+      '#5d4037', // brown
+      '#303f9f', // indigo
+      '#ffa000', // amber
+      '#00796b', // teal-green
+      '#689f38', // lime-green
+      '#616161', // grey
+      '#455a64', // blue-grey
+      '#d84315', // deep-orange
     ];
 
     function rocToISO(v){
@@ -818,16 +831,22 @@
       const datasets=units.map((unit,i)=>{
         const color=unitColors[i];
         const detailData=allMonths.map(ym=>withMonthFull.filter(r=>r.unit===unit&&r.ym===ym).map(r=>r.record));
-        // 該月份是否「全部」來自 CSV（搶先版）→ 用空心點 + 虛線段標示
+        const rawData=detailData.map(d=>d.length||null);
+        // 該月份是否「全部」來自 CSV → 空心點；月份間距>1（中間有空月）→ 虛線橋接
         const csvOnly=detailData.map(d=>d.length>0&&d.every(r=>r._csv));
         return{
-          label:unit,data:detailData.map(d=>d.length||null),detailData,
+          label:unit,data:rawData,detailData,
           borderColor:color,backgroundColor:color+'33',
-          pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,spanGaps:false,
+          pointRadius:3,pointHoverRadius:7,tension:0.1,borderWidth:2,fill:false,
+          spanGaps:true,
           pointBackgroundColor:csvOnly.map(f=>f?'#fff':color),
           pointBorderColor:color,
           pointBorderWidth:csvOnly.map(f=>f?2:1),
-          segment:{borderDash:ctx=>csvOnly[ctx.p1DataIndex]?[5,4]:undefined},
+          segment:{borderDash:ctx=>{
+            const gap=ctx.p1DataIndex-ctx.p0DataIndex>1;
+            const csv=csvOnly[ctx.p1DataIndex];
+            return(gap||csv)?[5,4]:undefined;
+          }},
         };
       });
 
@@ -940,6 +959,76 @@
           },
         },
       });
+
+      // ── 圖例列（可拖曳改變疊加順序）─────────────────────────────────────
+      function renderLegend(){
+        const leg=document.getElementById('trendLegend');
+        leg.innerHTML='';
+        trendChartInst.data.datasets.forEach((ds,i)=>{
+          const item=document.createElement('div');
+          item.className='trend-legend-item';
+          item.style.cssText=`display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid #ddd;border-radius:5px;background:#fff;font-size:12px;cursor:grab;touch-action:none`;
+          item.dataset.idx=String(i);
+          const dot=document.createElement('span');
+          dot.style.cssText=`width:10px;height:10px;border-radius:50%;background:${unitColors[i]};flex-shrink:0`;
+          const lbl=document.createElement('span');
+          lbl.style.color=unitColors[i];lbl.style.fontWeight='700';
+          lbl.textContent=ds.label;
+          item.appendChild(dot);item.appendChild(lbl);
+          leg.appendChild(item);
+        });
+        initLegendDrag(leg);
+      }
+
+      function initLegendDrag(container){
+        let dragEl=null,ghost=null,startX=0,startY=0,startRect=null;
+        const items=()=>[...container.querySelectorAll('.trend-legend-item')];
+        container.addEventListener('pointerdown',e=>{
+          const item=e.target.closest('.trend-legend-item');
+          if(!item)return;
+          e.preventDefault();
+          item.setPointerCapture(e.pointerId);
+          dragEl=item;startX=e.clientX;startY=e.clientY;
+          startRect=item.getBoundingClientRect();
+          ghost=item.cloneNode(true);
+          ghost.style.cssText+=`;position:fixed;left:${startRect.left}px;top:${startRect.top}px;width:${startRect.width}px;opacity:0.75;z-index:9999;pointer-events:none;box-shadow:0 3px 10px #0003`;
+          document.body.appendChild(ghost);
+          item.style.opacity='0.3';
+        },{passive:false});
+        container.addEventListener('pointermove',e=>{
+          if(!dragEl)return;
+          e.preventDefault();
+          ghost.style.transform=`translate(${e.clientX-startX}px,${e.clientY-startY}px)`;
+          ghost.style.display='none';
+          const over=document.elementFromPoint(e.clientX,e.clientY)?.closest('.trend-legend-item');
+          ghost.style.display='';
+          items().forEach(i=>i.style.outline='');
+          if(over&&over!==dragEl)over.style.outline='2px dashed #aaa';
+        },{passive:false});
+        container.addEventListener('pointerup',e=>{
+          if(!dragEl)return;
+          if(ghost){ghost.remove();ghost=null;}
+          dragEl.style.opacity='';
+          items().forEach(i=>i.style.outline='');
+          const over=document.elementFromPoint(e.clientX,e.clientY)?.closest('.trend-legend-item');
+          if(over&&over!==dragEl){
+            const all=items();
+            const from=all.indexOf(dragEl),to=all.indexOf(over);
+            if(from>=0&&to>=0&&from!==to){
+              const ds=trendChartInst.data.datasets;
+              const [rDs]=ds.splice(from,1);
+              const [rCol]=unitColors.splice(from,1);
+              const ins=from<to?to-1:to;
+              ds.splice(ins,0,rDs);unitColors.splice(ins,0,rCol);
+              trendChartInst.update();
+              renderLegend();
+            }
+          }
+          dragEl=null;
+        });
+      }
+      renderLegend();
+      // ──────────────────────────────────────────────────────────────────────
     }
 
     const chartModal=document.getElementById('chartModal');
