@@ -77,14 +77,10 @@
     .deadline-pill.all-mode .darrow:hover,.deadline-pill.all-mode .dlabel:hover{background:#ead4ab}
     .deadline-pill.all-mode .darrow + .darrow,.deadline-pill.all-mode .dlabel{border-color:#dcbf8a}
     /* CSV overlay */
-    .csv-banner{background:#e0f2f7;border:1.5px solid #5ba8bf;border-radius:8px;padding:5px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-    .csv-banner-info{font-size:12px;color:#1a5f7a;font-weight:600;flex:1;min-width:0}
     .btn.csv-btn{border-color:#5ba8bf;background:#d0ecf5;color:#1a5f7a}
     .btn.csv-hide{background:#5ba8bf;color:#fff;border-color:#3d8fa8}
     td.cell.csv-only{background:#eaf6fb}
     td.cell.csv-only.active{outline:2px solid #5ba8bf;outline-offset:-2px;background:#d4eef7}
-    .csv-overlay-strip{position:absolute;bottom:0;left:0;right:0;background:#bce5f5cc;border-top:1px solid #8dcde0;padding:1px 4px;font-size:10px;color:#0d4f6b;font-weight:700;line-height:1.4;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    body.size-xs .csv-overlay-strip{display:none}
     tbody th.floor.csv-unknown{background:#c8e9f3;color:#0d4f6b}
     td.cell.csv-unknown-empty{background:#f0fafd;color:#7fb8c8;text-align:center;vertical-align:middle;font-size:calc(var(--sub-size) + 1px);font-weight:600}
     #chartModal{align-items:center}
@@ -99,8 +95,15 @@
         <div class="controls">
           <label class="btn" for="fileInput">開啟 XLS/XLSX</label>
           <input id="fileInput" type="file" accept=".xls,.xlsx" hidden>
-          <label class="btn" for="csvInput">開啟 CSV</label>
-          <input id="csvInput" type="file" accept=".csv" hidden>
+          <div style="position:relative;display:inline-block">
+            <button id="csvMenuBtn" class="btn">CSV ▾</button>
+            <div id="csvMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1.5px solid #5ba8bf;border-radius:8px;box-shadow:0 4px 12px #0002;padding:6px;min-width:150px;z-index:100;flex-direction:column;gap:4px;">
+              <label class="btn csv-btn" for="csvInput" style="cursor:pointer;text-align:center;display:block;box-sizing:border-box;">讀取 CSV</label>
+              <input id="csvInput" type="file" accept=".csv" hidden>
+              <button id="csvToggleBtn" class="btn csv-btn" style="display:none;">隱藏 CSV 疊層</button>
+              <button id="csvClearBtn" class="btn csv-btn" style="display:none;">清除 CSV</button>
+            </div>
+          </div>
           <label class="btn" style="display:inline-flex;align-items:center;gap:6px;">
             <input id="priceToggle" type="checkbox" checked>
             與車位一起計算單坪價格
@@ -132,11 +135,6 @@
           </div>
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
-      </div>
-      <div id="csvBanner" class="top-row csv-banner" style="display:none;">
-        <span id="csvBannerInfo" class="csv-banner-info">CSV 預覽資料</span>
-        <button id="csvToggleBtn" class="btn csv-btn">隱藏 CSV 疊層</button>
-        <button id="csvClearBtn" class="btn csv-btn">清除 CSV</button>
       </div>
     </section>
     <div class="grid-wrap" id="gridWrap"></div>
@@ -445,13 +443,7 @@
             const hasParking=String(record.交易標的).includes('車位')||Number(record.車位總價)>0;
             const unitPrice=calcUnitPrice(record,withParkingPrice);
             td.dataset.parking=hasParking?'1':'0';
-            td.innerHTML=`<span class="badge">${hasParking?'含車位':'無車位'}</span><div class="date">${record.交易日期||'-'}</div><div class="unit-price"><span class="num">${unitPrice!==null?formatAmount(unitPrice,2):'-'}</span><span class="u">萬/坪</span></div><div class="total">${formatAmount(record.總價,0)} 萬</div>`;
-            if(csvRecord){
-              const csvUp=calcUnitPrice(csvRecord,withParkingPrice);
-              const strip=document.createElement('div');strip.className='csv-overlay-strip';
-              strip.textContent=`新 ${csvRecord.交易日期||'?'}${csvUp!==null?' '+formatAmount(csvUp,2)+'萬/坪':''}`;
-              td.appendChild(strip);
-            }
+            td.innerHTML=`${hasParking?'<span class="badge">含車位</span>':''}<div class="date">${record.交易日期||'-'}</div><div class="unit-price"><span class="num">${unitPrice!==null?formatAmount(unitPrice,2):'-'}</span><span class="u">萬/坪</span></div><div class="total">${formatAmount(record.總價,0)} 萬</div>`;
             td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(record,floor,unit)});
           }
           tr.appendChild(td);
@@ -594,17 +586,23 @@
         });
     }
 
-    function updateCsvBanner(){
-      const banner=document.getElementById('csvBanner');
-      const info=document.getElementById('csvBannerInfo');
+    function updateCsvMenu(){
+      const hasCsv=csvState.records.length>0;
+      const menuBtn=document.getElementById('csvMenuBtn');
       const toggleBtn=document.getElementById('csvToggleBtn');
-      if(!csvState.records.length){banner.style.display='none';return}
-      banner.style.display='flex';
-      const noFloorCount=csvState.records.filter(r=>r.樓層===null||r.樓層===undefined).length;
-      const floorCount=csvState.records.length-noFloorCount;
-      let detail=`共 ${csvState.records.length} 筆`;
-      if(noFloorCount)detail+=`（${floorCount} 筆有樓層，${noFloorCount} 筆未知樓層）`;
-      info.textContent=`CSV 預覽疊層：${csvState.dataDate}　${detail}`;
+      const clearBtn=document.getElementById('csvClearBtn');
+      toggleBtn.style.display=hasCsv?'':'none';
+      clearBtn.style.display=hasCsv?'':'none';
+      menuBtn.classList.toggle('csv-hide',hasCsv&&!csvState.visible);
+      if(hasCsv){
+        const noFloorCount=csvState.records.filter(r=>r.樓層===null||r.樓層===undefined).length;
+        const floorCount=csvState.records.length-noFloorCount;
+        let detail=`${csvState.records.length} 筆`;
+        if(noFloorCount)detail+=`（${floorCount} 有樓層，${noFloorCount} 無樓層）`;
+        menuBtn.title=`CSV：${csvState.dataDate}　${detail}`;
+      } else {
+        menuBtn.title='';
+      }
       toggleBtn.textContent=csvState.visible?'隱藏 CSV 疊層':'顯示 CSV 疊層';
       toggleBtn.classList.toggle('csv-hide',!csvState.visible);
     }
@@ -723,7 +721,7 @@
         // Store CSV separately — do NOT touch the main XLS cache
         csvState={records,dataDate,visible:true};
         saveCsvCache(records,dataDate);
-        updateCsvBanner();
+        updateCsvMenu();
         // If no XLS loaded yet, load from cache for the base grid
         if(!currentRecords.length){
           const cached=loadCache();
@@ -759,7 +757,7 @@
 
     const cached=loadCache();
     const csvCached=loadCsvCache();
-    if(csvCached){csvState={records:csvCached.records,dataDate:csvCached.dataDate,visible:true};updateCsvBanner();}
+    if(csvCached){csvState={records:csvCached.records,dataDate:csvCached.dataDate,visible:true};updateCsvMenu();}
     if(cached){currentRecords=cached.records;computeDeadlineRange();updateDeadlineUI();renderWithCsv(getFilteredRecords(),cached);}
     setSize(localStorage.getItem(SIZE_KEY)||'l');
     setEmph(localStorage.getItem(EMPH_KEY)||'none');
@@ -1075,17 +1073,30 @@
     chartModal.addEventListener('click',e=>{if(e.target===chartModal)chartModal.classList.remove('show');});
     // ─────────────────────────────────────────────────────────────────────────
 
-    // ── CSV 疊層控制 ──────────────────────────────────────────────────────────
+    // ── CSV 選單控制 ──────────────────────────────────────────────────────────
+    (()=>{
+      const btn=document.getElementById('csvMenuBtn');
+      const menu=document.getElementById('csvMenu');
+      btn.addEventListener('click',e=>{
+        e.stopPropagation();
+        const open=menu.style.display==='flex';
+        menu.style.display=open?'none':'flex';
+      });
+      document.addEventListener('click',e=>{
+        if(!e.target.closest('#csvMenu')&&!e.target.closest('#csvMenuBtn'))menu.style.display='none';
+      });
+      document.getElementById('csvInput').addEventListener('change',()=>{menu.style.display='none';});
+    })();
     document.getElementById('csvToggleBtn').addEventListener('click',()=>{
       csvState.visible=!csvState.visible;
-      updateCsvBanner();
+      updateCsvMenu();
       const cached=loadCache();
       renderWithCsv(getFilteredRecords(),cached||{});
     });
     document.getElementById('csvClearBtn').addEventListener('click',()=>{
       clearCsvCache();
       csvState={records:[],dataDate:'',visible:true};
-      updateCsvBanner();
+      updateCsvMenu();
       const cached=loadCache();
       renderWithCsv(getFilteredRecords(),cached||{});
     });
