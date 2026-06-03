@@ -201,7 +201,23 @@
 
     function getByAlias(row,col,aliases){for(const a of aliases){if(col[a]!==undefined)return row[col[a]]}return ''}
     function normalizeSerial(v){const raw=String(v||'').trim();if(!raw)return '';const m=raw.match(/^(\d+)/);return m?m[1]:raw}
-    function normalizeUnit(u){return String(u||'').trim().replace(/棟[\d\-之]+號.*$/,'棟')}
+    // 把「棟及號」收攏成單一戶別代號。
+    // 部分 xls 會把樓層夾進戶別名稱（例：A棟A3-17號、A棟A3-18號…，-後面的 17/18 其實是樓層），
+    // 造成每層自成一欄、表格呈對角線階梯。傳入已解析的樓層時，先把緊鄰「號」前、
+    // 數值等於該樓層的數字段（含 - 或 之 分隔符、可選 F／樓 後綴）拆掉，
+    // 讓同一直行(stack)的各樓層收攏成同一欄（→ A棟A3號）。
+    function normalizeUnit(u,floor){
+      let s=String(u||'').trim();
+      if(!s)return s;
+      if(floor!==null&&floor!==undefined&&!Number.isNaN(floor)){
+        const f=Math.abs(Number(floor));
+        s=s.replace(new RegExp(`[-之]?0*${f}\\s*[FＦ樓]?(?=號|$)`),'');
+      }
+      // 舊規則：棟後面純數字-號 收攏到「棟」(向後相容)
+      s=s.replace(/棟[\d\-之]+號.*$/,'棟');
+      // 清掉因拆樓層而殘留的分隔符
+      return s.replace(/[-之]+(?=號)/,'').replace(/[-之]+$/,'').trim();
+    }
     function parseArea(v){const n=Number(String(v||'').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null}
     function parsePriceYuan(v){const n=Number(String(v||'').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null}
     function findSheetName(names,keyword){return names.find(n=>String(n).includes(keyword))||''}
@@ -272,15 +288,17 @@
       const miss=required.filter(k=>col[k]===undefined);if(miss.length)throw new Error('缺少欄位：'+miss.join('、'));
       return rows.slice(hi+1)
         .filter(r=>r[col['棟及號']]&&r[col['樓別/樓高']])
-        .map(r=>({
-          編號:getByAlias(r,col,['編號']),建物坐落:getByAlias(r,col,['建物坐落']),棟及號:normalizeUnit(getByAlias(r,col,['棟及號'])),建案名稱:getByAlias(r,col,['建案名稱']),交易日期:getByAlias(r,col,['交易日期']),
+        .map(r=>{
+          const 樓層=parseFloor(getByAlias(r,col,['樓別/樓高']));
+          return {
+          編號:getByAlias(r,col,['編號']),建物坐落:getByAlias(r,col,['建物坐落']),棟及號:normalizeUnit(getByAlias(r,col,['棟及號']),樓層),建案名稱:getByAlias(r,col,['建案名稱']),交易日期:getByAlias(r,col,['交易日期']),
           總價:cleanNumber(getByAlias(r,col,['總價(萬元)'])),單價:cleanNumber(getByAlias(r,col,['單價(萬元/坪)'])),總面積:cleanNumber(getByAlias(r,col,['總面積(坪)','建物移轉總面積(坪)'])),
           室內坪數:cleanNumber(getByAlias(r,col,['主建物面積(坪)','主建物坪數'])),陽台坪數:cleanNumber(getByAlias(r,col,['陽台面積(坪)','附屬建物面積(坪)'])),車位坪數:cleanNumber(getByAlias(r,col,['車位移轉總面積(坪)','車位面積(坪)'])),
           土地坪數:cleanNumber(getByAlias(r,col,['土地移轉總面積(坪)','土地面積(坪)'])),
-          主建物佔比:getByAlias(r,col,['主建物佔比(%)']),型態:getByAlias(r,col,['型態']),樓別樓高:getByAlias(r,col,['樓別/樓高']),樓層:parseFloor(getByAlias(r,col,['樓別/樓高'])),
+          主建物佔比:getByAlias(r,col,['主建物佔比(%)']),型態:getByAlias(r,col,['型態']),樓別樓高:getByAlias(r,col,['樓別/樓高']),樓層,
           交易標的:getByAlias(r,col,['交易標的']),交易筆棟數:getByAlias(r,col,['交易筆棟數']),建物格局:getByAlias(r,col,['建物格局']),車位總價:cleanNumber(getByAlias(r,col,['車位總價(萬元)'])),
           車位數量:cleanNumber(getByAlias(r,col,['車位個數','停車位個數'])),主要用途:getByAlias(r,col,['主要用途']),主要建材:getByAlias(r,col,['主要建材']),備註:getByAlias(r,col,['備註'])
-        })).filter(r=>r.樓層!==null&&r.棟及號)
+        };}).filter(r=>r.樓層!==null&&r.棟及號)
     }
 
     function pickLatest(records){const m=new Map();records.forEach(r=>{const k=`${r.樓層}__${r.棟及號}`;const o=m.get(k);if(!o||parseROCDate(r.交易日期)>=parseROCDate(o.交易日期))m.set(k,r)});return m}
@@ -680,7 +698,7 @@
         if(floor===null)noFloor++;
         // 從門牌提取戶別，移除末尾「號」讓格式與 XLS 相容（A7號→A7）
         const rawUnit=extractUnitFromAddr(addr).replace(/號\s*$/,'');
-        const unit=normalizeUnit(rawUnit);
+        const unit=normalizeUnit(rawUnit,floor);
         const totalYuan=gn(row,'總價');
         const totalWan=totalYuan!==null?totalYuan/10000:null;
         const unitPrice=gn(row,'每坪單價(萬)');
