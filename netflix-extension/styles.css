@@ -52,7 +52,10 @@
   white-space: pre-wrap;
   word-break: break-word;
   transition: opacity 0.15s ease;
-  padding: 1px 0;
+  /* Tighter line spacing for wrapped lines within the same cue, while the
+     margin keeps clear separation between the prev / current / next cues. */
+  line-height: 1.2;
+  margin: 0.3em 0;
 }
 
 /* Context lines (before / after current) */
