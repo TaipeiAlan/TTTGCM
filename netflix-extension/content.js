@@ -14,9 +14,12 @@
 
   // --- State ---
 
+  const VALID_SIZES = ['small', 'medium', 'large'];
+
   const state = {
     enabled: true,
     hideAnnotations: true,
+    fontSize: 'medium',
     enCues: [],
     overlay: null,
     pollInterval: null,
@@ -29,9 +32,11 @@
 
   // --- Load settings from storage ---
 
-  chrome.storage.sync.get({ enabled: true, hideAnnotations: true }, (prefs) => {
+  chrome.storage.sync.get({ enabled: true, hideAnnotations: true, fontSize: 'medium' }, (prefs) => {
     state.enabled = prefs.enabled;
     state.hideAnnotations = prefs.hideAnnotations;
+    state.fontSize = VALID_SIZES.includes(prefs.fontSize) ? prefs.fontSize : 'medium';
+    applyFontSize();
   });
 
   chrome.storage.onChanged.addListener((changes) => {
@@ -49,7 +54,19 @@
       state.hideAnnotations = changes.hideAnnotations.newValue;
       state.currentText = ''; // force re-render
     }
+    if (changes.fontSize !== undefined) {
+      const next = changes.fontSize.newValue;
+      state.fontSize = VALID_SIZES.includes(next) ? next : 'medium';
+      applyFontSize();
+    }
   });
+
+  // Apply the selected font size by toggling size-* classes on the overlay.
+  function applyFontSize() {
+    if (!state.overlay) return;
+    state.overlay.classList.remove('size-small', 'size-medium', 'size-large');
+    state.overlay.classList.add(`size-${state.fontSize}`);
+  }
 
   // --- Overlay management ---
 
@@ -59,6 +76,7 @@
     div.id = OVERLAY_ID;
     document.body.appendChild(div);
     state.overlay = div;
+    applyFontSize();
     console.log(LOG, 'overlay created');
     startPolling();
   }

@@ -3,6 +3,7 @@
 
   const toggle = document.getElementById('enabled-toggle');
   const annotationsToggle = document.getElementById('hide-annotations-toggle');
+  const sizeButtons = document.querySelectorAll('#size-options button');
   const statusEl = document.getElementById('status-msg');
   const resetBtn = document.getElementById('reset-btn');
   const refetchBtn = document.getElementById('refetch-btn');
@@ -20,9 +21,12 @@
 
   // --- Load saved preferences ---
 
-  chrome.storage.sync.get({ enabled: true, hideAnnotations: true }, (prefs) => {
+  const VALID_SIZES = ['small', 'medium', 'large'];
+
+  chrome.storage.sync.get({ enabled: true, hideAnnotations: true, fontSize: 'medium' }, (prefs) => {
     toggle.checked = prefs.enabled;
     annotationsToggle.checked = prefs.hideAnnotations;
+    setActiveSize(VALID_SIZES.includes(prefs.fontSize) ? prefs.fontSize : 'medium');
   });
 
   // --- Enable/disable toggle ---
@@ -33,6 +37,22 @@
 
   annotationsToggle.addEventListener('change', () => {
     chrome.storage.sync.set({ hideAnnotations: annotationsToggle.checked });
+  });
+
+  // --- Font size selector ---
+
+  function setActiveSize(size) {
+    sizeButtons.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.size === size);
+    });
+  }
+
+  sizeButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const size = btn.dataset.size;
+      setActiveSize(size);
+      chrome.storage.sync.set({ fontSize: size });
+    });
   });
 
   // --- Status: query content script for EN cue count + debug info ---
