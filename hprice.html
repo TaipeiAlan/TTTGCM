@@ -965,7 +965,20 @@
             detailEl.style.display='block';
           },
           scales:{
-            x:{title:{display:true,text:'月份'},ticks:{maxRotation:45}},
+            x:{title:{display:true,text:'月份'},ticks:{maxRotation:45,
+              // 月份標籤下方加一行：該月份所有棟及號的交易戶數加總
+              callback(value,index){
+                const ym=allMonths[index];
+                if(ym===undefined)return value;
+                let total=0;
+                this.chart.data.datasets.forEach((ds,i)=>{
+                  if(this.chart.getDatasetMeta(i).hidden)return;
+                  const v=ds.data[index];
+                  if(typeof v==='number')total+=v;
+                });
+                return [ym,total>0?`共 ${total} 戶`:''];
+              },
+            }},
             y:{title:{display:true,text:'交易戶數'},ticks:{stepSize:1,callback:v=>Number.isInteger(v)?v:null},beginAtZero:true},
           },
           plugins:{
