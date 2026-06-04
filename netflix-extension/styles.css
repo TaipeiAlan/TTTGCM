@@ -9,8 +9,11 @@
   z-index: 2147483647; /* max z-index */
 
   /* Layout */
+  /* Use an explicit width (not max-width) so the box does not "shrink-to-fit"
+     under position:fixed, which would otherwise wrap text early and leave
+     large left/right margins. */
   display: none;
-  max-width: 94%;
+  width: 92%;
   text-align: center;
 
   /* Typography */
