@@ -15,7 +15,7 @@
 
   /* Typography */
   font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 1.4vw;
+  font-size: 2.8vw; /* default: medium (中字) */
   font-weight: 700;
   line-height: 1.5;
   color: #ffffff;
@@ -35,6 +35,13 @@
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* Font size variants — child lines scale via em, so setting the
+   overlay font-size drives the whole subtitle window.
+   small (小字) = 1.4vw, medium (中字) = 2x small, large (大字) = 4x small */
+#netflix-dual-sub-overlay.size-small  { font-size: 1.4vw; }
+#netflix-dual-sub-overlay.size-medium { font-size: 2.8vw; }
+#netflix-dual-sub-overlay.size-large  { font-size: 5.6vw; }
 
 /* Each subtitle line in the sliding window */
 #netflix-dual-sub-overlay .sub-line {

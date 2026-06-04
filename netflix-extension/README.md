@@ -89,6 +89,7 @@ Click the extension icon in the toolbar to open the popup:
 |---|---|---|
 | **Show English subtitle** | On | Turn the English overlay on or off / 開啟或關閉英文字幕疊加 |
 | **Hide [annotations]** | On | Hide cues like `[Music]` or `[laughs]` / 隱藏旁白音效描述字幕 |
+| **Font Size 字幕大小** | Medium 中字 | Choose 小字 (small), 中字 (medium), or 大字 (large). 中字 is twice 小字; 大字 is four times 小字 / 選擇小字、中字或大字。中字為小字兩倍，大字為小字四倍 |
 
 The popup also shows the number of English cues loaded and a debug panel for troubleshooting.
 

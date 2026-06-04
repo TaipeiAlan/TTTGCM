@@ -214,6 +214,36 @@
       border-color: #4caf50;
       color: #4caf50;
     }
+
+    /* Font size selector */
+    .size-options {
+      display: flex;
+      gap: 6px;
+    }
+
+    .size-options button {
+      flex: 1;
+      padding: 7px 8px;
+      border: 1.5px solid #444;
+      border-radius: 6px;
+      background: transparent;
+      color: #aaa;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .size-options button:hover {
+      border-color: #888;
+      color: #e5e5e5;
+    }
+
+    .size-options button.active {
+      border-color: #e50914;
+      background: #e50914;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -246,6 +276,16 @@
         <input type="checkbox" id="hide-annotations-toggle" checked>
         <span class="slider"></span>
       </label>
+    </div>
+  </div>
+
+  <!-- Font size selector -->
+  <div class="section">
+    <div class="section-label">Font Size 字幕大小</div>
+    <div class="size-options" id="size-options">
+      <button data-size="small">小字</button>
+      <button data-size="medium">中字</button>
+      <button data-size="large">大字</button>
     </div>
   </div>
 
