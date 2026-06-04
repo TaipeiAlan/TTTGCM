@@ -70,16 +70,45 @@
 
   // --- Overlay management ---
 
+  // The overlay must live inside the fullscreen element while Netflix is in
+  // fullscreen — otherwise the browser only paints the fullscreen subtree and
+  // an overlay attached to <body> disappears.
+  function getFullscreenEl() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function overlayParent() {
+    return getFullscreenEl() || document.body;
+  }
+
   function ensureOverlay() {
-    if (state.overlay && document.body.contains(state.overlay)) return;
+    const parent = overlayParent();
+    if (state.overlay && document.documentElement.contains(state.overlay)) {
+      // Keep the overlay attached to the correct parent (e.g. after entering FS)
+      if (state.overlay.parentNode !== parent) parent.appendChild(state.overlay);
+      return;
+    }
     const div = document.createElement('div');
     div.id = OVERLAY_ID;
-    document.body.appendChild(div);
+    parent.appendChild(div);
     state.overlay = div;
     applyFontSize();
     console.log(LOG, 'overlay created');
     startPolling();
   }
+
+  // Re-parent the overlay when fullscreen state changes so it stays visible.
+  function syncOverlayParent() {
+    if (!state.overlay) return;
+    const parent = overlayParent();
+    if (state.overlay.parentNode !== parent) {
+      parent.appendChild(state.overlay);
+      console.log(LOG, 'overlay re-parented for fullscreen change');
+    }
+  }
+
+  document.addEventListener('fullscreenchange', syncOverlayParent);
+  document.addEventListener('webkitfullscreenchange', syncOverlayParent);
 
   function destroyOverlay() {
     stopPolling();
