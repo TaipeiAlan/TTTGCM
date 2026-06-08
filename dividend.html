@@ -16,7 +16,7 @@
     background:var(--bg);color:var(--txt);line-height:1.45;
     padding:14px;min-height:100vh;font-size:14px;
   }
-  .wrap{max-width:620px;margin:0 auto}
+  .wrap{max-width:680px;margin:0 auto}
   h1{font-size:1.15rem;font-weight:700;margin-bottom:10px}
   h1 .mark{color:var(--accent)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:10px}
@@ -33,31 +33,45 @@
   .grid3{grid-template-columns:1fr 1fr 1fr}
   .field label{display:block;font-size:.76rem;color:var(--sub);margin-bottom:3px}
   .field .hint{color:#5f7184;font-size:.7rem}
-  input[type=number]{width:100%;padding:8px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);font-size:.95rem;font-family:inherit}
+  /* 元件字級設為 16px，避免 iOS Safari 聚焦輸入時自動放大畫面 */
+  input[type=number]{width:100%;padding:9px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);font-size:16px;font-family:inherit}
   input:focus{outline:none;border-color:var(--accent)}
   input::placeholder{color:#5f7184;opacity:.6}
   input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-  select{width:100%;padding:8px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);font-size:.9rem;font-family:inherit}
+  select{width:100%;padding:9px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);font-size:16px;font-family:inherit}
   .full{grid-column:1/-1}
-  .result{background:linear-gradient(135deg,#1d2935,#161f29);border:1px solid var(--accent);border-radius:10px;padding:13px;margin-bottom:10px}
-  .rtop{display:flex;justify-content:space-between;align-items:flex-end}
+  /* 扶養人數：上下（±）按鈕 */
+  .stepper{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--panel2);height:40px}
+  .stepper button{width:42px;flex-shrink:0;background:var(--panel2);border:none;color:var(--txt);font-size:22px;font-weight:700;cursor:pointer;line-height:1;-webkit-tap-highlight-color:transparent}
+  .stepper button:active{background:var(--line)}
+  .stepper button:disabled{color:#3a4856;cursor:not-allowed}
+  .stepper .num{flex:1;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+  /* 除權息參考價 與 填權息試算 一左一右 */
+  .duo{display:grid;grid-template-columns:1fr;gap:10px;align-items:start;margin-bottom:10px}
+  .duo.two{grid-template-columns:1fr 1fr}
+  .duo>*{margin-bottom:0}
+  .duo.two .fillbox{flex-direction:column;align-items:flex-start;gap:2px}
+  .result{background:linear-gradient(135deg,#1d2935,#161f29);border:1px solid var(--accent);border-radius:10px;padding:13px}
+  .rtop{display:flex;justify-content:space-between;align-items:flex-end;gap:6px}
   .rtop .lbl{font-size:.78rem;color:var(--sub)}
   .rtop .price{font-size:1.7rem;font-weight:800;color:var(--accent);line-height:1.1}
   .rtop .price small{font-size:.85rem;color:var(--sub);font-weight:400}
-  .brow{display:flex;justify-content:space-between;font-size:.82rem;padding:3px 0}
+  .brow{display:flex;justify-content:space-between;font-size:.82rem;padding:3px 0;gap:6px}
   .brow span:first-child{color:var(--sub)}
-  .brow span:last-child{font-variant-numeric:tabular-nums}
+  .brow span:last-child{font-variant-numeric:tabular-nums;text-align:right}
   .brow.hl span:last-child{color:var(--green);font-weight:600}
   .sep{border-top:1px dashed var(--line);margin:9px 0}
   .formula{font-size:.72rem;color:#5f7184;font-family:"SF Mono",Menlo,monospace;word-break:break-all;margin-top:8px}
   .sech{font-size:.82rem;color:var(--blue);font-weight:600;margin-bottom:8px}
-  .fillbox{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);border-radius:7px;padding:9px 11px;margin-top:7px}
+  .fillbox{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);border-radius:7px;padding:9px 11px;margin-top:7px;gap:6px}
   .fillbox .k{font-size:.8rem;color:var(--sub)}
-  .fillbox .v{font-size:1.05rem;font-weight:700}
+  .fillbox .v{font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums}
   .up{color:var(--red)}.down{color:var(--green)}
   .note{font-size:.72rem;color:#5f7184;margin-top:8px;line-height:1.6}
+  .ratehint{font-size:.74rem;color:var(--sub);margin-top:6px;line-height:1.5}
+  .ratehint b{color:var(--accent)}
   .pickrow{display:flex;gap:8px;margin:8px 0}
-  .pickrow button{flex:1;padding:7px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--sub);font-family:inherit;font-size:.8rem;cursor:pointer}
+  .pickrow button{flex:1;padding:9px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--sub);font-family:inherit;font-size:.85rem;cursor:pointer}
   .pickrow button.on{background:var(--blue);color:#04101f;border-color:var(--blue);font-weight:700}
   .taxbest{background:var(--panel2);border:1px solid var(--green);border-radius:7px;padding:9px 11px;margin-top:7px;font-size:.82rem}
   .taxbest b{color:var(--green)}
@@ -73,57 +87,71 @@
         <input type="number" id="close" step="0.01" min="0" inputmode="decimal" oninput="calc()"></div>
       <div class="field"><label>原持有股數 <span class="hint">股</span></label>
         <input type="number" id="qty" step="1" min="0" inputmode="numeric" oninput="calc()"></div>
-      <div class="field"><label>目前市價 <span class="hint">元</span></label>
+      <div class="field"><label>除權息後開盤價 <span class="hint">元</span></label>
         <input type="number" id="mkt" step="0.01" min="0" inputmode="decimal" oninput="calc()"></div>
     </div>
   </div>
 
   <div class="switches">
     <div class="sw on" id="sw-div" onclick="toggle('div')"><span class="swlbl">除息</span><span class="knob"></span></div>
-    <div class="sw" id="sw-shr" onclick="toggle('shr')"><span class="swlbl">除權</span><span class="knob"></span></div>
+    <div class="sw on" id="sw-shr" onclick="toggle('shr')"><span class="swlbl">除權</span><span class="knob"></span></div>
   </div>
 
   <div class="card">
     <div class="grid">
       <div class="field" id="f-cash"><label>每股現金股利 <span class="hint">元</span></label>
         <input type="number" id="cash" step="0.01" min="0" inputmode="decimal" oninput="calc()"></div>
-      <div class="field" id="f-stock" style="display:none"><label>每股股票股利 <span class="hint">元</span></label>
+      <div class="field" id="f-stock"><label>每股股票股利 <span class="hint">元</span></label>
         <input type="number" id="stock" step="0.01" min="0" inputmode="decimal" oninput="calc()"></div>
     </div>
   </div>
 
-  <div class="result">
-    <div class="rtop">
-      <span class="lbl">除權息參考價</span>
-      <span class="price"><span id="ref">—</span><small> 元</small></span>
+  <div class="duo" id="duo">
+    <div class="result">
+      <div class="rtop">
+        <span class="lbl">除權息參考價</span>
+        <span class="price"><span id="ref">—</span><small> 元</small></span>
+      </div>
+      <div class="formula" id="fm"></div>
+      <div class="sep"></div>
+      <div id="bd"></div>
     </div>
-    <div class="formula" id="fm"></div>
-    <div class="sep"></div>
-    <div id="bd"></div>
-  </div>
 
-  <div class="card" id="fillcard" style="display:none">
-    <div class="sech">填權息試算</div>
-    <div class="fillbox"><span class="k">填權息進度</span><span class="v" id="fillpct">—</span></div>
-    <div class="fillbox"><span class="k">市值損益（含配股配息）</span><span class="v" id="pl">—</span></div>
-    <div class="note" id="fillnote"></div>
+    <div class="card" id="fillcard" style="display:none">
+      <div class="sech">填權息試算</div>
+      <div class="fillbox"><span class="k">填權息進度</span><span class="v" id="fillpct">—</span></div>
+      <div class="fillbox"><span class="k">市值損益（含配股配息）</span><span class="v" id="pl">—</span></div>
+      <div class="note" id="fillnote"></div>
+    </div>
   </div>
 
   <div class="card" id="taxcard" style="display:none">
     <div class="sech">股利報稅試算</div>
+    <div class="grid">
+      <div class="field"><label>年薪資收入 <span class="hint">元</span></label>
+        <input type="number" id="salary" step="1000" min="0" inputmode="numeric" oninput="calc()"></div>
+      <div class="field"><label>扶養人數 <span class="hint">不含本人</span></label>
+        <div class="stepper">
+          <button type="button" id="dep-minus" onclick="stepDep(-1)" aria-label="減少扶養人數">−</button>
+          <span class="num" id="depval">0</span>
+          <button type="button" id="dep-plus" onclick="stepDep(1)" aria-label="增加扶養人數">+</button>
+        </div></div>
+    </div>
     <div class="pickrow">
       <button id="tx-comb" class="on" onclick="setTax('comb')">合併計稅</button>
       <button id="tx-sep" onclick="setTax('sep')">分離課稅 28%</button>
     </div>
-    <div class="grid" id="combfields">
-      <div class="field full"><label>綜所稅適用稅率 <span class="hint">影響合併計稅</span></label>
+    <div id="combfields">
+      <div class="field full"><label>綜所稅適用稅率 <span class="hint">合併計稅</span></label>
         <select id="rate" onchange="calc()">
+          <option value="auto" selected>自動（依薪資 / 扶養）</option>
           <option value="0.05">5%</option>
-          <option value="0.12" selected>12%</option>
+          <option value="0.12">12%</option>
           <option value="0.20">20%</option>
           <option value="0.30">30%</option>
           <option value="0.40">40%</option>
         </select></div>
+      <div class="ratehint" id="ratehint"></div>
     </div>
     <div class="fillbox"><span class="k">應計入股利所得</span><span class="v" id="taxdiv">—</span></div>
     <div class="fillbox"><span class="k">二代健保補充保費</span><span class="v" id="nhi">—</span></div>
@@ -135,41 +163,98 @@
   <p class="note">
     ※ 依證交所公式試算，實際以交易所公告為準。配股以面額 10 元計（配股率 = 股票股利 ÷ 10）。<br>
     ※ 配股不足 1 股之畸零股，實務上多按面額或市價折發現金，本試算未納入此折現金額。<br>
-    ※ 稅務為簡化估算，實際以國稅局與最新法規為準。
+    ※ 稅務為簡化估算：免稅額 97,000 元/人、單身標準扣除額 131,000 元、薪資特別扣除額上限 218,000 元，未含其他扣除額；實際以國稅局與最新法規為準。
   </p>
 </div>
 
 <script>
-let div=true, shr=false, taxMode='comb';
-function toggle(t){
-  if(t==='div') div=!div; else shr=!shr;
-  if(!div&&!shr){ if(t==='div') shr=true; else div=true; } // 至少開一個
+const STORE='dividend_calc_v1';
+let div=true, shr=true, taxMode='comb', dependents=0;
+
+function val(id){return document.getElementById(id).value;}
+// 讀取數值並夾為非負，避免負股利/負股數造成不合理結果
+function numVal(id){return Math.max(0,parseFloat(val(id))||0);}
+function fmt(n,d=2){return n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});}
+
+// 綜所稅累進稅率（依綜合所得淨額判斷適用級距）
+function bracketRate(net){
+  if(net<=590000) return 0.05;
+  if(net<=1330000) return 0.12;
+  if(net<=2660000) return 0.20;
+  if(net<=4980000) return 0.30;
+  return 0.40;
+}
+
+// 依目前狀態同步介面（開關、欄位顯示、扶養人數）
+function applyState(){
   document.getElementById('sw-div').classList.toggle('on',div);
   document.getElementById('sw-shr').classList.toggle('on',shr);
   document.getElementById('f-cash').style.display=div?'block':'none';
   document.getElementById('f-stock').style.display=shr?'block':'none';
+  document.getElementById('tx-comb').classList.toggle('on',taxMode==='comb');
+  document.getElementById('tx-sep').classList.toggle('on',taxMode==='sep');
+  document.getElementById('combfields').style.display=taxMode==='comb'?'block':'none';
+  document.getElementById('depval').textContent=dependents;
+  document.getElementById('dep-minus').disabled=dependents<=0;
+}
+
+function save(){
+  try{
+    localStorage.setItem(STORE,JSON.stringify({
+      close:val('close'),qty:val('qty'),mkt:val('mkt'),
+      cash:val('cash'),stock:val('stock'),salary:val('salary'),
+      rate:val('rate'),dependents,div,shr,taxMode
+    }));
+  }catch(e){}
+}
+function restore(){
+  let data;
+  try{data=JSON.parse(localStorage.getItem(STORE));}catch(e){}
+  if(!data) return;
+  ['close','qty','mkt','cash','stock','salary'].forEach(id=>{
+    if(data[id]!=null&&data[id]!=='') document.getElementById(id).value=data[id];
+  });
+  if(data.rate) document.getElementById('rate').value=data.rate;
+  if(typeof data.dependents==='number') dependents=Math.max(0,data.dependents);
+  if(typeof data.div==='boolean') div=data.div;
+  if(typeof data.shr==='boolean') shr=data.shr;
+  if(data.taxMode==='comb'||data.taxMode==='sep') taxMode=data.taxMode;
+}
+
+function toggle(t){
+  if(t==='div') div=!div; else shr=!shr;
+  if(!div&&!shr){ if(t==='div') shr=true; else div=true; } // 至少開一個
+  applyState();
   calc();
 }
 function setTax(m){
   taxMode=m;
-  document.getElementById('tx-comb').classList.toggle('on',m==='comb');
-  document.getElementById('tx-sep').classList.toggle('on',m==='sep');
-  document.getElementById('combfields').style.display=m==='comb'?'grid':'none';
+  applyState();
   calc();
 }
-function fmt(n,d=2){return n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});}
-// 讀取數值並夾為非負，避免負股利/負股數造成不合理結果
-function numVal(id){return Math.max(0,parseFloat(document.getElementById(id).value)||0);}
+function stepDep(d){
+  dependents=Math.max(0,Math.min(20,dependents+d));
+  applyState();
+  calc();
+}
+
 function calc(){
-  const close=parseFloat(document.getElementById('close').value);
+  save();
+  const close=parseFloat(val('close'));
   const qty=numVal('qty');
   const cash=div?numVal('cash'):0;
   const stock=shr?numVal('stock'):0;
   const ref=document.getElementById('ref'),bd=document.getElementById('bd'),fm=document.getElementById('fm');
+  const duo=document.getElementById('duo');
   const fillcard=document.getElementById('fillcard'),taxcard=document.getElementById('taxcard');
 
-  if(isNaN(close)||close<=0){ref.textContent='—';bd.innerHTML='';fm.textContent='';fillcard.style.display='none';taxcard.style.display='none';document.getElementById('mkt').placeholder='';return;}
-
+  if(isNaN(close)||close<=0){
+    ref.textContent='—';bd.innerHTML='';fm.textContent='';
+    fillcard.style.display='none';taxcard.style.display='none';
+    duo.classList.remove('two');
+    document.getElementById('mkt').placeholder='';
+    return;
+  }
 
   const ratio=stock/10;
   const refPrice=(close-cash)/(1+ratio);
@@ -199,8 +284,9 @@ function calc(){
   bd.innerHTML=rows||'<div class="brow"><span>（輸入持有股數可看明細）</span><span></span></div>';
 
   if(qty>0){
-    // 填權息：市價空白時以參考價為基準
+    // 填權息：開盤價空白時以參考價為基準
     fillcard.style.display='block';
+    duo.classList.add('two');
     const mktInput=document.getElementById('mkt');
     const mkt=parseFloat(mktInput.value);
     const m=(!isNaN(mkt)&&mkt>0)?mkt:refPrice;
@@ -229,14 +315,26 @@ function calc(){
     nhiEl.textContent=nhi>0?fmt(nhi,0)+' 元':'0 元（未達 2 萬門檻）';
     nhiEl.className='v';
 
-    let tax, comb, sep;
-    const rate=parseFloat(document.getElementById('rate').value);
-    // 合併計稅：併入綜所稅，可抵減 8.5%（每戶上限 8 萬）
+    // 綜合所得淨額（用於自動判斷適用稅率）
+    const salary=numVal('salary');
+    const salaryDed=Math.min(salary,218000);            // 薪資特別扣除額上限 218,000
+    const baseNet=Math.max(0,salary-salaryDed-131000-97000*(1+dependents)); // 標準扣除 + 免稅額(本人+扶養)
+    const taxableWithDiv=baseNet+totalDivIncome;
+    const autoRate=bracketRate(taxableWithDiv);
+    const sel=document.getElementById('rate');
+    const isAuto=sel.value==='auto';
+    const rate=isAuto?autoRate:parseFloat(sel.value);
+
+    document.getElementById('ratehint').innerHTML=
+      `綜合所得淨額（不含股利）約 <b>${fmt(baseNet,0)}</b> 元、含股利約 <b>${fmt(taxableWithDiv,0)}</b> 元 → 適用稅率 <b>${fmt(rate*100,0)}%</b>`+
+      (isAuto?'（自動）':'（手動覆寫）');
+
+    // 合併計稅：股利併入綜所稅，可抵減 8.5%（每戶上限 8 萬）
     const credit=Math.min(totalDivIncome*0.085,80000);
-    comb=Math.round(totalDivIncome*rate-credit);
+    const comb=Math.round(totalDivIncome*rate-credit);
     // 分離課稅 28%
-    sep=Math.round(totalDivIncome*0.28);
-    tax=taxMode==='comb'?comb:sep;
+    const sep=Math.round(totalDivIncome*0.28);
+    const tax=taxMode==='comb'?comb:sep;
     const taxEl=document.getElementById('taxamt');
     taxEl.textContent=(tax<0?'退抵 ':'')+fmt(Math.abs(tax),0)+' 元';
     taxEl.className='v '+(tax<=0?'down':'');
@@ -250,8 +348,13 @@ function calc(){
   }else{
     fillcard.style.display='none';
     taxcard.style.display='none';
+    duo.classList.remove('two');
   }
 }
+
+// 初始化：還原先前輸入 → 套用狀態 → 試算
+restore();
+applyState();
 calc();
 </script>
 </body>
