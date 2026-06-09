@@ -20,8 +20,8 @@
   h1{font-size:1.15rem;font-weight:700;margin-bottom:10px}
   h1 .mark{color:var(--accent)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:10px}
-  .switches{display:flex;gap:10px;margin-bottom:10px}
-  .sw{flex:1;display:flex;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;cursor:pointer;user-select:none;transition:all .15s}
+  .block .field{margin-top:9px}
+  .sw{display:flex;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;cursor:pointer;user-select:none;transition:all .15s}
   .sw.on{border-color:var(--accent)}
   .sw .swlbl{font-size:.9rem;font-weight:600}
   .sw.on .swlbl{color:var(--accent)}
@@ -92,17 +92,18 @@
     </div>
   </div>
 
-  <div class="switches">
-    <div class="sw on" id="sw-div" onclick="toggle('div')"><span class="swlbl">除息</span><span class="knob"></span></div>
-    <div class="sw on" id="sw-shr" onclick="toggle('shr')"><span class="swlbl">除權</span><span class="knob"></span></div>
-  </div>
-
   <div class="card">
     <div class="grid">
-      <div class="field" id="f-cash"><label>每股現金股利 <span class="hint">元</span></label>
-        <input type="number" id="cash" step="0.01" min="0" inputmode="decimal" oninput="calc()"></div>
-      <div class="field" id="f-stock"><label>每股股票股利 <span class="hint">元</span></label>
-        <input type="number" id="stock" step="0.01" min="0" inputmode="decimal" oninput="calc()"></div>
+      <div class="block">
+        <div class="sw on" id="sw-div" onclick="toggle('div')"><span class="swlbl">除息</span><span class="knob"></span></div>
+        <div class="field" id="f-cash"><label>每股現金股利 <span class="hint">元</span></label>
+          <input type="number" id="cash" step="0.01" min="0" inputmode="decimal" oninput="calc()"></div>
+      </div>
+      <div class="block">
+        <div class="sw on" id="sw-shr" onclick="toggle('shr')"><span class="swlbl">除權</span><span class="knob"></span></div>
+        <div class="field" id="f-stock"><label>每股股票股利 <span class="hint">元</span></label>
+          <input type="number" id="stock" step="0.01" min="0" inputmode="decimal" oninput="calc()"></div>
+      </div>
     </div>
   </div>
 
@@ -154,6 +155,7 @@
       <div class="ratehint" id="ratehint"></div>
     </div>
     <div class="fillbox"><span class="k">應計入股利所得</span><span class="v" id="taxdiv">—</span></div>
+    <div class="fillbox" id="f-stockinc"><span class="k">股票股利（面額計入）</span><span class="v" id="stockinc">—</span></div>
     <div class="fillbox"><span class="k">二代健保補充保費</span><span class="v" id="nhi">—</span></div>
     <div class="fillbox"><span class="k">股利所得稅（估）</span><span class="v" id="taxamt">—</span></div>
     <div class="taxbest" id="taxbest"></div>
@@ -311,6 +313,13 @@ function calc(){
     const nhiThreshold=20000, nhiRate=0.0211;
     const nhi=totalDivIncome>=nhiThreshold?Math.round(totalDivIncome*nhiRate):0;
     document.getElementById('taxdiv').textContent=fmt(totalDivIncome,0)+' 元';
+    const stockincBox=document.getElementById('f-stockinc');
+    if(stock>0){
+      stockincBox.style.display='flex';
+      document.getElementById('stockinc').textContent=`${fmt(newShares,0)} 股 × 10 元 = ${fmt(stockDivIncome,0)} 元`;
+    }else{
+      stockincBox.style.display='none';
+    }
     const nhiEl=document.getElementById('nhi');
     nhiEl.textContent=nhi>0?fmt(nhi,0)+' 元':'0 元（未達 2 萬門檻）';
     nhiEl.className='v';
@@ -343,8 +352,7 @@ function calc(){
     document.getElementById('taxbest').innerHTML=
       `合併計稅約 <b>${fmt(comb,0)}</b> 元、分離課稅約 <b>${fmt(sep,0)}</b> 元 → 此情境 <b>${better}</b> 較省`;
     document.getElementById('taxnote').innerHTML=
-      `合併計稅：股利併入所得課稅，可抵減 8.5%（每戶上限 8 萬）。分離課稅：固定 28%。`+
-      (stock>0?`股票股利以面額 10 元 × ${fmt(newShares,0)} 股 = ${fmt(stockDivIncome,0)} 元計入所得。`:``);
+      `合併計稅：股利併入所得課稅，可抵減 8.5%（每戶上限 8 萬）。分離課稅：固定 28%。`;
   }else{
     fillcard.style.display='none';
     taxcard.style.display='none';
