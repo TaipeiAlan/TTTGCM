@@ -68,7 +68,7 @@
     .deadline-pill .darrow{border:none;background:transparent;color:#2d6b2d;cursor:pointer;padding:4px 0;width:26px;font-size:12px;transition:.12s;text-align:center}
     .deadline-pill .darrow:hover{background:#c5e8c5}
     .deadline-pill .darrow + .darrow{border-left:1px solid #b6dab6}
-    .deadline-pill .dlabel{padding:4px 10px;cursor:ew-resize;width:118px;text-align:center;touch-action:none;border-left:1px solid #b6dab6;display:inline-flex;align-items:baseline;justify-content:center;gap:4px;white-space:nowrap}
+    .deadline-pill .dlabel{padding:4px 8px;cursor:ew-resize;width:100px;text-align:center;touch-action:none;border-left:1px solid #b6dab6;display:inline-flex;align-items:baseline;justify-content:center;gap:4px;white-space:nowrap}
     .deadline-pill .dbound{font-size:10px;font-weight:600;opacity:.75}
     .deadline-pill .dlabel:hover{background:#d4ecda}
     .deadline-pill.dragging .dlabel{background:#c5e8c5}
@@ -126,13 +126,19 @@
           <button class="btn emph-btn" data-emph="total">總價</button>
         </div>
         <div id="deadlineCtrl" class="deadline-ctrl">
-          <span style="font-size:12px;color:#7d7d7d;">截止：</span>
-          <div class="deadline-pill all-mode" id="deadlinePill">
-            <button class="darrow" id="deadlinePrev" title="往前一個月">◀</button>
-            <button class="darrow" id="deadlineNext" title="往後一個月">▶</button>
-            <button class="darrow dall" id="deadlineAll" title="顯示全部月份">全</button>
-            <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊顯示全部"><span id="deadlineLabelText">全部</span><span class="dbound" id="deadlineBoundary"></span></span>
+          <span style="font-size:12px;color:#7d7d7d;">期間：</span>
+          <div class="deadline-pill all-mode" id="deadlineStartPill">
+            <button class="darrow" id="deadlineStartPrev" title="起始往前一個月">◀</button>
+            <button class="darrow" id="deadlineStartNext" title="起始往後一個月">▶</button>
+            <span class="dlabel" id="deadlineStartLabel" title="拖曳左右調整起始月份，雙擊回到最早"><span id="deadlineStartLabelText">最早</span><span class="dbound" id="deadlineStartBoundary"></span></span>
           </div>
+          <span style="font-size:12px;color:#7d7d7d;">～</span>
+          <div class="deadline-pill all-mode" id="deadlinePill">
+            <button class="darrow" id="deadlinePrev" title="截止往前一個月">◀</button>
+            <button class="darrow" id="deadlineNext" title="截止往後一個月">▶</button>
+            <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊回到最新"><span id="deadlineLabelText">最新</span><span class="dbound" id="deadlineBoundary"></span></span>
+          </div>
+          <button class="btn" id="deadlineAll" title="顯示全部月份">全</button>
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
       </div>
@@ -186,7 +192,8 @@
     const emphBtns=[...document.querySelectorAll('.emph-btn')];
     let withParkingPrice=true;
     let currentRecords=[];
-    let deadlineYM=null;
+    let deadlineYM=null;       // 截止月份（null = 最新，不限制）
+    let deadlineStartYM=null;  // 起始月份（null = 最早，不限制）
     let deadlineMonthRange=[];
     let csvState={records:[],dataDate:'',visible:true};
 
@@ -516,7 +523,7 @@
 
       table.appendChild(tbody);gridWrap.innerHTML='';gridWrap.appendChild(table);
       const dataDate=info.dataDate||'-';const cachedAt=info.cachedAt?new Date(info.cachedAt).toLocaleString('zh-TW'):new Date().toLocaleString('zh-TW');
-      const deadlineStr=deadlineYM?`截止：${toROCYM(deadlineYM)}｜`:'';
+      const deadlineStr=(deadlineStartYM||deadlineYM)?`期間：${deadlineStartYM?toROCYM(deadlineStartYM):'最早'}～${deadlineYM?toROCYM(deadlineYM):'最新'}｜`:'';
       const csvCount=csvState.records.length;const csvNullCount=csvState.records.filter(r=>r.樓層===null||r.樓層===undefined).length;
       const csvStr=(csvLatestMap||csvNullFloor)?`｜CSV：${csvCount}筆${csvNullCount?'（'+csvNullCount+'筆未知樓層）':''}`:'';
       statusEl.textContent=`${deadlineStr}資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}${csvStr}｜單價模式：${withParkingPrice?'含車位':'不含車位'}`;
@@ -1173,87 +1180,122 @@
     }
 
     function getFilteredRecords(){
-      if(!deadlineYM)return currentRecords;
-      return currentRecords.filter(r=>{const iso=rocToISO(r.交易日期);return iso?iso.slice(0,7)<=deadlineYM:true});
+      if(!deadlineStartYM&&!deadlineYM)return currentRecords;
+      return currentRecords.filter(r=>{
+        const iso=rocToISO(r.交易日期);
+        if(!iso)return true;
+        const ym=iso.slice(0,7);
+        if(deadlineStartYM&&ym<deadlineStartYM)return false;
+        if(deadlineYM&&ym>deadlineYM)return false;
+        return true;
+      });
     }
 
     function updateDeadlineUI(){
       const ctrl=document.getElementById('deadlineCtrl');
-      const pill=document.getElementById('deadlinePill');
-      const labelText=document.getElementById('deadlineLabelText');
-      const bound=document.getElementById('deadlineBoundary');
       if(!currentRecords.length){ctrl.style.display='none';return}
       ctrl.style.display='flex';
-      if(!deadlineYM){
-        pill.classList.add('all-mode');
-        labelText.textContent='全部';
-        bound.textContent='';
-      } else {
-        pill.classList.remove('all-mode');
-        labelText.textContent=toROCYM(deadlineYM);
-        const idx=deadlineMonthRange.indexOf(deadlineYM);
-        if(idx===0&&deadlineMonthRange.length>1)bound.textContent='最早';
-        else if(idx===deadlineMonthRange.length-1&&deadlineMonthRange.length>1)bound.textContent='最新';
-        else bound.textContent='';
-      }
+      const last=deadlineMonthRange.length-1;
+      const updatePill=(pillId,textId,boundId,ym,nullText)=>{
+        const pill=document.getElementById(pillId);
+        const labelText=document.getElementById(textId);
+        const bound=document.getElementById(boundId);
+        if(!ym){
+          pill.classList.add('all-mode');
+          labelText.textContent=nullText;
+          bound.textContent='';
+        } else {
+          pill.classList.remove('all-mode');
+          labelText.textContent=toROCYM(ym);
+          const idx=deadlineMonthRange.indexOf(ym);
+          if(idx===0&&last>0)bound.textContent='最早';
+          else if(idx===last&&last>0)bound.textContent='最新';
+          else bound.textContent='';
+        }
+      };
+      updatePill('deadlineStartPill','deadlineStartLabelText','deadlineStartBoundary',deadlineStartYM,'最早');
+      updatePill('deadlinePill','deadlineLabelText','deadlineBoundary',deadlineYM,'最新');
     }
 
-    function setDeadlineYM(ym){
-      deadlineYM=ym;updateDeadlineUI();
+    function setDeadlineRange(startYM,endYM){
+      deadlineStartYM=startYM;deadlineYM=endYM;updateDeadlineUI();
       const cached=loadCache();
       renderWithCsv(getFilteredRecords(),cached||{});
     }
 
     (function(){
       const PXPM=28;
-      let dragging=false,dragStartX=0,dragStartIdx=0;
-
-      function getCurrentIdx(){
+      // 起訖各自的索引（null 視為各自的邊界端）
+      function clampIdx(i){return Math.max(0,Math.min(deadlineMonthRange.length-1,i))}
+      function getStartIdx(){
+        if(!deadlineStartYM||!deadlineMonthRange.length)return 0;
+        const i=deadlineMonthRange.indexOf(deadlineStartYM);
+        return i<0?0:i;
+      }
+      function getEndIdx(){
         if(!deadlineYM||!deadlineMonthRange.length)return deadlineMonthRange.length-1;
         const i=deadlineMonthRange.indexOf(deadlineYM);
         return i<0?deadlineMonthRange.length-1:i;
       }
+      // 起點不可晚於訖點；以索引設定，落在邊界時還原成 null（不限制）
+      function applyIdx(startIdx,endIdx){
+        startIdx=clampIdx(Math.min(startIdx,getEndIdx()));
+        endIdx=clampIdx(Math.max(endIdx,getStartIdx()));
+        const s=startIdx<=0?null:deadlineMonthRange[startIdx];
+        const e=endIdx>=deadlineMonthRange.length-1?null:deadlineMonthRange[endIdx];
+        if(s!==deadlineStartYM||e!==deadlineYM)setDeadlineRange(s,e);
+      }
 
-      const pill=document.getElementById('deadlinePill');
-      const label=document.getElementById('deadlineLabel');
-      const prevBtn=document.getElementById('deadlinePrev');
-      const nextBtn=document.getElementById('deadlineNext');
       const allBtn=document.getElementById('deadlineAll');
+      allBtn.addEventListener('click',()=>setDeadlineRange(null,null));
 
-      function startDrag(clientX){
-        if(!deadlineMonthRange.length)return;
-        dragging=true;dragStartX=clientX;dragStartIdx=getCurrentIdx();
-        pill.classList.add('dragging');
+      // 為起、訖兩端各掛一組拖曳＋按鈕控制
+      function bindBound({pillId,labelId,prevId,nextId,getIdx,setIdx,reset}){
+        const pill=document.getElementById(pillId);
+        const label=document.getElementById(labelId);
+        let dragging=false,dragStartX=0,dragStartIdx=0;
+        function startDrag(clientX){
+          if(!deadlineMonthRange.length)return;
+          dragging=true;dragStartX=clientX;dragStartIdx=getIdx();
+          pill.classList.add('dragging');
+        }
+        function moveDrag(clientX){
+          if(!dragging||!deadlineMonthRange.length)return;
+          const shift=Math.round((clientX-dragStartX)/PXPM);
+          setIdx(dragStartIdx+shift);
+        }
+        function endDrag(){if(dragging){dragging=false;pill.classList.remove('dragging');}}
+        label.addEventListener('mousedown',e=>{startDrag(e.clientX);e.preventDefault();});
+        document.addEventListener('mousemove',e=>{moveDrag(e.clientX);});
+        document.addEventListener('mouseup',endDrag);
+        label.addEventListener('touchstart',e=>{startDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
+        label.addEventListener('touchmove',e=>{moveDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
+        label.addEventListener('touchend',endDrag);
+        label.addEventListener('dblclick',reset);
+        document.getElementById(prevId).addEventListener('click',()=>{
+          if(!deadlineMonthRange.length)return;
+          setIdx(getIdx()-1);
+        });
+        document.getElementById(nextId).addEventListener('click',()=>{
+          if(!deadlineMonthRange.length)return;
+          setIdx(getIdx()+1);
+        });
       }
-      function moveDrag(clientX){
-        if(!dragging||!deadlineMonthRange.length)return;
-        const shift=Math.round((clientX-dragStartX)/PXPM);
-        const newIdx=Math.max(0,Math.min(deadlineMonthRange.length-1,dragStartIdx+shift));
-        const newYm=deadlineMonthRange[newIdx];
-        if(newYm!==deadlineYM){deadlineYM=newYm;updateDeadlineUI();const cached=loadCache();renderWithCsv(getFilteredRecords(),cached||{});}
-      }
-      function endDrag(){if(dragging){dragging=false;pill.classList.remove('dragging');}}
 
-      label.addEventListener('mousedown',e=>{startDrag(e.clientX);e.preventDefault();});
-      document.addEventListener('mousemove',e=>{moveDrag(e.clientX);});
-      document.addEventListener('mouseup',endDrag);
-      label.addEventListener('touchstart',e=>{startDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
-      label.addEventListener('touchmove',e=>{moveDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
-      label.addEventListener('touchend',endDrag);
-      label.addEventListener('dblclick',()=>setDeadlineYM(null));
-
-      prevBtn.addEventListener('click',()=>{
-        if(!deadlineMonthRange.length)return;
-        const i=getCurrentIdx();
-        setDeadlineYM(i>0?deadlineMonthRange[i-1]:deadlineMonthRange[0]);
+      bindBound({
+        pillId:'deadlineStartPill',labelId:'deadlineStartLabel',
+        prevId:'deadlineStartPrev',nextId:'deadlineStartNext',
+        getIdx:getStartIdx,
+        setIdx:i=>applyIdx(i,getEndIdx()),
+        reset:()=>setDeadlineRange(null,deadlineYM)
       });
-      nextBtn.addEventListener('click',()=>{
-        if(!deadlineMonthRange.length)return;
-        const i=getCurrentIdx();
-        if(i>=deadlineMonthRange.length-1)setDeadlineYM(null);
-        else setDeadlineYM(deadlineMonthRange[i+1]);
+      bindBound({
+        pillId:'deadlinePill',labelId:'deadlineLabel',
+        prevId:'deadlinePrev',nextId:'deadlineNext',
+        getIdx:getEndIdx,
+        setIdx:i=>applyIdx(getStartIdx(),i),
+        reset:()=>setDeadlineRange(deadlineStartYM,null)
       });
-      allBtn.addEventListener('click',()=>setDeadlineYM(null));
     })();
     // ─────────────────────────────────────────────────────────────────────────
   </script>
