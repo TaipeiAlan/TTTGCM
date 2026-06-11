@@ -168,9 +168,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script>
-    const CACHE_KEY='hprice_cache_v5';
+    const CACHE_KEY='hprice_cache_v6';
     const CSV_OVERLAY_KEY='hprice_csv_overlay_v1';
-    const LEGACY_CACHE_KEYS=['hprice_cache','hprice_cache_v1','hprice_cache_v2','hprice_cache_v3','hprice_cache_v4'];
+    const LEGACY_CACHE_KEYS=['hprice_cache','hprice_cache_v1','hprice_cache_v2','hprice_cache_v3','hprice_cache_v4','hprice_cache_v5'];
     const SIZE_KEY='hprice_size';
     const EMPH_KEY='hprice_emph';
     const PRICE_MODE_KEY='hprice_price_with_parking';
@@ -204,14 +204,15 @@
     // 把「棟及號」收攏成單一戶別代號。
     // 部分 xls 會把樓層夾進戶別名稱（例：A棟A3-17號、A棟A3-18號…，-後面的 17/18 其實是樓層），
     // 造成每層自成一欄、表格呈對角線階梯。傳入已解析的樓層時，先把緊鄰「號」前、
-    // 數值等於該樓層的數字段（含 - 或 之 分隔符、可選 F／樓 後綴）拆掉，
-    // 讓同一直行(stack)的各樓層收攏成同一欄（→ A棟A3號）。
+    // 數值等於該樓層的數字段拆掉，讓同一直行(stack)的各樓層收攏成同一欄（→ A棟A3號）。
+    // 注意：必須帶有 -／之 分隔符，或 F／樓 後綴，才視為樓層段；
+    // 否則「A3號」在 3 樓成交時，戶別本身的 3 會被誤拆成「A號」，憑空多出一欄。
     function normalizeUnit(u,floor){
       let s=String(u||'').trim();
       if(!s)return s;
       if(floor!==null&&floor!==undefined&&!Number.isNaN(floor)){
         const f=Math.abs(Number(floor));
-        s=s.replace(new RegExp(`[-之]?0*${f}\\s*[FＦ樓]?(?=號|$)`),'');
+        s=s.replace(new RegExp(`(?:[-之]\\s*0*${f}\\s*[FＦ樓]?|0*${f}\\s*[FＦ樓])(?=號|$)`),'');
       }
       // 舊規則：棟後面純數字-號 收攏到「棟」(向後相容)
       s=s.replace(/棟[\d\-之]+號.*$/,'棟');
