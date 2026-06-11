@@ -409,7 +409,7 @@
       const xlsAndCsvKnownUnits=[...records.map(r=>r.棟及號),...csvRecordsAll.map(r=>r.棟及號)];
       const csvNullUnits=csvNullFloor?[...csvNullFloor.values()].map(g=>{
         const c=g.latest.棟及號;
-        return xlsAndCsvKnownUnits.find(u=>unitKeyMatch(u,c))||c;
+        return bestUnitMatch(xlsAndCsvKnownUnits,c)||c;
       }):[];
       const allUnits=[...new Set([...records.map(r=>r.棟及號),...csvRecordsAll.map(r=>r.棟及號),...csvNullUnits])].sort((a,b)=>a.localeCompare(b,'zh-Hant',{numeric:true}));
       // 不把 null 樓層加進 floors
@@ -477,6 +477,12 @@
           sorted:[...g.records].sort((a,b)=>parseROCDate(b.交易日期)-parseROCDate(a.交易日期))
         }]));
         const maxRows=Math.max(...[...sortedGroups.values()].map(g=>g.sorted.length));
+        // 每個 group 只指派給一個最佳欄位，避免 A6 同時顯示在 A6號 與 A號 兩欄
+        const unitToGroupKey=new Map();
+        sortedGroups.forEach((_,k)=>{
+          const u=bestUnitMatch(units,k);
+          if(u&&!unitToGroupKey.has(u))unitToGroupKey.set(u,k);
+        });
         const unknownRows=[];
         for(let ri=0;ri<maxRows;ri++){
           const tr=document.createElement('tr');
@@ -488,7 +494,7 @@
             const td=document.createElement('td');td.className='cell';
             td.dataset.floor='csv-unknown';td.dataset.unit=unit;
             td.addEventListener('mouseenter',()=>applyHover(undefined,unit));td.addEventListener('mouseleave',clearHover);
-            const matchKey=[...sortedGroups.keys()].find(k=>unitKeyMatch(unit,k));
+            const matchKey=unitToGroupKey.get(unit);
             if(!matchKey||ri>=sortedGroups.get(matchKey).sorted.length){
               td.classList.add('csv-unknown-empty');td.textContent='-';
             } else {
@@ -542,6 +548,20 @@
     function unitKeyMatch(xlsUnit,csvUnit){
       const x=normalizeUnitKey(xlsUnit),c=normalizeUnitKey(csvUnit);
       return x===c||c.startsWith(x)||x.startsWith(c);
+    }
+    // unitKeyMatch 允許前綴比對，因此「A6」會同時命中 A6號 與 A號 兩欄。
+    // 從候選戶別中挑唯一最佳者：key 完全相等優先，其次取 key 最長（最精確）者，
+    // 確保一筆 CSV 紀錄只落在一欄。
+    function bestUnitMatch(units,csvUnit){
+      const c=normalizeUnitKey(csvUnit);
+      let best=null,bestLen=-1;
+      for(const u of units){
+        const x=normalizeUnitKey(u);
+        if(!(x===c||c.startsWith(x)||x.startsWith(c)))continue;
+        if(x===c)return u;
+        if(x.length>bestLen){best=u;bestLen=x.length;}
+      }
+      return best;
     }
 
     // 建立 XLS 已知交易的 matchSet（同戶別 + 同總價視為重複）
@@ -599,7 +619,7 @@
       return csvState.records
         .filter(r=>!isCsvDupOfXls(r,xlsSet)&&rocToISO(r.交易日期))
         .map(r=>{
-          const mapped=xlsUnits.find(u=>unitKeyMatch(u,r.棟及號))||r.棟及號;
+          const mapped=bestUnitMatch(xlsUnits,r.棟及號)||r.棟及號;
           return {...r,棟及號:mapped,_csv:true};
         });
     }
