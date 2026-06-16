@@ -479,6 +479,124 @@
     /* Result grid column presets */
     .result-grid-buy  { grid-template-columns: repeat(2, 1fr); }
     .result-grid-sell { grid-template-columns: repeat(3, 1fr); }
+
+    /* ── Discount control (menu + popup) ── */
+    .menu-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .5rem;
+      padding: .55rem 1rem;
+      font-size: .82rem;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .menu-item-row + .menu-item,
+    .menu-item + .menu-item-row { border-top: 1px solid var(--border); }
+    .discount-select {
+      font-size: .8rem;
+      font-weight: 600;
+      padding: .25rem .4rem;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* Rows are clickable to inspect detail */
+    tbody tr[data-price] { cursor: pointer; }
+
+    /* ── Detail popup ── */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.42);
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+    .detail-overlay.hidden { display: none; }
+    .detail-modal {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.28);
+      width: 100%;
+      max-width: 420px;
+      max-height: 90dvh;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .detail-head {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .7rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .detail-title { flex: 1; font-size: .92rem; font-weight: 700; }
+    .detail-close {
+      flex-shrink: 0;
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: .2rem .55rem;
+      font-size: .85rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .detail-close:hover { border-color: var(--red); color: var(--red); }
+    .detail-body { overflow-y: auto; padding: .6rem 1rem .9rem; }
+
+    .detail-section { margin-top: .85rem; }
+    .detail-section:first-child { margin-top: .2rem; }
+    .detail-section-title {
+      font-size: .7rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: .35rem;
+    }
+    .detail-line {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .3rem 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: .85rem;
+    }
+    .detail-line:last-child { border-bottom: none; }
+    .detail-line .d-key { color: var(--muted); }
+    .detail-line .d-val {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .detail-line.highlight .d-val { color: var(--green); font-size: 1.05rem; }
+    .detail-line.save .d-val { color: var(--red); }
+    .detail-foot {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .6rem;
+      padding: .65rem 1rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      font-size: .85rem;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -495,6 +613,10 @@
           <button class="btn-sm ghost" id="menuTrigger">⋯</button>
           <div class="menu-dropdown hidden" id="menuDropdown">
             <button class="menu-item" id="menuToggleTick">☐ 顯示升降單位</button>
+            <div class="menu-item-row">
+              <span>手續費折扣</span>
+              <select class="discount-select" id="menuDiscount"></select>
+            </div>
             <button class="menu-item" id="menuReset">還原預設</button>
           </div>
         </div>
@@ -521,7 +643,7 @@
   </div>
 
   <div class="note">
-    手續費 0.1425% × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>0.585%</strong>（速記 <strong>0.6%</strong>）<br><br>
+    <span id="noteFee">手續費 0.1425% × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>0.585%</strong>（速記 <strong>0.6%</strong>）</span><br><br>
     • <strong>最低賣出</strong>：打平門檻，含雙向手續費與交易稅。<br>
     • <strong>最高買回</strong>：以最低賣出後損益兩平的最高買回價。<br>
     • 手續費最低收費 20 元，低價股實際成本較高，試算僅供參考。
@@ -587,13 +709,67 @@
 
 </div>
 
+<!-- ══════════════════════════════════════
+     DETAIL POPUP — calculation breakdown
+══════════════════════════════════════ -->
+<div class="detail-overlay hidden" id="detailOverlay">
+  <div class="detail-modal">
+    <div class="detail-head">
+      <span class="detail-title" id="detailTitle">計算細節</span>
+      <button class="detail-close" id="detailClose">✕</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+    <div class="detail-foot">
+      <span>手續費折扣</span>
+      <select class="discount-select" id="detailDiscount"></select>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   /* ── Constants ── */
-  const BUY_FEE  = 0.001425;
-  const SELL_FEE = 0.001425;
-  const SELL_TAX = 0.003;
-  const TOTAL    = BUY_FEE + SELL_FEE + SELL_TAX;
+  const BASE_FEE = 0.001425;          // 券商手續費標準費率
+  const SELL_TAX = 0.003;             // 證交稅（賣出）
+
+  /* ── Fee discount (折扣) ── default 無折扣 ── */
+  const DISCOUNT_KEY = 'stockprice_v2_discount';
+  const DISCOUNT_OPTIONS = [
+    { val: 1,    label: '無折扣' },
+    { val: 0.5,  label: '5折' },
+    { val: 0.35, label: '3.5折' },
+    { val: 0.2,  label: '2折' },
+  ];
+
+  let feeDiscount = loadDiscount();
+
+  function loadDiscount() {
+    try {
+      const s = localStorage.getItem(DISCOUNT_KEY);
+      if (s !== null) {
+        const v = parseFloat(s);
+        if (DISCOUNT_OPTIONS.some(o => o.val === v)) return v;
+      }
+    } catch {}
+    return 1;
+  }
+  function saveDiscount() {
+    try { localStorage.setItem(DISCOUNT_KEY, String(feeDiscount)); } catch {}
+  }
+
+  /* Live fee rates — recomputed from the current discount */
+  function buyFee()  { return BASE_FEE * feeDiscount; }
+  function sellFee() { return BASE_FEE * feeDiscount; }
+  function total()   { return buyFee() + sellFee() + SELL_TAX; }
+
+  function discountLabel() {
+    const o = DISCOUNT_OPTIONS.find(o => o.val === feeDiscount);
+    return o ? o.label : '無折扣';
+  }
+  /* Format a fraction as a trimmed percentage string */
+  function pctStr(frac) {
+    return (frac * 100).toFixed(5).replace(/0+$/, '').replace(/\.$/, '');
+  }
 
   const DEFAULT_PRICES = [
     25, 30, 40,
@@ -622,12 +798,12 @@
   /* ── Core calculations ── */
   function calcBuy(buy) {
     const tick        = tickOf(buy);
-    const theoretical = buy * TOTAL;
+    const theoretical = buy * total();
     const spread      = ceilTick(theoretical, tick);
     const minSell     = buy + spread;
-    const exactBB     = minSell * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const exactBB     = minSell * (1 - sellFee() - SELL_TAX) / (1 + buyFee());
     const maxBB       = floorTick(exactBB, tickOf(exactBB));
-    const exactSave   = buy * (1 - SELL_FEE - SELL_TAX) / (1 + BUY_FEE);
+    const exactSave   = buy * (1 - sellFee() - SELL_TAX) / (1 + buyFee());
     const maxSave     = floorTick(exactSave, tickOf(exactSave));
     return { buy, tick, theoretical, spread, minSell,
              maxBB, tickBB: tickOf(exactBB), maxSave, tickSave: tickOf(exactSave) };
@@ -635,9 +811,9 @@
 
   function calcSell(sell) {
     const tick        = tickOf(sell);
-    const fees        = sell * (SELL_FEE + SELL_TAX);
-    const netProceeds = sell * (1 - SELL_FEE - SELL_TAX);
-    const exactThresh = netProceeds / (1 + BUY_FEE);
+    const fees        = sell * (sellFee() + SELL_TAX);
+    const netProceeds = sell * (1 - sellFee() - SELL_TAX);
+    const exactThresh = netProceeds / (1 + buyFee());
     const threshold   = floorTick(exactThresh, tickOf(exactThresh));
     const drop        = sell - threshold;
     const dropTicks   = Math.round(drop / tick);
@@ -839,6 +1015,7 @@
     if (mode !== 'buy' || !price) { dynRow.classList.add('hidden'); return; }
     const r       = calcBuy(price);
     const inTable = isInTable(price);
+    dynRow.dataset.price = price;
     dynRow.classList.remove('hidden');
     dynRow.innerHTML = `
       <td><span class="dyn-label">試算</span>${fmt(price, r.tick)}</td>
@@ -908,8 +1085,121 @@
 
   document.getElementById('refBody').addEventListener('click', e => {
     const delBtn = e.target.closest('.del-btn');
-    if (delBtn) deleteItem(parseFloat(delBtn.dataset.price));
+    if (delBtn) { deleteItem(parseFloat(delBtn.dataset.price)); return; }
+    if (e.target.closest('.add-here-btn')) return;   // handled by its own listener
+    const row = e.target.closest('tr[data-price]');
+    if (row) openDetail(parseFloat(row.dataset.price));
   });
+
+  /* ── Fee discount control ── */
+  function populateDiscountSelect(sel) {
+    sel.innerHTML = DISCOUNT_OPTIONS
+      .map(o => `<option value="${o.val}">${o.label}</option>`)
+      .join('');
+    sel.value = String(feeDiscount);
+  }
+
+  function syncDiscountControls() {
+    ['menuDiscount', 'detailDiscount'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) sel.value = String(feeDiscount);
+    });
+  }
+
+  function setDiscount(v) {
+    if (!DISCOUNT_OPTIONS.some(o => o.val === v)) return;
+    feeDiscount = v;
+    saveDiscount();
+    rebuildTableRows();   // every cached row recalculated with new fees
+    refresh();            // panel display / results / dyn row
+    updateNote();
+    syncDiscountControls();
+    if (!document.getElementById('detailOverlay').classList.contains('hidden')) {
+      renderDetail();     // keep open popup in sync
+    }
+  }
+
+  function updateNote() {
+    const fee = pctStr(BASE_FEE * feeDiscount);
+    const tot = pctStr(BASE_FEE * feeDiscount * 2 + SELL_TAX);
+    const disc = feeDiscount === 1 ? '' : `（${discountLabel()}）`;
+    document.getElementById('noteFee').innerHTML =
+      `手續費 ${fee}%${disc} × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>${tot}%</strong>`;
+  }
+
+  /* ── Detail popup ── */
+  let detailPrice = null;
+
+  function openDetail(price) {
+    detailPrice = price;
+    renderDetail();
+    document.getElementById('detailOverlay').classList.remove('hidden');
+  }
+  function closeDetail() {
+    detailPrice = null;
+    document.getElementById('detailOverlay').classList.add('hidden');
+  }
+
+  function renderDetail() {
+    if (detailPrice == null) return;
+    const buy        = detailPrice;
+    const r          = calcBuy(buy);
+    const buyFeeAmt  = buy * buyFee();
+    const sellFeeAmt = r.minSell * sellFee();
+    const taxAmt     = r.minSell * SELL_TAX;
+    const buyCost    = buy + buyFeeAmt;
+    const sellNet    = r.minSell - sellFeeAmt - taxAmt;
+    const profit     = sellNet - buyCost;
+    const disc       = feeDiscount === 1 ? '無折扣' : discountLabel();
+
+    document.getElementById('detailTitle').textContent = `買入 ${fmt(buy, r.tick)} 元 · 計算細節`;
+
+    const line = (k, v, cls) =>
+      `<div class="detail-line${cls ? ' ' + cls : ''}"><span class="d-key">${k}</span><span class="d-val">${v}</span></div>`;
+
+    document.getElementById('detailBody').innerHTML = `
+      <div class="detail-section">
+        <div class="detail-section-title">手續費設定</div>
+        ${line('折扣', disc)}
+        ${line('買入手續費率', `${pctStr(buyFee())}%`)}
+        ${line('賣出手續費率', `${pctStr(sellFee())}%`)}
+        ${line('證交稅率（賣出）', `${pctStr(SELL_TAX)}%`)}
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">以買入價 ${fmt(buy, r.tick)} 元計算</div>
+        ${line('升降單位', r.tick)}
+        ${line('理論價差（買入價 × 合計費率）', r.theoretical.toFixed(2))}
+        ${line('約需價差（進位至升降單位）', fmt(r.spread, r.tick))}
+        ${line('最低賣出', fmt(r.minSell, r.tick), 'highlight')}
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">最低賣出時的損益拆解</div>
+        ${line('買入成本（買入價＋手續費）', buyCost.toFixed(2))}
+        ${line('　└ 買入手續費', buyFeeAmt.toFixed(2))}
+        ${line('賣出淨收（賣價－手續費－稅）', sellNet.toFixed(2))}
+        ${line('　└ 賣出手續費', sellFeeAmt.toFixed(2))}
+        ${line('　└ 證交稅', taxAmt.toFixed(2))}
+        ${line('淨損益', profit.toFixed(2))}
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">省錢回補</div>
+        ${line('省錢回補上限（低於此值才省）', fmt(r.maxSave, r.tickSave), 'save')}
+      </div>
+    `;
+  }
+
+  document.getElementById('detailClose').addEventListener('click', closeDetail);
+  document.getElementById('detailOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('detailOverlay')) closeDetail();
+  });
+  document.getElementById('detailDiscount').addEventListener('change', e => {
+    setDiscount(parseFloat(e.target.value));
+  });
+  document.getElementById('menuDiscount').addEventListener('change', e => {
+    e.stopPropagation();
+    setDiscount(parseFloat(e.target.value));
+  });
+  document.getElementById('menuDiscount').addEventListener('click', e => e.stopPropagation());
 
   /* ── ⋯ Menu ── */
   let showTick = false;
@@ -939,6 +1229,9 @@
   });
 
   /* ── Init ── */
+  populateDiscountSelect(document.getElementById('menuDiscount'));
+  populateDiscountSelect(document.getElementById('detailDiscount'));
+  updateNote();
   rebuildTableRows();
   refresh();
 })();
