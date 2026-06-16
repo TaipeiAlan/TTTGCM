@@ -440,6 +440,22 @@
       opacity: 0.3;
       pointer-events: none;
     }
+    /* Bottom action row: 清除 · 存入快查 · ✕收合 */
+    .num-actions { grid-column: 1 / -1; display: flex; gap: 5px; }
+    .num-actions .num-btn.clear { flex: 2 1 0; }
+    .num-actions .num-btn.save  { flex: 5 1 0; }
+    .num-btn.collapse {
+      flex: 0 0 40px;
+      height: clamp(36px, 7dvh, 46px);
+      height: clamp(36px, 7vh, 46px);
+      font-size: 1rem;
+      font-weight: 700;
+      background: var(--bg);
+      color: var(--muted);
+      border-color: var(--border);
+      padding: 0;
+    }
+    .num-btn.collapse:active { background: var(--border); transform: scale(.96); }
     .r-box .r-val2  { font-size: 1.2rem; font-weight: 800; line-height: 1.5; }
     /* Result grid column presets */
     .result-grid-buy  { grid-template-columns: repeat(2, 1fr); }
@@ -673,8 +689,11 @@
         <button class="num-btn" data-d=".">．</button>
         <button class="num-btn" data-d="0">0</button>
         <button class="num-btn action" data-action="back">⌫</button>
-        <button class="num-btn clear" data-action="clear">清除</button>
-        <button class="num-btn save save-off" id="saveBtn" data-action="save">存入快查</button>
+        <div class="num-actions">
+          <button class="num-btn clear" data-action="clear">清除</button>
+          <button class="num-btn save save-off" id="saveBtn" data-action="save">存入快查</button>
+          <button class="num-btn collapse" data-action="collapse" title="收合">✕</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1076,8 +1095,9 @@
     else if (btn.dataset.action === 'clear') pressClear();
     else if (btn.dataset.action === 'save') {
       const price = getPrice();
-      if (price) addItem(price);
+      if (price) { addItem(price); input = ''; refresh(); closePanel(); }
     }
+    else if (btn.dataset.action === 'collapse') closePanel();
   });
 
   document.getElementById('refBody').addEventListener('click', e => {
