@@ -151,9 +151,6 @@
     }
     thead th:first-child { text-align: left; }
     thead th.th-del { width: 32px; padding: 0; }
-    /* Hide tick column by default */
-    table.hide-tick .th-tick,
-    table.hide-tick .td-tick { display: none; }
     tbody tr { border-bottom: 1px solid var(--border); }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--primary-bg); }
@@ -206,18 +203,11 @@
     .add-here-btn:hover { background: var(--primary); color: #fff; }
     .add-here-btn.in-table { border-color: var(--border); color: var(--muted); cursor: default; }
 
-    .td-tick   { color: var(--muted); font-size: .78rem; }
-    .td-range  { line-height: 1.65; }
-    .td-spread { color: var(--muted); }
-    .td-spread strong { color: var(--text); }
-    .td-sell   { color: var(--green);  font-weight: 700; }
-    .td-bb     { color: var(--orange); font-weight: 700; }
-    .td-save   { color: var(--red);    font-weight: 700; }
-    .td-input  { font-weight: 800; color: var(--text); }
-
-    /* 買回 / 輸入金額 / 賣出 — all numeric, right-aligned */
-    #refTable thead th:first-child { text-align: right; }
-    #refTable tbody td:first-child { text-align: right; font-weight: 700; }
+    /* 兩欄：先賣後買 / 先買後賣 —— 句子靠左、可換行 */
+    #refTable thead th { text-align: left; }
+    .cell-2  { text-align: left; white-space: normal; line-height: 1.5; font-weight: 500; color: var(--text); }
+    .hl-bb   { color: var(--orange); font-weight: 700; }
+    .hl-sell { color: var(--green);  font-weight: 700; }
 
     /* ── Note ── */
     .note {
@@ -589,7 +579,6 @@
         <div class="menu-wrap" id="menuWrap">
           <button class="btn-sm ghost" id="menuTrigger">⋯</button>
           <div class="menu-dropdown hidden" id="menuDropdown">
-            <button class="menu-item" id="menuToggleTick">☐ 顯示升降單位</button>
             <div class="menu-item-row">
               <span>手續費折扣</span>
               <select class="discount-select" id="menuDiscount"></select>
@@ -613,19 +602,17 @@
       </div>
     </div>
     <div class="table-wrap">
-      <table id="refTable" class="hide-tick">
+      <table id="refTable">
         <thead>
           <tr>
-            <th>買回</th>
-            <th>輸入金額</th>
-            <th class="th-tick">升降<br>單位</th>
-            <th>賣出</th>
+            <th>先賣後買</th>
+            <th>先買後賣</th>
             <th class="th-del"></th>
           </tr>
         </thead>
         <tbody id="refBody">
           <tr id="dynRow" class="dyn-row hidden">
-            <td colspan="5"></td>
+            <td colspan="3"></td>
           </tr>
         </tbody>
       </table>
@@ -634,8 +621,8 @@
 
   <div class="note">
     <span id="noteFee">手續費 0.1425% × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>0.585%</strong>（速記 <strong>0.6%</strong>）</span><br><br>
-    • <strong>賣出</strong>：買進輸入金額後，打平所需的最低賣出價（含雙向手續費＋稅）。<br>
-    • <strong>買回</strong>：賣出輸入金額後，仍划算的最高回補價。<br>
+    • <strong>先買後賣</strong>：買進此價後，打平所需的最低賣出價（以上↓可賣）。<br>
+    • <strong>先賣後買</strong>：賣出此價後，仍划算的最高回補價（以下↑可買）。<br>
     • 手續費最低收費：一張 20 元、零股 1 元，已套入試算。
   </div>
 
@@ -919,16 +906,25 @@
   }
 
   /* ── Table rendering ── */
-  function makeStaticRow(price) {
+  /* Build the two sentence cells for a given price.
+       先賣後買：賣 P 元，{回補價} 以下↑可買
+       先買後賣：買 P 元，{賣出價} 以上↓可賣 */
+  function rowCells(price) {
     const rb = calcBuy(price);    // 賣出方向（買進後打平）
     const rs = calcSell(price);   // 買回方向（賣出後回補）
+    return {
+      bb:   `賣${price}元，<strong class="hl-bb">${fmt(rs.threshold, rs.tickThresh)} 以下↑</strong>可買`,
+      sell: `買${price}元，<strong class="hl-sell">${fmt(rb.minSell, rb.tickSell)} 以上↓</strong>可賣`,
+    };
+  }
+
+  function makeStaticRow(price) {
+    const c  = rowCells(price);
     const tr = document.createElement('tr');
     tr.dataset.price = price;
     tr.innerHTML = `
-      <td class="td-bb">${fmt(rs.threshold, rs.tickThresh)}</td>
-      <td class="td-input">${price}</td>
-      <td class="td-tick">${rb.tick}</td>
-      <td class="td-sell">${fmt(rb.minSell, rb.tickSell)}</td>
+      <td class="cell-2">${c.bb}</td>
+      <td class="cell-2">${c.sell}</td>
       <td class="td-del">
         <button class="del-btn" data-price="${price}" title="移除">✕</button>
       </td>
@@ -1015,14 +1011,14 @@
     box.className = 'result-grid result-grid-buy';
     box.innerHTML = `
       <div class="r-box buyback">
-        <div class="r-label">買回（賣出後回補）</div>
+        <div class="r-label">先賣後買 ｜ 賣${price}元</div>
         <div class="r-val">${fmt(rs.threshold, rs.tickThresh)}</div>
-        <div class="r-sub">低於此價才划算</div>
+        <div class="r-sub">以下↑可買</div>
       </div>
       <div class="r-box sell">
-        <div class="r-label">賣出（買進後打平）</div>
+        <div class="r-label">先買後賣 ｜ 買${price}元</div>
         <div class="r-val">${fmt(rb.minSell, rb.tickSell)}</div>
-        <div class="r-sub">含雙向手續費＋稅</div>
+        <div class="r-sub">以上↓可賣</div>
       </div>
     `;
   }
@@ -1031,16 +1027,13 @@
     const dynRow = document.getElementById('dynRow');
     const price  = getPrice();
     if (!price) { dynRow.classList.add('hidden'); return; }
-    const rb      = calcBuy(price);
-    const rs      = calcSell(price);
+    const c       = rowCells(price);
     const inTable = isInTable(price);
     dynRow.dataset.price = price;
     dynRow.classList.remove('hidden');
     dynRow.innerHTML = `
-      <td class="td-bb">${fmt(rs.threshold, rs.tickThresh)}</td>
-      <td class="td-input"><span class="dyn-label">試算</span>${fmt(price, rb.tick)}</td>
-      <td class="td-tick">${rb.tick}</td>
-      <td class="td-sell">${fmt(rb.minSell, rb.tickSell)}</td>
+      <td class="cell-2"><span class="dyn-label">試算</span>${c.bb}</td>
+      <td class="cell-2">${c.sell}</td>
       <td class="td-del">
         <button class="add-here-btn${inTable ? ' in-table' : ''}" id="addHereBtn">
           ${inTable ? '✓' : '存入快查'}
@@ -1262,22 +1255,9 @@
   document.getElementById('menuOddShares').addEventListener('click', e => e.stopPropagation());
 
   /* ── ⋯ Menu ── */
-  let showTick = false;
-
-  function toggleTick() {
-    showTick = !showTick;
-    document.getElementById('refTable').classList.toggle('hide-tick', !showTick);
-    document.getElementById('menuToggleTick').textContent = (showTick ? '☑' : '☐') + ' 顯示升降單位';
-  }
-
   document.getElementById('menuTrigger').addEventListener('click', e => {
     e.stopPropagation();
     document.getElementById('menuDropdown').classList.toggle('hidden');
-  });
-  document.getElementById('menuToggleTick').addEventListener('click', e => {
-    e.stopPropagation();
-    toggleTick();
-    document.getElementById('menuDropdown').classList.add('hidden');
   });
   document.getElementById('menuReset').addEventListener('click', e => {
     e.stopPropagation();
