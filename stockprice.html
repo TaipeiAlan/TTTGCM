@@ -798,15 +798,18 @@
 
   /* ── Core calculations ── */
   function calcBuy(buy) {
-    const tick        = tickOf(buy);
-    const theoretical = buy * total();
-    const spread      = ceilTick(theoretical, tick);
-    const minSell     = buy + spread;
+    const tick         = tickOf(buy);
+    const theoretical  = buy * total();
+    // 最低賣出須進位到「該賣出價」所屬級距的合法升降單位，
+    // 而非買入價的級距 —— 避免跨價格帶時算出不可掛單的價格。
+    const exactMinSell = buy + theoretical;
+    const minSell      = ceilTick(exactMinSell, tickOf(exactMinSell));
+    const spread       = minSell - buy;
     const exactBB     = minSell * (1 - sellFee() - SELL_TAX) / (1 + buyFee());
     const maxBB       = floorTick(exactBB, tickOf(exactBB));
     const exactSave   = buy * (1 - sellFee() - SELL_TAX) / (1 + buyFee());
     const maxSave     = floorTick(exactSave, tickOf(exactSave));
-    return { buy, tick, theoretical, spread, minSell,
+    return { buy, tick, theoretical, spread, minSell, tickSell: tickOf(minSell),
              maxBB, tickBB: tickOf(exactBB), maxSave, tickSave: tickOf(exactSave) };
   }
 
@@ -874,7 +877,7 @@
       <td>${price}</td>
       <td class="td-tick">${r.tick}</td>
       <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
+      <td class="td-sell">${fmt(r.minSell, r.tickSell)}</td>
       <td class="td-del">
         <button class="del-btn" data-price="${price}" title="移除">✕</button>
       </td>
@@ -978,7 +981,7 @@
       box.innerHTML = `
         <div class="r-box sell">
           <div class="r-label">最低賣出</div>
-          <div class="r-val">${fmt(r.minSell, r.tick)}</div>
+          <div class="r-val">${fmt(r.minSell, r.tickSell)}</div>
           <div class="r-sub">含雙向手續費＋稅</div>
         </div>
         <div class="r-box save">
@@ -1022,7 +1025,7 @@
       <td><span class="dyn-label">試算</span>${fmt(price, r.tick)}</td>
       <td class="td-tick">${r.tick}</td>
       <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-sell">${fmt(r.minSell, r.tick)}</td>
+      <td class="td-sell">${fmt(r.minSell, r.tickSell)}</td>
       <td class="td-del">
         <button class="add-here-btn${inTable ? ' in-table' : ''}" id="addHereBtn">
           ${inTable ? '✓' : '存入快查'}
@@ -1171,7 +1174,7 @@
         ${line('升降單位', r.tick)}
         ${line('理論價差（買入價 × 合計費率）', r.theoretical.toFixed(2))}
         ${line('約需價差（進位至升降單位）', fmt(r.spread, r.tick))}
-        ${line('最低賣出', fmt(r.minSell, r.tick), 'highlight')}
+        ${line('最低賣出', fmt(r.minSell, r.tickSell), 'highlight')}
       </div>
       <div class="detail-section">
         <div class="detail-section-title">最低賣出時的損益拆解</div>
