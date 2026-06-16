@@ -213,6 +213,11 @@
     .td-sell   { color: var(--green);  font-weight: 700; }
     .td-bb     { color: var(--orange); font-weight: 700; }
     .td-save   { color: var(--red);    font-weight: 700; }
+    .td-input  { font-weight: 800; color: var(--text); }
+
+    /* 買回 / 輸入金額 / 賣出 — all numeric, right-aligned */
+    #refTable thead th:first-child { text-align: right; }
+    #refTable tbody td:first-child { text-align: right; font-weight: 700; }
 
     /* ── Note ── */
     .note {
@@ -383,42 +388,12 @@
       width: 100%;
       max-width: 380px;
     }
-    /* Buy / Sell buttons — vertical column to the left of numpad */
-    .persp-col {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      flex-shrink: 0;
-      width: 52px;
-    }
-    .persp-btn {
-      flex: 1;
-      border: 2px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg);
-      font-size: .82rem;
-      font-weight: 800;
-      cursor: pointer;
-      color: var(--muted);
-      transition: all .15s;
-      letter-spacing: .04em;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-    .persp-btn[data-mode="buy"].active  { border-color: var(--primary); background: var(--primary); color: #fff; }
-    .persp-btn[data-mode="sell"].active { border-color: var(--green);   background: var(--green);   color: #fff; }
-    .persp-btn:active { transform: scale(.93); }
     .numpad {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 5px;
       flex: 1;
       min-width: 0;
-    }
-    /* Dim numpad when no mode is selected */
-    .numpad.disabled .num-btn {
-      opacity: 0.28;
-      pointer-events: none;
     }
     .num-btn {
       /* adaptive height: scales with screen but clamped */
@@ -641,16 +616,16 @@
       <table id="refTable" class="hide-tick">
         <thead>
           <tr>
-            <th>買入價</th>
+            <th>買回</th>
+            <th>輸入金額</th>
             <th class="th-tick">升降<br>單位</th>
-            <th>約需價差</th>
-            <th>最低賣出</th>
+            <th>賣出</th>
             <th class="th-del"></th>
           </tr>
         </thead>
         <tbody id="refBody">
           <tr id="dynRow" class="dyn-row hidden">
-            <td colspan="4"></td>
+            <td colspan="5"></td>
           </tr>
         </tbody>
       </table>
@@ -659,9 +634,9 @@
 
   <div class="note">
     <span id="noteFee">手續費 0.1425% × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>0.585%</strong>（速記 <strong>0.6%</strong>）</span><br><br>
-    • <strong>最低賣出</strong>：打平門檻，含雙向手續費與交易稅。<br>
-    • <strong>最高買回</strong>：以最低賣出後損益兩平的最高買回價。<br>
-    • 手續費最低收費 20 元，低價股實際成本較高，試算僅供參考。
+    • <strong>賣出</strong>：買進輸入金額後，打平所需的最低賣出價（含雙向手續費＋稅）。<br>
+    • <strong>買回</strong>：賣出輸入金額後，仍划算的最高回補價。<br>
+    • 手續費最低收費：一張 20 元、零股 1 元，已套入試算。
   </div>
 
 </div>
@@ -683,13 +658,13 @@
 
   <!-- 2. Results area — grows/shrinks, scrolls; display & numpad never move -->
   <div class="results-scroll" id="resultsScroll">
-    <div class="results-placeholder" id="resultsPlaceholder">選擇觀點後輸入價格</div>
+    <div class="results-placeholder" id="resultsPlaceholder">輸入金額，即時試算買回與賣出價</div>
     <div class="result-grid" id="calcResult"></div>
   </div>
 
   <!-- 3. Display — fixed, directly above numpad -->
   <div class="calc-display">
-    <span class="display-label" id="displayLabel">請選擇觀點</span>
+    <span class="display-label" id="displayLabel">輸入金額</span>
     <span class="display-val empty" id="displayVal">0</span>
     <span class="display-unit">元</span>
   </div>
@@ -697,13 +672,8 @@
   <!-- 4. Numpad — always at bottom, never moves -->
   <div class="numpad-wrap">
     <div class="numpad-layout">
-      <!-- Buy / Sell buttons stacked vertically on the left -->
-      <div class="persp-col">
-        <button class="persp-btn" data-mode="buy">買入</button>
-        <button class="persp-btn" data-mode="sell">賣出</button>
-      </div>
       <!-- Numpad grid -->
-      <div class="numpad disabled" id="numpad">
+      <div class="numpad" id="numpad">
         <button class="num-btn" data-d="7">7</button>
         <button class="num-btn" data-d="8">8</button>
         <button class="num-btn" data-d="9">9</button>
@@ -950,14 +920,15 @@
 
   /* ── Table rendering ── */
   function makeStaticRow(price) {
-    const r  = calcBuy(price);
+    const rb = calcBuy(price);    // 賣出方向（買進後打平）
+    const rs = calcSell(price);   // 買回方向（賣出後回補）
     const tr = document.createElement('tr');
     tr.dataset.price = price;
     tr.innerHTML = `
-      <td>${price}</td>
-      <td class="td-tick">${r.tick}</td>
-      <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-sell">${fmt(r.minSell, r.tickSell)}</td>
+      <td class="td-bb">${fmt(rs.threshold, rs.tickThresh)}</td>
+      <td class="td-input">${price}</td>
+      <td class="td-tick">${rb.tick}</td>
+      <td class="td-sell">${fmt(rb.minSell, rb.tickSell)}</td>
       <td class="td-del">
         <button class="del-btn" data-price="${price}" title="移除">✕</button>
       </td>
@@ -972,7 +943,6 @@
   }
 
   /* ── Input state ── */
-  let mode  = null;
   let input = '';
 
   function getPrice() {
@@ -981,7 +951,6 @@
   }
 
   function pressDigit(d) {
-    if (!mode) return;
     if (d === '.') {
       if (input.includes('.')) return;
       input = (input || '0') + '.';
@@ -998,8 +967,8 @@
     refresh();
   }
 
-  function pressBack()  { if (mode) { input = input.slice(0, -1); refresh(); } }
-  function pressClear() { if (mode) { input = ''; refresh(); } }
+  function pressBack()  { input = input.slice(0, -1); refresh(); }
+  function pressClear() { input = ''; refresh(); }
 
   /* ── Refresh UI ── */
   function refresh() {
@@ -1007,40 +976,26 @@
     refreshResults();
     refreshDynRow();
     refreshSaveBtn();
-    refreshNumpad();
-  }
-
-  function refreshNumpad() {
-    document.getElementById('numpad').classList.toggle('disabled', !mode);
   }
 
   function refreshSaveBtn() {
     const btn   = document.getElementById('saveBtn');
     const price = getPrice();
     btn.classList.remove('in-table', 'save-off');
-    if (!mode || !price) {
+    if (!price) {
       btn.textContent = '存入快查';
       btn.classList.add('save-off');
       return;
     }
-    const savePrice = mode === 'buy' ? price : calcSell(price).threshold;
-    const inTable   = isInTable(savePrice);
+    const inTable = isInTable(price);
     btn.textContent = inTable ? '✓ 已存入' : '存入快查';
     if (inTable) btn.classList.add('in-table');
   }
 
   function refreshDisplay() {
-    const labelEl = document.getElementById('displayLabel');
-    const valEl   = document.getElementById('displayVal');
-    if (!mode) {
-      labelEl.textContent = '請選擇觀點';
-      valEl.textContent   = '0';
-      valEl.classList.add('empty');
-    } else {
-      labelEl.textContent = mode === 'buy' ? '買入價' : '賣出價';
-      valEl.textContent   = input || '0';
-      valEl.classList.toggle('empty', !input);
-    }
+    const valEl = document.getElementById('displayVal');
+    valEl.textContent = input || '0';
+    valEl.classList.toggle('empty', !input);
   }
 
   function refreshResults() {
@@ -1048,64 +1003,44 @@
     const placeholder = document.getElementById('resultsPlaceholder');
     const price       = getPrice();
 
-    if (!mode || !price) {
+    if (!price) {
       box.innerHTML = '';
       placeholder.classList.remove('hidden');
       return;
     }
     placeholder.classList.add('hidden');
 
-    if (mode === 'buy') {
-      const r = calcBuy(price);
-      box.className = 'result-grid result-grid-buy';
-      box.innerHTML = `
-        <div class="r-box sell">
-          <div class="r-label">最低賣出</div>
-          <div class="r-val">${fmt(r.minSell, r.tickSell)}</div>
-          <div class="r-sub">含雙向手續費＋稅</div>
-        </div>
-        <div class="r-box save">
-          <div class="r-label">省錢回補上限</div>
-          <div class="r-val">${fmt(r.maxSave, r.tickSave)}</div>
-          <div class="r-sub">低於此值才省</div>
-        </div>
-      `;
-    } else {
-      const r = calcSell(price);
-      box.className = 'result-grid result-grid-sell';
-      box.innerHTML = `
-        <div class="r-box neutral">
-          <div class="r-label">到手金額</div>
-          <div class="r-val">${r.netProceeds.toFixed(2)}</div>
-          <div class="r-sub">扣費後 · ${r.q}股</div>
-        </div>
-        <div class="r-box neutral">
-          <div class="r-label">費用合計</div>
-          <div class="r-val">${r.fees.toFixed(2)}</div>
-          <div class="r-sub">手續費＋稅 · ${r.q}股</div>
-        </div>
-        <div class="r-box save">
-          <div class="r-label">省錢回補</div>
-          <div class="r-val">${fmt(r.threshold, r.tickThresh)}</div>
-          <div class="r-sub">低於此價才省</div>
-        </div>
-      `;
-    }
+    const rb = calcBuy(price);    // 賣出方向（買進後打平）
+    const rs = calcSell(price);   // 買回方向（賣出後回補）
+    box.className = 'result-grid result-grid-buy';
+    box.innerHTML = `
+      <div class="r-box buyback">
+        <div class="r-label">買回（賣出後回補）</div>
+        <div class="r-val">${fmt(rs.threshold, rs.tickThresh)}</div>
+        <div class="r-sub">低於此價才划算</div>
+      </div>
+      <div class="r-box sell">
+        <div class="r-label">賣出（買進後打平）</div>
+        <div class="r-val">${fmt(rb.minSell, rb.tickSell)}</div>
+        <div class="r-sub">含雙向手續費＋稅</div>
+      </div>
+    `;
   }
 
   function refreshDynRow() {
     const dynRow = document.getElementById('dynRow');
     const price  = getPrice();
-    if (mode !== 'buy' || !price) { dynRow.classList.add('hidden'); return; }
-    const r       = calcBuy(price);
+    if (!price) { dynRow.classList.add('hidden'); return; }
+    const rb      = calcBuy(price);
+    const rs      = calcSell(price);
     const inTable = isInTable(price);
     dynRow.dataset.price = price;
     dynRow.classList.remove('hidden');
     dynRow.innerHTML = `
-      <td><span class="dyn-label">試算</span>${fmt(price, r.tick)}</td>
-      <td class="td-tick">${r.tick}</td>
-      <td class="td-spread">${r.theoretical.toFixed(2)} → <strong>${fmt(r.spread, r.tick)}</strong></td>
-      <td class="td-sell">${fmt(r.minSell, r.tickSell)}</td>
+      <td class="td-bb">${fmt(rs.threshold, rs.tickThresh)}</td>
+      <td class="td-input"><span class="dyn-label">試算</span>${fmt(price, rb.tick)}</td>
+      <td class="td-tick">${rb.tick}</td>
+      <td class="td-sell">${fmt(rb.minSell, rb.tickSell)}</td>
       <td class="td-del">
         <button class="add-here-btn${inTable ? ' in-table' : ''}" id="addHereBtn">
           ${inTable ? '✓' : '存入快查'}
@@ -1140,18 +1075,6 @@
     closePanel();
   });
 
-  document.querySelectorAll('.persp-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const newMode = btn.dataset.mode;
-      document.querySelectorAll('.persp-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      mode = newMode;
-      if (!isOpen) openPanel();
-      refresh();
-    });
-  });
-
   document.getElementById('numpad').addEventListener('click', e => {
     const btn = e.target.closest('.num-btn');
     if (!btn) return;
@@ -1160,10 +1083,7 @@
     else if (btn.dataset.action === 'clear') pressClear();
     else if (btn.dataset.action === 'save') {
       const price = getPrice();
-      if (price && mode) {
-        const savePrice = mode === 'buy' ? price : calcSell(price).threshold;
-        addItem(savePrice);
-      }
+      if (price) addItem(price);
     }
   });
 
@@ -1261,19 +1181,20 @@
 
   function renderDetail() {
     if (detailPrice == null) return;
-    const buy           = detailPrice;
-    const r             = calcBuy(buy);
-    const q             = r.q;
-    const sellBrokerage = Math.max(r.minSell * q * sellFee(), r.minFee);
-    const taxAmt        = r.minSell * q * SELL_TAX;
-    const buyCost       = r.buyCostTotal;
-    const sellNet       = r.minSell * q - sellBrokerage - taxAmt;
+    const price         = detailPrice;
+    const rb            = calcBuy(price);    // 賣出方向（買進 price 後打平）
+    const rs            = calcSell(price);   // 買回方向（賣出 price 後回補）
+    const q             = rb.q;
+    const sellBrokerage = Math.max(rb.minSell * q * sellFee(), rb.minFee);
+    const taxAmt        = rb.minSell * q * SELL_TAX;
+    const buyCost       = rb.buyCostTotal;
+    const sellNet       = rb.minSell * q - sellBrokerage - taxAmt;
     const profit        = sellNet - buyCost;
     const disc          = feeDiscount === 1 ? '無折扣' : discountLabel();
-    const buyFloored    = buy * q * buyFee() < r.minFee;
-    const sellFloored   = r.minSell * q * sellFee() < r.minFee;
+    const buyFloored    = price * q * buyFee() < rb.minFee;
+    const sellFloored   = rb.minSell * q * sellFee() < rb.minFee;
 
-    document.getElementById('detailTitle').textContent = `買入 ${fmt(buy, r.tick)} 元 · 計算細節`;
+    document.getElementById('detailTitle').textContent = `輸入 ${fmt(price, rb.tick)} 元 · 計算細節`;
 
     const line = (k, v, cls) =>
       `<div class="detail-line${cls ? ' ' + cls : ''}"><span class="d-key">${k}</span><span class="d-val">${v}</span></div>`;
@@ -1286,27 +1207,26 @@
         ${line('買入手續費率', `${pctStr(buyFee())}%`)}
         ${line('賣出手續費率', `${pctStr(sellFee())}%`)}
         ${line('證交稅率（賣出）', `${pctStr(SELL_TAX)}%`)}
-        ${line('最低手續費', `${r.minFee} 元／筆`)}
+        ${line('最低手續費', `${rb.minFee} 元／筆`)}
       </div>
       <div class="detail-section">
-        <div class="detail-section-title">以買入價 ${fmt(buy, r.tick)} 元計算</div>
-        ${line('升降單位', r.tick)}
-        ${line('理論價差（打平所需，未進位）', r.theoretical.toFixed(2))}
-        ${line('約需價差（進位至升降單位）', fmt(r.spread, r.tick))}
-        ${line('最低賣出', fmt(r.minSell, r.tickSell), 'highlight')}
-      </div>
-      <div class="detail-section">
-        <div class="detail-section-title">最低賣出時的損益拆解（${q} 股）</div>
-        ${line('買入成本（股款＋手續費）', buyCost.toFixed(2))}
-        ${line(`　└ 買入手續費${buyFloored ? '（最低收費）' : ''}`, r.buyBrokerage.toFixed(2))}
+        <div class="detail-section-title">賣出 ｜ 買進 ${fmt(price, rb.tick)} 後打平</div>
+        ${line('升降單位', rb.tick)}
+        ${line('理論價差（打平所需，未進位）', rb.theoretical.toFixed(2))}
+        ${line('約需價差（進位至升降單位）', fmt(rb.spread, rb.tick))}
+        ${line('最低賣出', fmt(rb.minSell, rb.tickSell), 'highlight')}
+        ${line(`買入成本（股款＋手續費・${q}股）`, buyCost.toFixed(2))}
+        ${line(`　└ 買入手續費${buyFloored ? '（最低收費）' : ''}`, rb.buyBrokerage.toFixed(2))}
         ${line('賣出淨收（股款－手續費－稅）', sellNet.toFixed(2))}
         ${line(`　└ 賣出手續費${sellFloored ? '（最低收費）' : ''}`, sellBrokerage.toFixed(2))}
         ${line('　└ 證交稅', taxAmt.toFixed(2))}
         ${line('淨損益', profit.toFixed(2))}
       </div>
       <div class="detail-section">
-        <div class="detail-section-title">省錢回補</div>
-        ${line('省錢回補上限（低於此值才省）', fmt(r.maxSave, r.tickSave), 'save')}
+        <div class="detail-section-title">買回 ｜ 賣出 ${fmt(price, rb.tick)} 後回補</div>
+        ${line(`到手金額（${q}股）`, rs.netProceeds.toFixed(2))}
+        ${line('費用合計（手續費＋稅）', rs.fees.toFixed(2))}
+        ${line('最高買回價（低於此價才省）', fmt(rs.threshold, rs.tickThresh), 'save')}
       </div>
     `;
   }
