@@ -621,8 +621,8 @@
 
   <div class="note">
     <span id="noteFee">手續費 0.1425% × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>0.585%</strong>（速記 <strong>0.6%</strong>）</span><br><br>
-    • <strong>先買後賣</strong>：買進此價後，打平所需的最低賣出價（以上↓可賣）。<br>
-    • <strong>先賣後買</strong>：賣出此價後，仍划算的最高回補價（以下↑可買）。<br>
+    • <strong>先買後賣</strong>：買進此價後，打平所需的最低賣出價（以上↑可賣）。<br>
+    • <strong>先賣後買</strong>：賣出此價後，仍划算的最高回補價（以下↓可買）。<br>
     • 手續費最低收費：一張 20 元、零股 1 元，已套入試算。
   </div>
 
@@ -793,11 +793,11 @@
   /* ── Tick helpers ── */
   function tickOf(p) {
     if (p <   10) return 0.01;
-    if (p <   50) return 0.1;
-    if (p <  100) return 0.5;
-    if (p <  500) return 1;
-    if (p < 1000) return 5;
-    return 10;
+    if (p <   50) return 0.05;
+    if (p <  100) return 0.1;
+    if (p <  500) return 0.5;
+    if (p < 1000) return 1;
+    return 5;
   }
   function decimals(t) { return t >= 1 ? 0 : t.toString().split('.')[1].length; }
   function fmt(v, t)   { return v.toFixed(decimals(t)); }
@@ -913,8 +913,8 @@
     const rb = calcBuy(price);    // 賣出方向（買進後打平）
     const rs = calcSell(price);   // 買回方向（賣出後回補）
     return {
-      bb:   `賣${price}元，<strong class="hl-bb">${fmt(rs.threshold, rs.tickThresh)} 以下↑</strong>可買`,
-      sell: `買${price}元，<strong class="hl-sell">${fmt(rb.minSell, rb.tickSell)} 以上↓</strong>可賣`,
+      bb:   `賣${price}元，<strong class="hl-bb">${fmt(rs.threshold, rs.tickThresh)} 以下↓</strong>可買`,
+      sell: `買${price}元，<strong class="hl-sell">${fmt(rb.minSell, rb.tickSell)} 以上↑</strong>可賣`,
     };
   }
 
@@ -1013,12 +1013,12 @@
       <div class="r-box buyback">
         <div class="r-label">先賣後買 ｜ 賣${price}元</div>
         <div class="r-val">${fmt(rs.threshold, rs.tickThresh)}</div>
-        <div class="r-sub">以下↑可買</div>
+        <div class="r-sub">以下↓可買</div>
       </div>
       <div class="r-box sell">
         <div class="r-label">先買後賣 ｜ 買${price}元</div>
         <div class="r-val">${fmt(rb.minSell, rb.tickSell)}</div>
-        <div class="r-sub">以上↓可賣</div>
+        <div class="r-sub">以上↑可賣</div>
       </div>
     `;
   }
@@ -1183,7 +1183,6 @@
     const buyCost       = rb.buyCostTotal;
     const sellNet       = rb.minSell * q - sellBrokerage - taxAmt;
     const profit        = sellNet - buyCost;
-    const disc          = feeDiscount === 1 ? '無折扣' : discountLabel();
     const buyFloored    = price * q * buyFee() < rb.minFee;
     const sellFloored   = rb.minSell * q * sellFee() < rb.minFee;
 
@@ -1196,17 +1195,14 @@
       <div class="detail-section">
         <div class="detail-section-title">手續費設定</div>
         ${line('交易單位', tradeLabel())}
-        ${line('折扣', disc)}
-        ${line('買入手續費率', `${pctStr(buyFee())}%`)}
-        ${line('賣出手續費率', `${pctStr(sellFee())}%`)}
+        ${line('手續費率（買賣各收）', `${pctStr(buyFee())}%`)}
         ${line('證交稅率（賣出）', `${pctStr(SELL_TAX)}%`)}
         ${line('最低手續費', `${rb.minFee} 元／筆`)}
       </div>
       <div class="detail-section">
         <div class="detail-section-title">賣出 ｜ 買進 ${fmt(price, rb.tick)} 後打平</div>
         ${line('升降單位', rb.tick)}
-        ${line('理論價差（打平所需，未進位）', rb.theoretical.toFixed(2))}
-        ${line('約需價差（進位至升降單位）', fmt(rb.spread, rb.tick))}
+        ${line('價差（打平 → 進位）', `${rb.theoretical.toFixed(2)} → ${fmt(rb.spread, rb.tick)}`)}
         ${line('最低賣出', fmt(rb.minSell, rb.tickSell), 'highlight')}
         ${line(`買入成本（股款＋手續費・${q}股）`, buyCost.toFixed(2))}
         ${line(`　└ 買入手續費${buyFloored ? '（最低收費）' : ''}`, rb.buyBrokerage.toFixed(2))}
