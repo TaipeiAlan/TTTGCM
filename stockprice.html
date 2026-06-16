@@ -913,8 +913,8 @@
     const rb = calcBuy(price);    // 賣出方向（買進後打平）
     const rs = calcSell(price);   // 買回方向（賣出後回補）
     return {
-      bb:   `賣${price}元，<strong class="hl-bb">${fmt(rs.threshold, rs.tickThresh)} 以下↓</strong>可買`,
-      sell: `買${price}元，<strong class="hl-sell">${fmt(rb.minSell, rb.tickSell)} 以上↑</strong>可賣`,
+      bb:   `賣${price}元，<strong class="hl-bb">${fmt(rs.threshold, rs.tickThresh)}↓</strong>可買`,
+      sell: `買${price}元，<strong class="hl-sell">${fmt(rb.minSell, rb.tickSell)}↑</strong>可賣`,
     };
   }
 
@@ -1182,7 +1182,6 @@
     const taxAmt        = rb.minSell * q * SELL_TAX;
     const buyCost       = rb.buyCostTotal;
     const sellNet       = rb.minSell * q - sellBrokerage - taxAmt;
-    const profit        = sellNet - buyCost;
     const buyFloored    = price * q * buyFee() < rb.minFee;
     const sellFloored   = rb.minSell * q * sellFee() < rb.minFee;
 
@@ -1195,7 +1194,7 @@
       <div class="detail-section">
         <div class="detail-section-title">手續費設定</div>
         ${line('交易單位', tradeLabel())}
-        ${line('手續費率（買賣各收）', `${pctStr(buyFee())}%`)}
+        ${line('手續費率（買賣各收）', feeDiscount === 1 ? `${pctStr(buyFee())}%` : `${pctStr(buyFee())}%（${discountLabel()}）`)}
         ${line('證交稅率（賣出）', `${pctStr(SELL_TAX)}%`)}
         ${line('最低手續費', `${rb.minFee} 元／筆`)}
       </div>
@@ -1209,7 +1208,6 @@
         ${line('賣出淨收（股款－手續費－稅）', sellNet.toFixed(2))}
         ${line(`　└ 賣出手續費${sellFloored ? '（最低收費）' : ''}`, sellBrokerage.toFixed(2))}
         ${line('　└ 證交稅', taxAmt.toFixed(2))}
-        ${line('淨損益', profit.toFixed(2))}
       </div>
       <div class="detail-section">
         <div class="detail-section-title">買回 ｜ 賣出 ${fmt(price, rb.tick)} 後回補</div>
