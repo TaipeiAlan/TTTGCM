@@ -492,7 +492,9 @@
       white-space: nowrap;
     }
     .menu-item-row + .menu-item,
-    .menu-item + .menu-item-row { border-top: 1px solid var(--border); }
+    .menu-item + .menu-item-row,
+    .menu-item-row + .menu-item-row { border-top: 1px solid var(--border); }
+    .menu-item-row.hidden { display: none; }
     .discount-select {
       font-size: .8rem;
       font-weight: 600;
@@ -616,6 +618,19 @@
             <div class="menu-item-row">
               <span>手續費折扣</span>
               <select class="discount-select" id="menuDiscount"></select>
+            </div>
+            <div class="menu-item-row">
+              <span>交易單位</span>
+              <select class="discount-select" id="menuTradeMode">
+                <option value="lot">一張(1000股)</option>
+                <option value="odd">零股</option>
+              </select>
+            </div>
+            <div class="menu-item-row hidden" id="oddSharesRow">
+              <span>零股股數</span>
+              <input type="number" class="discount-select" id="menuOddShares"
+                     min="1" max="999" step="1" inputmode="numeric"
+                     style="width:5.5em;text-align:right">
             </div>
             <button class="menu-item" id="menuReset">還原預設</button>
           </div>
@@ -772,6 +787,42 @@
     return (frac * 100).toFixed(5).replace(/0+$/, '').replace(/\.$/, '');
   }
 
+  /* ── Trade unit (交易單位) ── 一張 = 1000 股，最低手續費 20 元；
+                                 零股 = 自訂股數，最低手續費 1 元 ── */
+  const LOT_SIZE     = 1000;   // 一張股數
+  const MIN_FEE_LOT  = 20;     // 一張最低手續費（元）
+  const MIN_FEE_ODD  = 1;      // 零股最低手續費（元）
+  const TRADE_MODE_KEY  = 'stockprice_v2_trademode';
+  const ODD_SHARES_KEY  = 'stockprice_v2_oddshares';
+
+  let tradeMode = loadTradeMode();   // 'lot' | 'odd'
+  let oddShares = loadOddShares();   // 1..999
+
+  function loadTradeMode() {
+    try {
+      const s = localStorage.getItem(TRADE_MODE_KEY);
+      if (s === 'lot' || s === 'odd') return s;
+    } catch {}
+    return 'lot';
+  }
+  function loadOddShares() {
+    try {
+      const v = parseInt(localStorage.getItem(ODD_SHARES_KEY), 10);
+      if (Number.isFinite(v)) return clampOdd(v);
+    } catch {}
+    return 100;
+  }
+  function clampOdd(v) { return Math.min(999, Math.max(1, Math.round(v))); }
+  function saveTradeMode() { try { localStorage.setItem(TRADE_MODE_KEY, tradeMode); } catch {} }
+  function saveOddShares() { try { localStorage.setItem(ODD_SHARES_KEY, String(oddShares)); } catch {} }
+
+  /* Live quantity & minimum brokerage fee for the current trade unit */
+  function qty()    { return tradeMode === 'lot' ? LOT_SIZE : oddShares; }
+  function minFee() { return tradeMode === 'lot' ? MIN_FEE_LOT : MIN_FEE_ODD; }
+  function tradeLabel() {
+    return tradeMode === 'lot' ? '一張（1000 股）' : `零股（${oddShares} 股）`;
+  }
+
   const DEFAULT_PRICES = [
     25, 30, 40,
     50, 60, 75, 80,
@@ -796,32 +847,61 @@
   function ceilTick(v, t)  { return Math.ceil(Math.round(v / t * 1e8) / 1e8) * t; }
   function floorTick(v, t) { return Math.floor(Math.round(v / t * 1e8) / 1e8) * t; }
 
-  /* ── Core calculations ── */
+  /* ── Core calculations ──
+     All amounts account for the trade quantity q and the minimum
+     brokerage fee mf (券商手續費最低收費). Brokerage on each side is
+     max(value × rate, mf); 證交稅 has no floor. */
   function calcBuy(buy) {
-    const tick         = tickOf(buy);
-    const theoretical  = buy * total();
-    // 最低賣出須進位到「該賣出價」所屬級距的合法升降單位，
-    // 而非買入價的級距 —— 避免跨價格帶時算出不可掛單的價格。
-    const exactMinSell = buy + theoretical;
-    const minSell      = ceilTick(exactMinSell, tickOf(exactMinSell));
-    const spread       = minSell - buy;
-    const exactBB     = minSell * (1 - sellFee() - SELL_TAX) / (1 + buyFee());
-    const maxBB       = floorTick(exactBB, tickOf(exactBB));
-    const exactSave   = buy * (1 - sellFee() - SELL_TAX) / (1 + buyFee());
-    const maxSave     = floorTick(exactSave, tickOf(exactSave));
-    return { buy, tick, theoretical, spread, minSell, tickSell: tickOf(minSell),
-             maxBB, tickBB: tickOf(exactBB), maxSave, tickSave: tickOf(exactSave) };
+    const tick = tickOf(buy);
+    const q    = qty();
+    const mf   = minFee();
+
+    // 買入總成本（含最低手續費下限）
+    const buyBrokerage = Math.max(buy * q * buyFee(), mf);
+    const buyCostTotal = buy * q + buyBrokerage;
+
+    // 最低賣出：淨收 = min(賣出費未觸底線, 賣出費觸底線)，兩線皆需 ≥ 買入成本，
+    // 故打平價 = max(兩線解)。
+    const sA = buyCostTotal / (q * (1 - SELL_TAX - sellFee())); // 賣出手續費未觸底
+    const sB = (buyCostTotal + mf) / (q * (1 - SELL_TAX));      // 賣出手續費觸底
+    const exactMinSell = Math.max(sA, sB);
+    // 進位到「該賣出價」所屬級距的合法升降單位（非買入價級距），避免跨價格帶失準。
+    const minSell     = ceilTick(exactMinSell, tickOf(exactMinSell));
+    const spread      = minSell - buy;
+    const theoretical = exactMinSell - buy;   // 打平所需價差（未進位）
+
+    // 省錢回補上限：以現價 buy 賣出後，最高可回補價（回補成本 ≤ 賣出淨收）。
+    const sellNetAtBuy = buy * q * (1 - SELL_TAX) - Math.max(buy * q * sellFee(), mf);
+    const pA = sellNetAtBuy / (q * (1 + buyFee())); // 回補手續費未觸底
+    const pB = (sellNetAtBuy - mf) / q;             // 回補手續費觸底
+    const exactSave = Math.max(0, Math.min(pA, pB));
+    const maxSave   = floorTick(exactSave, tickOf(exactSave));
+
+    return { buy, tick, q, minFee: mf, theoretical, spread,
+             minSell, tickSell: tickOf(minSell),
+             buyBrokerage, buyCostTotal,
+             maxSave, tickSave: tickOf(exactSave) };
   }
 
   function calcSell(sell) {
-    const tick        = tickOf(sell);
-    const fees        = sell * (sellFee() + SELL_TAX);
-    const netProceeds = sell * (1 - sellFee() - SELL_TAX);
-    const exactThresh = netProceeds / (1 + buyFee());
+    const tick = tickOf(sell);
+    const q    = qty();
+    const mf   = minFee();
+
+    const sellBrokerage = Math.max(sell * q * sellFee(), mf);
+    const tax           = sell * q * SELL_TAX;
+    const fees          = sellBrokerage + tax;          // 費用合計（總額）
+    const netProceeds   = sell * q - fees;              // 到手金額（總額）
+
+    // 省錢回補：賣出後最高可回補價（回補成本 ≤ 到手金額）。
+    const pA = netProceeds / (q * (1 + buyFee()));      // 回補手續費未觸底
+    const pB = (netProceeds - mf) / q;                  // 回補手續費觸底
+    const exactThresh = Math.max(0, Math.min(pA, pB));
     const threshold   = floorTick(exactThresh, tickOf(exactThresh));
     const drop        = sell - threshold;
     const dropTicks   = Math.round(drop / tick);
-    return { sell, tick, fees, netProceeds, threshold, tickThresh: tickOf(exactThresh), drop, dropTicks };
+    return { sell, tick, q, sellBrokerage, tax, fees, netProceeds,
+             threshold, tickThresh: tickOf(exactThresh), drop, dropTicks };
   }
 
   /* ── Table state ── */
@@ -997,12 +1077,12 @@
         <div class="r-box neutral">
           <div class="r-label">到手金額</div>
           <div class="r-val">${r.netProceeds.toFixed(2)}</div>
-          <div class="r-sub">扣費後</div>
+          <div class="r-sub">扣費後 · ${r.q}股</div>
         </div>
         <div class="r-box neutral">
           <div class="r-label">費用合計</div>
           <div class="r-val">${r.fees.toFixed(2)}</div>
-          <div class="r-sub">手續費＋稅</div>
+          <div class="r-sub">手續費＋稅 · ${r.q}股</div>
         </div>
         <div class="r-box save">
           <div class="r-label">省錢回補</div>
@@ -1123,11 +1203,46 @@
     }
   }
 
+  /* Recompute table + panel + note + open popup after a global setting change */
+  function recomputeAll() {
+    rebuildTableRows();
+    refresh();
+    updateNote();
+    if (!document.getElementById('detailOverlay').classList.contains('hidden')) {
+      renderDetail();
+    }
+  }
+
+  function setTradeMode(m) {
+    if (m !== 'lot' && m !== 'odd') return;
+    tradeMode = m;
+    saveTradeMode();
+    syncTradeControls();
+    recomputeAll();
+  }
+
+  function setOddShares(v) {
+    oddShares = clampOdd(v);
+    saveOddShares();
+    syncTradeControls();
+    if (tradeMode === 'odd') recomputeAll();
+  }
+
+  function syncTradeControls() {
+    const sel = document.getElementById('menuTradeMode');
+    if (sel) sel.value = tradeMode;
+    const inp = document.getElementById('menuOddShares');
+    if (inp && document.activeElement !== inp) inp.value = String(oddShares);
+    const row = document.getElementById('oddSharesRow');
+    if (row) row.classList.toggle('hidden', tradeMode !== 'odd');
+  }
+
   function updateNote() {
     const fee = pctStr(BASE_FEE * feeDiscount);
     const tot = pctStr(BASE_FEE * feeDiscount * 2 + SELL_TAX);
     const disc = feeDiscount === 1 ? '' : `（${discountLabel()}）`;
     document.getElementById('noteFee').innerHTML =
+      `<strong>${tradeLabel()}</strong>・最低手續費 ${minFee()} 元 ｜ ` +
       `手續費 ${fee}%${disc} × 2 ＋ 證交稅 0.3%（賣出）＝ 合計 <strong>${tot}%</strong>`;
   }
 
@@ -1146,15 +1261,17 @@
 
   function renderDetail() {
     if (detailPrice == null) return;
-    const buy        = detailPrice;
-    const r          = calcBuy(buy);
-    const buyFeeAmt  = buy * buyFee();
-    const sellFeeAmt = r.minSell * sellFee();
-    const taxAmt     = r.minSell * SELL_TAX;
-    const buyCost    = buy + buyFeeAmt;
-    const sellNet    = r.minSell - sellFeeAmt - taxAmt;
-    const profit     = sellNet - buyCost;
-    const disc       = feeDiscount === 1 ? '無折扣' : discountLabel();
+    const buy           = detailPrice;
+    const r             = calcBuy(buy);
+    const q             = r.q;
+    const sellBrokerage = Math.max(r.minSell * q * sellFee(), r.minFee);
+    const taxAmt        = r.minSell * q * SELL_TAX;
+    const buyCost       = r.buyCostTotal;
+    const sellNet       = r.minSell * q - sellBrokerage - taxAmt;
+    const profit        = sellNet - buyCost;
+    const disc          = feeDiscount === 1 ? '無折扣' : discountLabel();
+    const buyFloored    = buy * q * buyFee() < r.minFee;
+    const sellFloored   = r.minSell * q * sellFee() < r.minFee;
 
     document.getElementById('detailTitle').textContent = `買入 ${fmt(buy, r.tick)} 元 · 計算細節`;
 
@@ -1164,24 +1281,26 @@
     document.getElementById('detailBody').innerHTML = `
       <div class="detail-section">
         <div class="detail-section-title">手續費設定</div>
+        ${line('交易單位', tradeLabel())}
         ${line('折扣', disc)}
         ${line('買入手續費率', `${pctStr(buyFee())}%`)}
         ${line('賣出手續費率', `${pctStr(sellFee())}%`)}
         ${line('證交稅率（賣出）', `${pctStr(SELL_TAX)}%`)}
+        ${line('最低手續費', `${r.minFee} 元／筆`)}
       </div>
       <div class="detail-section">
         <div class="detail-section-title">以買入價 ${fmt(buy, r.tick)} 元計算</div>
         ${line('升降單位', r.tick)}
-        ${line('理論價差（買入價 × 合計費率）', r.theoretical.toFixed(2))}
+        ${line('理論價差（打平所需，未進位）', r.theoretical.toFixed(2))}
         ${line('約需價差（進位至升降單位）', fmt(r.spread, r.tick))}
         ${line('最低賣出', fmt(r.minSell, r.tickSell), 'highlight')}
       </div>
       <div class="detail-section">
-        <div class="detail-section-title">最低賣出時的損益拆解</div>
-        ${line('買入成本（買入價＋手續費）', buyCost.toFixed(2))}
-        ${line('　└ 買入手續費', buyFeeAmt.toFixed(2))}
-        ${line('賣出淨收（賣價－手續費－稅）', sellNet.toFixed(2))}
-        ${line('　└ 賣出手續費', sellFeeAmt.toFixed(2))}
+        <div class="detail-section-title">最低賣出時的損益拆解（${q} 股）</div>
+        ${line('買入成本（股款＋手續費）', buyCost.toFixed(2))}
+        ${line(`　└ 買入手續費${buyFloored ? '（最低收費）' : ''}`, r.buyBrokerage.toFixed(2))}
+        ${line('賣出淨收（股款－手續費－稅）', sellNet.toFixed(2))}
+        ${line(`　└ 賣出手續費${sellFloored ? '（最低收費）' : ''}`, sellBrokerage.toFixed(2))}
         ${line('　└ 證交稅', taxAmt.toFixed(2))}
         ${line('淨損益', profit.toFixed(2))}
       </div>
@@ -1204,6 +1323,23 @@
     setDiscount(parseFloat(e.target.value));
   });
   document.getElementById('menuDiscount').addEventListener('click', e => e.stopPropagation());
+
+  /* ── Trade unit (交易單位 / 零股股數) ── */
+  document.getElementById('menuTradeMode').addEventListener('change', e => {
+    e.stopPropagation();
+    setTradeMode(e.target.value);
+  });
+  document.getElementById('menuTradeMode').addEventListener('click', e => e.stopPropagation());
+  document.getElementById('menuOddShares').addEventListener('input', e => {
+    e.stopPropagation();
+    const v = parseInt(e.target.value, 10);
+    if (Number.isFinite(v)) setOddShares(v);
+  });
+  document.getElementById('menuOddShares').addEventListener('change', e => {
+    e.stopPropagation();
+    e.target.value = String(oddShares);   // normalize once editing ends
+  });
+  document.getElementById('menuOddShares').addEventListener('click', e => e.stopPropagation());
 
   /* ── ⋯ Menu ── */
   let showTick = false;
@@ -1235,6 +1371,7 @@
   /* ── Init ── */
   populateDiscountSelect(document.getElementById('menuDiscount'));
   populateDiscountSelect(document.getElementById('detailDiscount'));
+  syncTradeControls();
   updateNote();
   rebuildTableRows();
   refresh();
