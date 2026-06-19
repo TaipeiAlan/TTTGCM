@@ -196,7 +196,7 @@
 
     <header>
       <h1>AR 擴增實境模型展示</h1>
-      <p class="subtitle">五件可放進你真實空間的 3D 模型 — 直接在網頁裡用相機觀看</p>
+      <p class="subtitle">八件可放進你真實空間的 3D 模型 — 直接在網頁裡用相機觀看</p>
     </header>
 
     <div class="notice">
@@ -263,6 +263,33 @@
         exposure: 1.2,
         scale: "30 30 30",
       },
+      {
+        emoji: "🌸",
+        title: "動畫風格美少女",
+        desc: "二次元動漫風格的少女角色，帶骨架動畫，會自動擺動。",
+        src: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/kira.glb",
+        iosSrc: "",
+        exposure: 1,
+        animated: true,
+      },
+      {
+        emoji: "💃",
+        title: "寫實風格美少女",
+        desc: "寫實比例的女性角色（Mixamo Michelle），含待機動作動畫。",
+        src: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/Michelle.glb",
+        iosSrc: "",
+        exposure: 1.1,
+        animated: true,
+      },
+      {
+        emoji: "🚀",
+        title: "科幻戰艦",
+        desc: "未來感十足的科幻太空載具（Primary Ion Drive），引擎發光、零件運轉。",
+        src: "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/PrimaryIonDrive.glb",
+        iosSrc: "",
+        exposure: 1.1,
+        animated: true,
+      },
     ];
 
     const grid = document.getElementById("grid");
@@ -288,6 +315,7 @@
       mv.setAttribute("loading", i === 0 ? "eager" : "lazy");
       mv.setAttribute("reveal", "auto");
       if (m.scale) mv.setAttribute("scale", m.scale);
+      if (m.animated) mv.setAttribute("autoplay", ""); // 播放模型內建骨架動畫
 
       // 進度條
       const progress = document.createElement("div");
