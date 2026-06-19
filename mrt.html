@@ -21,17 +21,74 @@
     --warn: #fbbf24;
   }
 
-  html { -webkit-text-size-adjust: 100%; }
+  html, body { height: 100%; -webkit-text-size-adjust: 100%; overflow: hidden; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
-    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-    background-attachment: fixed;
+    background: #0b1220;
     color: var(--text);
-    min-height: 100vh;
-    padding: 16px 12px calc(40px + env(safe-area-inset-bottom));
     line-height: 1.5;
   }
+
+  /* ---- 以地圖為主體的 app 外殼 ---- */
+  #app { position: fixed; inset: 0; overflow: hidden; }
+  #mapScroll {
+    position: absolute; inset: 0;
+    overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
+    background: #0b1220;
+  }
+  #mapScroll svg { display: block; }
+
+  /* 頂部浮層：搜尋膠囊 + icon */
+  .top-overlay {
+    position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 10px; right: 10px;
+    display: flex; gap: 8px; z-index: 10; pointer-events: none;
+  }
+  .top-overlay > * { pointer-events: auto; }
+  .route-pill {
+    flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0;
+    padding: 12px 16px; border-radius: 999px; cursor: pointer; text-align: left;
+    background: rgba(30,41,59,.92); border: 1px solid var(--border); color: var(--text);
+    box-shadow: 0 6px 20px -8px rgba(0,0,0,.6); backdrop-filter: blur(8px);
+    font-size: .95rem;
+  }
+  .route-pill .pill-ico { font-size: 1.05rem; flex-shrink: 0; }
+  .route-pill .pill-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .route-pill .pill-text .ph { color: var(--muted); }
+  .icon-btn {
+    width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; cursor: pointer; font-size: 1.15rem;
+    background: rgba(30,41,59,.92); border: 1px solid var(--border); color: var(--text);
+    box-shadow: 0 6px 20px -8px rgba(0,0,0,.6); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:active { background: var(--card2); border-color: var(--accent); }
+
+  /* 右下浮動縮放 icon */
+  .fab-col {
+    position: absolute; right: 12px; bottom: calc(20px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 8px; z-index: 10;
+  }
+  .fab {
+    width: 46px; height: 46px; border-radius: 50%; cursor: pointer; font-size: 1.3rem; line-height: 1;
+    background: rgba(30,41,59,.92); border: 1px solid var(--border); color: var(--text);
+    box-shadow: 0 6px 20px -8px rgba(0,0,0,.6); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fab:active { background: var(--card2); border-color: var(--accent); }
+
+  /* 結果浮動卡 */
+  .result-chip {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 10;
+    display: flex; align-items: center; gap: 12px; cursor: pointer;
+    padding: 11px 18px; border-radius: 14px; max-width: calc(100% - 88px);
+    background: rgba(15,23,42,.95); border: 1px solid var(--accent); color: var(--text);
+    box-shadow: 0 10px 30px -8px rgba(56,189,248,.45); backdrop-filter: blur(8px);
+  }
+  .result-chip[hidden] { display: none; }
+  .result-chip .chip-main { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+  .result-chip .chip-sub { font-size: .82rem; color: var(--muted); }
+  .result-chip .chip-go { margin-left: 4px; color: var(--accent-hover); font-size: .85rem; font-weight: 600; }
 
   .wrap { max-width: 640px; margin: 0 auto; }
 
@@ -141,25 +198,14 @@
   .sta-node:active .nm, .sta-node.sel .nm { color: var(--accent-hover); }
   .sta-node.sel .pin { transform: scale(1.35); }
 
-  /* ---- 2D 路網圖 ---- */
-  .map-tools { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .map-tools button {
-    width:38px; height:34px; font-size:1rem; cursor:pointer; color:var(--text);
-    background:var(--bg2); border:1px solid var(--border); border-radius:8px;
-  }
-  .map-tools button[data-z="fit"] { width:auto; padding:0 12px; font-size:.85rem; }
-  .map-tools button:active { background:var(--card2); border-color:var(--accent); }
-  .map-hint { font-size:.72rem; color:var(--muted); margin-left:auto; }
-  .map-scroll {
-    overflow:auto; -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y;
-    background:#0b1220; border:1px solid var(--border); border-radius:12px;
-    max-height:72vh;
-  }
-  .map-scroll svg { display:block; }
+  /* ---- 2D 路網圖節點 ---- */
   .netnode { cursor:pointer; }
   .netnode:active .nd { stroke:var(--accent-hover); }
   .netnode.sel .nd { stroke:var(--accent); stroke-width:4; }
   .netnode.sel .lbl { fill:var(--accent-hover); font-weight:700; }
+  /* 路線選定後，淡化未經過的線條，凸顯路線 */
+  #mapScroll.routed .baseLine { opacity:.22; transition:opacity .2s; }
+  .baseLine { transition:opacity .2s; }
 
   /* ---- modal ---- */
   .modal-bg {
@@ -183,6 +229,10 @@
   }
   .sheet-actions button.start { border-color:#34d399; color:#6ee7b7; }
   .sheet-actions button.end { border-color:#f87171; color:#fca5a5; }
+  .sheet-actions button.primary { border-color:var(--accent); color:var(--accent-hover); background:rgba(56,189,248,.12); }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin:4px 0 12px; }
+  .legend .lg { display:flex; align-items:center; gap:6px; font-size:.82rem; color:var(--text); }
+  .legend .lg-c { width:16px; height:8px; border-radius:3px; }
   .svg-box { background: #0b1220; border:1px solid var(--border); border-radius: 12px; padding: 8px; overflow-x:auto; }
   .svg-box svg { display:block; margin:0 auto; max-width:100%; height:auto; }
   .close-x { position: sticky; top:0; float:right; background:none; border:none; color: var(--muted); font-size:1.4rem; cursor:pointer; }
@@ -194,57 +244,33 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>🚇 台北捷運路線地圖</h1>
-    <p class="subtitle">查任意站間時間・票價（含轉乘步行）｜點站看 SVG 站體結構</p>
-  </header>
+<div id="app">
+  <!-- 地圖主體 -->
+  <div id="mapScroll"></div>
 
-  <!-- 查詢 -->
-  <section class="panel">
-    <div class="panel-title">行程查詢</div>
-    <div class="field">
-      <label for="fromIn">起站</label>
-      <input id="fromIn" list="staList" placeholder="輸入或選擇車站，如 淡水" autocomplete="off" enterkeyhint="search">
-    </div>
-    <div class="swap-row"><button class="swap-btn" id="swapBtn" title="對調起訖">⇅</button></div>
-    <div class="field">
-      <label for="toIn">訖站</label>
-      <input id="toIn" list="staList" placeholder="輸入或選擇車站，如 台北101/世貿" autocomplete="off" enterkeyhint="search">
-    </div>
-    <datalist id="staList"></datalist>
-    <div class="fare-types" id="fareTypes">
-      <button data-t="full" class="active">全票</button>
-      <button data-t="conc">兒童／敬老愛心（半價）</button>
-    </div>
-  </section>
+  <!-- 頂部：搜尋膠囊 + 說明 -->
+  <div class="top-overlay">
+    <button class="route-pill" id="routePill">
+      <span class="pill-ico">🔍</span>
+      <span class="pill-text" id="pillText"><span class="ph">起站</span> → <span class="ph">訖站</span></span>
+    </button>
+    <button class="icon-btn" id="infoBtn" title="說明">ℹ️</button>
+  </div>
 
-  <!-- 結果 -->
-  <section class="panel" id="resultPanel">
-    <div class="panel-title">建議路線</div>
-    <div id="resultBody"><div class="result-empty">選擇起站與訖站後，自動規劃最快路線。</div></div>
-  </section>
+  <!-- 右下：縮放 / 全圖 -->
+  <div class="fab-col">
+    <button class="fab" data-z="in" title="放大">＋</button>
+    <button class="fab" data-z="out" title="縮小">－</button>
+    <button class="fab" data-z="fit" title="全圖">⊡</button>
+  </div>
 
-  <!-- 路網圖 -->
-  <section class="panel">
-    <div class="panel-title">路網圖（點站可設起／訖站、看站體）</div>
-    <div id="netMap"></div>
-  </section>
-
-  <section class="panel">
-    <div class="panel-title">說明</div>
-    <p class="hint">
-      • <b>時間</b>＝各站行駛時間＋轉乘步行時間，依站距與官方資料推估的最快路線。<br>
-      • <b>票價</b>＝依台北捷運「最短里程」分段計費；半價適用兒童、敬老、愛心票。<br>
-      • <b>站體結構</b>為依資料生成的通用示意圖（樓層、月台方向、轉乘通道、出口），非工程平面圖。<br>
-      • 可用網址分享行程，例如 <code>#淡水→象山</code>。資料為概估，實際以台北捷運公告為準。
-    </p>
-  </section>
-
-  <footer>TTTGCM · <a href="index.html">← 工具總覽</a></footer>
+  <!-- 結果浮動卡 -->
+  <button class="result-chip" id="resultChip" hidden></button>
 </div>
 
-<!-- 站體 modal -->
+<datalist id="staList"></datalist>
+
+<!-- 共用 bottom-sheet -->
 <div class="modal-bg" id="modal">
   <div class="sheet" id="sheet"></div>
 </div>
@@ -475,7 +501,8 @@ function planRoute(fromName, toName){
     }
   }
   const xfers = runs.filter(r=>r.transfer).length;
-  return {totalSec, totalKm, fare:fareFromKm(totalKm), runs, xfers};
+  const pathCodes = path.map(p=>p.code);
+  return {totalSec, totalKm, fare:fareFromKm(totalKm), runs, xfers, pathCodes};
 }
 
 /* ---------- 票價分段（依里程，全票）---------- */
@@ -488,12 +515,12 @@ function fareFromKm(km){
 /* ============================================================
    2. 介面渲染
    ============================================================ */
-let fareType = 'full';
 const $ = s=>document.querySelector(s);
-const fromIn=$('#fromIn'), toIn=$('#toIn');
+const sel = { from:'', to:'', fare:'full' };   // 介面狀態
+let lastRoute = null;
 
 // datalist
-$('#staList').innerHTML = ALL_NAMES.map(n=>`<option value="${n}">`).join('');
+document.getElementById('staList').innerHTML = ALL_NAMES.map(n=>`<option value="${n}">`).join('');
 
 function fmtMin(sec){ return Math.max(1, Math.round(sec/60)); }
 function lineBadge(line){
@@ -502,53 +529,60 @@ function lineBadge(line){
 }
 function codeTag(code){ return `<span class="code">${code}</span>`; }
 
-function renderResult(){
-  const f=fromIn.value.trim(), t=toIn.value.trim();
-  const body=$('#resultBody');
-  if(!f||!t){ body.innerHTML='<div class="result-empty">選擇起站與訖站後，自動規劃最快路線。</div>'; return; }
-  if(!nameToCodes[f]||!nameToCodes[t]){
-    body.innerHTML='<div class="result-empty">找不到車站，請從清單選擇正確站名。</div>'; return;
-  }
+// 搜尋膠囊文字
+function updatePill(){
+  const f=sel.from?`<b>${sel.from}</b>`:'<span class="ph">起站</span>';
+  const t=sel.to?`<b>${sel.to}</b>`:'<span class="ph">訖站</span>';
+  $('#pillText').innerHTML=`${f} → ${t}`;
+}
+
+// 主查詢：地圖高亮 + 浮動結果卡
+function runQuery(){
+  markSelected(); updatePill();
+  const chip=$('#resultChip'), f=sel.from, t=sel.to;
+  if(!f||!t||!nameToCodes[f]||!nameToCodes[t]){ lastRoute=null; chip.hidden=true; clearRouteOverlay(); return; }
+  if(f===t){ lastRoute=null; clearRouteOverlay(); chip.hidden=false; chip.innerHTML='<span class="chip-sub">起訖相同</span>'; return; }
   const r=planRoute(f,t);
-  if(r && r.same){ body.innerHTML='<div class="result-empty">起站與訖站相同。</div>'; return; }
-  if(!r){ body.innerHTML='<div class="result-empty">查無可行路線。</div>'; return; }
+  if(!r){ lastRoute=null; chip.hidden=true; clearRouteOverlay(); return; }
+  lastRoute=r; setHash(f,t); drawRouteOverlay(r);
+  const fare=sel.fare==='conc'?Math.round(r.fare/2):r.fare;
+  chip.hidden=false;
+  chip.innerHTML=`<span class="chip-main">${fmtMin(r.totalSec)} 分</span>`+
+    `<span class="chip-sub">${fare} 元・轉乘 ${r.xfers} 次</span>`+
+    `<span class="chip-go">詳細 ›</span>`;
+}
 
-  setHash(f,t);
-  const fare = fareType==='conc' ? Math.round(r.fare/2) : r.fare;
-  let html = `<div class="summary">
+// 路線詳細 HTML
+function stepsHTML(r){
+  const fare=sel.fare==='conc'?Math.round(r.fare/2):r.fare;
+  let html=`<div class="summary">
     <div class="stat time"><div class="v">${fmtMin(r.totalSec)}<small> 分</small></div><div class="k">乘車時間</div></div>
-    <div class="stat fare"><div class="v">${fare}<small> 元</small></div><div class="k">${fareType==='conc'?'半價':'全票'}</div></div>
+    <div class="stat fare"><div class="v">${fare}<small> 元</small></div><div class="k">${sel.fare==='conc'?'半價':'全票'}</div></div>
     <div class="stat xfer"><div class="v">${r.xfers}<small> 次</small></div><div class="k">轉乘</div></div>
-  </div>`;
-
-  html += '<div class="steps">';
-  // 起點
-  const startCode = r.runs[0].fromCode;
-  html += stepNode(startCode, r.runs[0].line ? r.runs[0].line : null, true, false);
-
+  </div><div class="steps">`;
+  html += stepNode(r.runs[0].fromCode, r.runs[0].line||null, true, false);
   r.runs.forEach((run,idx)=>{
     if(run.transfer){
-      const sameName = ST[run.fromCode].name===ST[run.toCode].name;
-      const lbl = sameName ? `於 ${ST[run.fromCode].name} 站內轉乘` : `步行至 ${ST[run.toCode].name}`;
-      html += `<div class="step"><div class="step-rail"><div class="line-bar" style="background:repeating-linear-gradient(180deg,var(--warn) 0 5px,transparent 5px 10px)"></div></div>
+      const sameName=ST[run.fromCode].name===ST[run.toCode].name;
+      const lbl=sameName?`於 ${ST[run.fromCode].name} 站內轉乘`:`步行至 ${ST[run.toCode].name}`;
+      html+=`<div class="step"><div class="step-rail"><div class="line-bar" style="background:repeating-linear-gradient(180deg,var(--warn) 0 5px,transparent 5px 10px)"></div></div>
         <div class="step-body"><div class="xfer-note">🚶 ${lbl}・步行約 ${fmtMin(run.sec)} 分</div></div></div>`;
     } else {
-      const term = runTerminus(run.line, run.fromCode, run.toCode);
-      const passInner = run.pass.slice(1,-1);
-      const pid = 'p'+idx;
-      html += `<div class="step"><div class="step-rail"><div class="line-bar" style="background:${LINE_META[run.line].color}"></div></div>
+      const term=runTerminus(run.line, run.fromCode, run.toCode);
+      const passInner=run.pass.slice(1,-1);
+      const pid='p'+idx;
+      html+=`<div class="step"><div class="step-rail"><div class="line-bar" style="background:${LINE_META[run.line].color}"></div></div>
         <div class="step-body">
           <div class="ride-info">${lineBadge(run.line)}<span>往 ${term} 方向</span></div>
           <div class="ride-info">${run.stops} 站・約 ${fmtMin(run.sec)} 分
           ${passInner.length?`<span class="pass-toggle" data-p="${pid}">· 經過 ${passInner.length} 站 ▾</span>`:''}</div>
           ${passInner.length?`<div class="pass-list" id="${pid}">${passInner.map(c=>ST[c].name).join('　→　')}</div>`:''}
         </div></div>`;
-      // 抵達該段終點站
-      html += stepNode(run.toCode, run.line, false, idx===r.runs.length-1);
+      html+=stepNode(run.toCode, run.line, false, idx===r.runs.length-1);
     }
   });
-  html += '</div>';
-  body.innerHTML = html;
+  html+='</div>';
+  return html;
 }
 
 function stepNode(code, line, isStart, isEnd){
@@ -581,11 +615,13 @@ function buildNetSVG(){
   const H=Math.round((_ext.maxY-_ext.minY)*NET_UNIT+NET_PAD*2);
   let s=`<svg id="netSvg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang TC',sans-serif">`;
   s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="#0b1220"/>`;
-  // 路線（先畫線、轉乘較粗以便分辨）
+  // 路線（先畫線）
   SEGMENTS.forEach(seg=>{
     const pts=seg.items.map(([c])=> COORD[c] ? `${SX(COORD[c][0])},${SY(COORD[c][1])}` : null).filter(Boolean).join(' ');
-    s+=`<polyline points="${pts}" fill="none" stroke="${LINE_META[seg.line].color}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>`;
+    s+=`<polyline class="baseLine" points="${pts}" fill="none" stroke="${LINE_META[seg.line].color}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>`;
   });
+  // 選定路線高亮層（介於路線與站點之間）
+  s+=`<g id="routeHi"></g>`;
   // 車站節點 + 名稱（依站名去重）
   for(const name in nameToCodes){
     const codes=nameToCodes[name];
@@ -604,15 +640,8 @@ function buildNetSVG(){
   return s;
 }
 function renderNetMap(){
-  $('#netMap').innerHTML =
-    `<div class="map-tools">
-       <button data-z="out" title="縮小">－</button>
-       <button data-z="fit" title="適應寬度">適應</button>
-       <button data-z="in" title="放大">＋</button>
-       <span class="map-hint">點站可設起／訖站・看站體</span>
-     </div>
-     <div class="map-scroll" id="mapScroll">${buildNetSVG()}</div>`;
-  fitNet();
+  $('#mapScroll').innerHTML = buildNetSVG();
+  fitNet(true);
 }
 function applyNetScale(){
   const svg=document.getElementById('netSvg'); if(!svg) return;
@@ -620,12 +649,43 @@ function applyNetScale(){
   svg.setAttribute('width', Math.round(vb.width*netScale));
   svg.setAttribute('height', Math.round(vb.height*netScale));
 }
-function fitNet(){
+function fitNet(center){
   const sc=document.getElementById('mapScroll'), svg=document.getElementById('netSvg');
   if(!sc||!svg) return;
   const vb=svg.viewBox.baseVal;
-  netScale = Math.max(0.45, Math.min(1.4, (sc.clientWidth-6)/vb.width));
+  // 以「容納整張圖高度或寬度」取較合適者，行動裝置以寬度為主
+  netScale = Math.max(0.4, Math.min(1.6, (sc.clientWidth-8)/vb.width));
   applyNetScale();
+  if(center && typeof requestAnimationFrame==='function'){ // 置中於市區（台北車站）
+    requestAnimationFrame(()=>{
+      const c=COORD['R10'];
+      sc.scrollLeft = SX(c[0])*netScale - sc.clientWidth/2;
+      sc.scrollTop  = SY(c[1])*netScale - sc.clientHeight/2;
+    });
+  }
+}
+/* ---------- 路線高亮 ---------- */
+function drawRouteOverlay(r){
+  let s='';
+  r.runs.forEach(run=>{
+    if(run.transfer){
+      const a=COORD[run.fromCode], b=COORD[run.toCode];
+      if(a&&b) s+=`<line x1="${SX(a[0])}" y1="${SY(a[1])}" x2="${SX(b[0])}" y2="${SY(b[1])}" stroke="#e2e8f0" stroke-width="3" stroke-dasharray="1 7" stroke-linecap="round"/>`;
+    } else {
+      const pts=run.pass.map(c=>COORD[c]?`${SX(COORD[c][0])},${SY(COORD[c][1])}`:null).filter(Boolean).join(' ');
+      s+=`<polyline points="${pts}" fill="none" stroke="#0b1220" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>`;
+      s+=`<polyline points="${pts}" fill="none" stroke="${LINE_META[run.line].color}" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+  });
+  const sc=COORD[r.pathCodes[0]], ec=COORD[r.pathCodes[r.pathCodes.length-1]];
+  if(sc) s+=`<circle cx="${SX(sc[0])}" cy="${SY(sc[1])}" r="9" fill="#0b1220" stroke="#34d399" stroke-width="4"/>`;
+  if(ec) s+=`<circle cx="${SX(ec[0])}" cy="${SY(ec[1])}" r="9" fill="#0b1220" stroke="#f87171" stroke-width="4"/>`;
+  const g=document.getElementById('routeHi'); if(g) g.innerHTML=s;
+  document.getElementById('mapScroll').classList.add('routed');
+}
+function clearRouteOverlay(){
+  const g=document.getElementById('routeHi'); if(g) g.innerHTML='';
+  const sc=document.getElementById('mapScroll'); if(sc) sc.classList.remove('routed');
 }
 
 /* ============================================================
@@ -739,7 +799,7 @@ function openStation(name){
   let badges = lines.map(l=>lineBadge(l.line)).join('');
   let codeStr = codes.map(c=>codeTag(c)).join(' ');
   sheet.innerHTML = `
-    <button class="close-x" id="closeX">✕</button>
+    <button class="close-x" data-close>✕</button>
     <div class="sheet-grip"></div>
     <h2>${name} ${codeStr}</h2>
     <div class="badges">${badges}${lines.length>1?'<span class="line-badge" style="background:#334155">轉乘站</span>':''}</div>
@@ -755,69 +815,98 @@ function openStation(name){
 function closeModal(){ $('#modal').classList.remove('open'); document.body.style.overflow=''; }
 
 /* ============================================================
-   4. 事件
+   4. 事件 / 收攏於 icon 的功能
    ============================================================ */
-[fromIn,toIn].forEach(el=> el.addEventListener('input', renderResult));
-$('#swapBtn').addEventListener('click', ()=>{
-  const a=fromIn.value; fromIn.value=toIn.value; toIn.value=a; renderResult();
-});
-$('#fareTypes').addEventListener('click', e=>{
-  const b=e.target.closest('button'); if(!b) return;
-  fareType=b.dataset.t;
-  $('#fareTypes').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
-  renderResult();
-});
-// 站名點擊（結果列 / 路網圖）開站體
+function openModal(html){ $('#sheet').innerHTML=html; $('#modal').classList.add('open'); document.body.style.overflow='hidden'; }
+
+// 🔍 搜尋表單（起訖、票種、對調）
+function openSearch(){
+  openModal(`
+    <button class="close-x" data-close>✕</button>
+    <div class="sheet-grip"></div>
+    <h2>規劃路線</h2>
+    <div class="field"><label for="fromIn">起站</label>
+      <input id="fromIn" list="staList" placeholder="輸入或選擇車站，如 淡水" autocomplete="off" enterkeyhint="search"></div>
+    <div class="swap-row"><button class="swap-btn" id="swapBtn" title="對調起訖">⇅</button></div>
+    <div class="field"><label for="toIn">訖站</label>
+      <input id="toIn" list="staList" placeholder="輸入或選擇車站，如 象山" autocomplete="off" enterkeyhint="search"></div>
+    <div class="fare-types" id="fareTypes">
+      <button data-t="full" class="${sel.fare==='full'?'active':''}">全票</button>
+      <button data-t="conc" class="${sel.fare==='conc'?'active':''}">兒童／敬老愛心（半價）</button>
+    </div>
+    <div class="sheet-actions"><button class="primary" data-close>完成</button></div>`);
+  const fromIn=$('#fromIn'), toIn=$('#toIn');
+  fromIn.value=sel.from; toIn.value=sel.to;
+  fromIn.addEventListener('input', ()=>{ sel.from=fromIn.value.trim(); runQuery(); });
+  toIn.addEventListener('input', ()=>{ sel.to=toIn.value.trim(); runQuery(); });
+  $('#swapBtn').addEventListener('click', ()=>{ const a=sel.from; sel.from=sel.to; sel.to=a; fromIn.value=sel.from; toIn.value=sel.to; runQuery(); });
+  $('#fareTypes').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
+    sel.fare=b.dataset.t; $('#fareTypes').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b)); runQuery(); });
+  setTimeout(()=>{ if(!sel.from) fromIn.focus(); else if(!sel.to) toIn.focus(); }, 90);
+}
+
+// 路線逐段詳細
+function openSteps(){
+  if(!lastRoute) return;
+  openModal(`<button class="close-x" data-close>✕</button><div class="sheet-grip"></div>
+    <h2>${sel.from} → ${sel.to}</h2>${stepsHTML(lastRoute)}`);
+}
+
+// ℹ️ 說明 + 路線圖例
+function openInfo(){
+  const legend=SEGMENTS.filter(s=>!s.branch).map(s=>
+    `<div class="lg"><span class="lg-c" style="background:${LINE_META[s.line].color}"></span>${LINE_META[s.line].name}</div>`).join('');
+  openModal(`<button class="close-x" data-close>✕</button><div class="sheet-grip"></div>
+    <h2>說明</h2>
+    <div class="legend">${legend}</div>
+    <p class="hint">
+      • <b>以地圖為主體</b>：可縮放、拖曳；點任一站可設為起／訖站或查看 SVG 站體結構。<br>
+      • 上方膠囊輸入起訖站，下方浮卡顯示時間／票價，點浮卡看逐段指引。<br>
+      • <b>時間</b>＝行駛＋轉乘步行時間（最快路線）；<b>票價</b>＝依最短里程分段，半價適用兒童／敬老／愛心票。<br>
+      • 站體結構為示意圖，資料為概估，實際以台北捷運公告為準。　<a href="index.html" style="color:var(--accent)">← 工具總覽</a>
+    </p>`);
+}
+
+// 全域點擊委派
 document.addEventListener('click', e=>{
-  const sta=e.target.closest('[data-sta]');
-  if(sta){ openStation(sta.dataset.sta); return; }
+  if(e.target.closest('[data-close]')){ closeModal(); return; }
+  if(e.target.closest('#routePill')){ openSearch(); return; }
+  if(e.target.closest('#infoBtn')){ openInfo(); return; }
+  if(e.target.closest('#resultChip')){ openSteps(); return; }
+  const z=e.target.closest('[data-z]');
+  if(z){ if(z.dataset.z==='fit') fitNet(true);
+    else { netScale = z.dataset.z==='in' ? Math.min(netScale*1.3,3.5) : Math.max(netScale/1.3,0.3); applyNetScale(); }
+    return; }
+  const set=e.target.closest('[data-set]');
+  if(set){ if(set.dataset.set==='from') sel.from=set.dataset.n; else sel.to=set.dataset.n; closeModal(); runQuery(); return; }
   const tog=e.target.closest('.pass-toggle');
   if(tog){ const l=document.getElementById(tog.dataset.p); if(l) l.classList.toggle('open'); return; }
-});
-// modal 內部
-$('#sheet').addEventListener('click', e=>{
-  if(e.target.id==='closeX'){ closeModal(); return; }
-  const set=e.target.closest('[data-set]');
-  if(set){
-    if(set.dataset.set==='from') fromIn.value=set.dataset.n; else toIn.value=set.dataset.n;
-    closeModal(); renderResult();
-    document.querySelector('#resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
-  }
+  const sta=e.target.closest('[data-sta]');
+  if(sta){ openStation(sta.getAttribute('data-sta')); return; }
 });
 $('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') closeModal(); });
 
-// 標記路網圖已選
+// 路網圖已選站標記
 function markSelected(){
   document.querySelectorAll('.netnode').forEach(n=>{
     const nm=n.getAttribute('data-sta');
-    n.classList.toggle('sel', nm===fromIn.value || nm===toIn.value);
+    n.classList.toggle('sel', nm===sel.from || nm===sel.to);
   });
 }
-// 路網圖縮放鈕
-document.addEventListener('click', e=>{
-  const z=e.target.closest('[data-z]'); if(!z) return;
-  if(z.dataset.z==='fit'){ fitNet(); return; }
-  netScale = z.dataset.z==='in' ? Math.min(netScale*1.25, 3) : Math.max(netScale/1.25, 0.35);
-  applyNetScale();
-});
-window.addEventListener('resize', ()=>{ /* 重新適應僅在較大變動時 */ });
-const _rr=renderResult; renderResult=function(){ _rr(); markSelected(); };
 
 /* ---------- URL hash 分享 ---------- */
 function setHash(f,t){ history.replaceState(null,'', '#'+encodeURIComponent(f)+'→'+encodeURIComponent(t)); }
 function loadHash(){
   const h=decodeURIComponent(location.hash.replace(/^#/,''));
-  if(h.includes('→')){
-    const [f,t]=h.split('→');
-    if(nameToCodes[f]) fromIn.value=f;
-    if(nameToCodes[t]) toIn.value=t;
-  }
+  if(h.includes('→')){ const [f,t]=h.split('→');
+    if(nameToCodes[f]) sel.from=f; if(nameToCodes[t]) sel.to=t; }
 }
 
 /* ---------- init ---------- */
 renderNetMap();
 loadHash();
-renderResult();
+updatePill();
+runQuery();
 </script>
 </body>
 </html>
