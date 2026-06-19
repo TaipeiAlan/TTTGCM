@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AR 擴增實境模型展示</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-hover: #273449;
+    --border: #334155;
+    --accent: #38bdf8;
+    --accent-hover: #7dd3fc;
+    --purple: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --ok: #34d399;
+    --warn: #fbbf24;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 28px 18px 60px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    margin-bottom: 18px;
+  }
+  .back:hover { color: var(--accent); }
+
+  header { text-align: center; margin-bottom: 22px; }
+
+  h1 {
+    font-size: clamp(1.7rem, 4vw, 2.5rem);
+    font-weight: 700;
+    background: linear-gradient(90deg, #38bdf8, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+
+  .subtitle { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+  .notice {
+    max-width: 760px;
+    margin: 18px auto 30px;
+    padding: 14px 18px;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .notice b { color: var(--text); }
+  .notice .tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: rgba(167, 139, 250, 0.15);
+    color: var(--purple);
+    margin: 0 2px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 14px 36px -14px rgba(56, 189, 248, 0.4);
+  }
+
+  model-viewer {
+    width: 100%;
+    height: 290px;
+    background: radial-gradient(circle at 50% 35%, #2a3a55 0%, #16203a 70%);
+    --poster-color: transparent;
+  }
+
+  .card-body { padding: 16px 18px 18px; }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .card-emoji { font-size: 1.4rem; }
+  .card-title { font-size: 1.12rem; font-weight: 600; }
+  .card-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
+
+  .ar-button {
+    margin-top: 14px;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--accent), var(--purple));
+    color: #0b1120;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s ease, opacity 0.15s ease;
+  }
+  .ar-button:hover { filter: brightness(1.08); }
+  .ar-button:disabled,
+  .ar-button[hidden] { display: none; }
+
+  .ar-hint {
+    margin-top: 10px;
+    font-size: 0.76rem;
+    color: var(--muted);
+    text-align: center;
+  }
+  .ar-hint .dot { color: var(--ok); }
+
+  /* model-viewer built-in progress bar */
+  .progress-bar {
+    display: block;
+    width: 60%;
+    height: 6px;
+    max-height: 6px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.1);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate3d(-50%, -50%, 0);
+    overflow: hidden;
+  }
+  .progress-bar.hide { visibility: hidden; transition: visibility 0.3s; }
+  .update-bar {
+    background: linear-gradient(90deg, var(--accent), var(--purple));
+    width: 0%;
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s;
+  }
+
+  .poster-label {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 46px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="index.html">← 回工具總覽</a>
+
+    <header>
+      <h1>AR 擴增實境模型展示</h1>
+      <p class="subtitle">五件可放進你真實空間的 3D 模型 — 直接在網頁裡用相機觀看</p>
+    </header>
+
+    <div class="notice">
+      <b>怎麼玩？</b>
+      手機（建議 <b>Android Chrome</b> 或 <b>iOS Safari</b>）點下方
+      <span class="tag">在你的空間中查看</span>
+      按鈕，把鏡頭對準地板，就能把模型放進真實環境並走近觀察。<br>
+      在電腦上則可用滑鼠 <b>拖曳旋轉</b>、<b>滾輪縮放</b> 預覽模型。
+      使用 <span class="tag">WebXR</span> / <span class="tag">Scene Viewer</span> / <span class="tag">Quick Look</span> 技術，無需安裝任何 App。
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <footer>
+      <p>以 Google <code>&lt;model-viewer&gt;</code> 製作 · 模型來源：modelviewer.dev 與 Khronos glTF Sample Assets（CC 授權）</p>
+      <p>TTTGCM · <a href="https://github.com/taipeialan/tttgcm" target="_blank" rel="noopener">GitHub Repo</a></p>
+    </footer>
+  </div>
+
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+
+  <script>
+    // 五樣模型。src = glb（全平台 3D + Android AR），iosSrc = usdz（iOS Quick Look AR）。
+    const MODELS = [
+      {
+        emoji: "🧑‍🚀",
+        title: "太空人",
+        desc: "經典的 NASA 風格太空人，把他請到你的客廳地板上吧。",
+        src: "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+        iosSrc: "https://modelviewer.dev/shared-assets/models/Astronaut.usdz",
+        exposure: 1,
+      },
+      {
+        emoji: "🍢",
+        title: "烤肉串",
+        desc: "香噴噴的串燒，放在桌上看看有多逼真。",
+        src: "https://modelviewer.dev/shared-assets/models/shishkebab.glb",
+        iosSrc: "https://modelviewer.dev/shared-assets/models/shishkebab.usdz",
+        exposure: 1,
+      },
+      {
+        emoji: "🦆",
+        title: "小黃鴨",
+        desc: "工程師的好夥伴，療癒系橡皮鴨 3D 模型。",
+        src: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/Duck/glTF-Binary/Duck.glb",
+        iosSrc: "",
+        exposure: 1.1,
+      },
+      {
+        emoji: "🥑",
+        title: "酪梨",
+        desc: "高細節 PBR 材質的酪梨，連切面纖維都看得到。",
+        src: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/Avocado/glTF-Binary/Avocado.glb",
+        iosSrc: "",
+        exposure: 1.1,
+        scale: "8 8 8",
+      },
+      {
+        emoji: "📻",
+        title: "復古手提音響",
+        desc: "80 年代風 Boombox，金屬與旋鈕反光細節滿滿。",
+        src: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/BoomBox/glTF-Binary/BoomBox.glb",
+        iosSrc: "",
+        exposure: 1.2,
+        scale: "30 30 30",
+      },
+    ];
+
+    const grid = document.getElementById("grid");
+
+    MODELS.forEach((m, i) => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const mv = document.createElement("model-viewer");
+      mv.setAttribute("src", m.src);
+      if (m.iosSrc) mv.setAttribute("ios-src", m.iosSrc);
+      mv.setAttribute("alt", m.title + " 的 3D 模型");
+      mv.setAttribute("camera-controls", "");
+      mv.setAttribute("touch-action", "pan-y");
+      mv.setAttribute("auto-rotate", "");
+      mv.setAttribute("auto-rotate-delay", "0");
+      mv.setAttribute("rotation-per-second", "24deg");
+      mv.setAttribute("shadow-intensity", "1");
+      mv.setAttribute("exposure", String(m.exposure ?? 1));
+      mv.setAttribute("ar", "");
+      mv.setAttribute("ar-modes", "webxr scene-viewer quick-look");
+      mv.setAttribute("ar-scale", "auto");
+      mv.setAttribute("loading", i === 0 ? "eager" : "lazy");
+      mv.setAttribute("reveal", "auto");
+      if (m.scale) mv.setAttribute("scale", m.scale);
+
+      // 進度條
+      const progress = document.createElement("div");
+      progress.className = "progress-bar hide";
+      progress.setAttribute("slot", "progress-bar");
+      progress.innerHTML = '<div class="update-bar"></div>';
+      mv.appendChild(progress);
+      mv.addEventListener("progress", (e) => {
+        const bar = progress.querySelector(".update-bar");
+        const p = e.detail.totalProgress;
+        bar.style.width = (p * 100) + "%";
+        if (p === 1) progress.classList.add("hide");
+        else progress.classList.remove("hide");
+      });
+
+      const body = document.createElement("div");
+      body.className = "card-body";
+      body.innerHTML =
+        '<div class="card-head"><span class="card-emoji">' + m.emoji +
+        '</span><span class="card-title">' + m.title + '</span></div>' +
+        '<div class="card-desc">' + m.desc + '</div>';
+
+      // 自訂全幅 AR 按鈕，透過 activateAR() 觸發
+      const arBtn = document.createElement("button");
+      arBtn.className = "ar-button";
+      arBtn.innerHTML = "📱 在你的空間中查看";
+      arBtn.hidden = true;
+      arBtn.addEventListener("click", () => mv.activateAR());
+
+      const hint = document.createElement("div");
+      hint.className = "ar-hint";
+      hint.innerHTML = "載入模型中…";
+
+      body.appendChild(arBtn);
+      body.appendChild(hint);
+
+      // 依裝置能力決定是否顯示 AR 按鈕
+      mv.addEventListener("load", () => {
+        if (mv.canActivateAR) {
+          arBtn.hidden = false;
+          hint.innerHTML = '<span class="dot">●</span> 此裝置支援 AR，點上方按鈕進入';
+        } else {
+          arBtn.hidden = true;
+          hint.innerHTML = '此裝置不支援相機 AR — 可用滑鼠/手指拖曳旋轉預覽';
+        }
+      });
+      mv.addEventListener("error", () => {
+        hint.innerHTML = '⚠️ 模型載入失敗，請檢查網路連線';
+      });
+
+      card.appendChild(mv);
+      card.appendChild(body);
+      grid.appendChild(card);
+    });
+  </script>
+</body>
+</html>
