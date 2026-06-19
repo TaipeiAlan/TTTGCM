@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台股量化評估工具 · PODCAST</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --card: #1e293b;
+    --card-hover: #273449;
+    --border: #334155;
+    --accent: #38bdf8;
+    --accent-hover: #7dd3fc;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --up: #f43f5e;     /* 台股紅漲 */
+    --down: #22c55e;   /* 台股綠跌 */
+    --bull: #f59e0b;
+    --bear: #38bdf8;
+    --chip: #0b1220;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px 14px 60px;
+  }
+
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  /* ─── Brand ─── */
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .brand .logo {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1rem; letter-spacing: .5px;
+    color: #07111f;
+    background: linear-gradient(135deg, #a3a380, #d4b483);
+  }
+  .brand h1 { font-size: 1.2rem; font-weight: 700; }
+
+  /* ─── Tab bar ─── */
+  .tabs {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-top: 12px; padding: 8px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  }
+  .tab {
+    font-size: .86rem; padding: 7px 12px; border-radius: 10px;
+    color: var(--muted); cursor: default; user-select: none;
+  }
+  .tab.active { background: var(--accent); color: #06121f; font-weight: 700; cursor: pointer; }
+  .tab.disabled { opacity: .45; }
+
+  /* ─── Sub tabs ─── */
+  .subtabs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-top: 12px; padding: 8px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  }
+  .subtab {
+    text-align: center; padding: 12px; border-radius: 10px; cursor: pointer;
+    color: var(--muted); font-weight: 600; transition: background .15s, color .15s;
+  }
+  .subtab.active { background: var(--card-hover); color: var(--text); }
+
+  /* ─── Card ─── */
+  .card {
+    margin-top: 12px; padding: 18px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  }
+  .card h2 { font-size: 1.05rem; margin-bottom: 4px; }
+  .card .eyebrow { font-size: .72rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .hr { height: 1px; background: var(--border); margin: 12px 0; border: 0; }
+
+  label.fld { display: block; font-size: .78rem; color: var(--muted); margin-bottom: 6px; }
+  input[type=text], input[type=number], input[type=password], select, textarea {
+    width: 100%; padding: 12px 14px; font-size: 1rem;
+    background: var(--chip); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; outline: none;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 90px; font-size: .85rem; }
+
+  .btn {
+    display: block; width: 100%; padding: 13px; margin-top: 10px;
+    font-size: 1rem; font-weight: 700; border: 0; border-radius: 10px; cursor: pointer;
+    color: #06121f; background: linear-gradient(90deg, #a3a380, #d4b483);
+  }
+  .btn.secondary { background: var(--chip); color: var(--text); border: 1px solid var(--border); }
+  .btn:active { transform: translateY(1px); }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .btn { flex: 1; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip {
+    font-size: .8rem; padding: 6px 12px; border-radius: 999px;
+    background: var(--chip); border: 1px solid var(--border); color: var(--muted);
+    text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+  }
+  a.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  .summary { color: var(--muted); line-height: 1.7; margin-top: 8px; font-size: .92rem; }
+
+  /* ─── Stock card ─── */
+  .stock {
+    padding: 14px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg2); margin-top: 10px;
+  }
+  .stock .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .stock .code { font-size: .78rem; color: var(--muted); }
+  .stock .name { font-size: 1.1rem; font-weight: 700; }
+  .stock .price { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stock .chg { display: flex; justify-content: space-between; margin-top: 4px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stock .reason { color: var(--muted); font-size: .86rem; line-height: 1.6; margin-top: 8px; }
+  .stock .loading { color: var(--muted); font-size: .8rem; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .flat { color: var(--muted); }
+
+  /* ─── Theme group ─── */
+  .theme { margin-top: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+  .theme .thead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .theme .thead h3 { font-size: 1rem; }
+  .theme .tags { display: flex; gap: 6px; align-items: center; }
+  .badge { font-size: .72rem; padding: 4px 10px; border-radius: 999px; background: var(--chip); border: 1px solid var(--border); color: var(--muted); }
+  .badge.bull { color: var(--up); border-color: var(--up); }
+  .badge.bear { color: var(--down); border-color: var(--down); }
+  .theme .tnote { color: var(--muted); font-size: .86rem; line-height: 1.6; margin: 8px 0; }
+
+  .note { font-size: .8rem; color: var(--muted); line-height: 1.6; }
+  .warn { color: #fbbf24; }
+  .err  { color: var(--up); }
+  .hidden { display: none !important; }
+  .center { text-align: center; }
+  .muted { color: var(--muted); }
+  .mini { font-size: .78rem; }
+  details > summary { cursor: pointer; color: var(--accent); font-size: .82rem; }
+  .footer { text-align: center; color: var(--muted); font-size: .78rem; margin-top: 28px; }
+  .footer a { color: var(--accent); text-decoration: none; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color: var(--accent); border-radius:50%; animation: sp .8s linear infinite; vertical-align:-2px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div class="logo">TQ</div>
+    <h1>台股量化評估工具</h1>
+  </div>
+
+  <nav class="tabs">
+    <div class="tab active">PODCAST</div>
+    <div class="tab disabled" title="本頁僅實作 PODCAST">股票</div>
+    <div class="tab disabled" title="未開放">選股</div>
+    <div class="tab disabled" title="未開放">權證</div>
+    <div class="tab disabled" title="未開放">期貨</div>
+    <div class="tab disabled" title="未開放">自選</div>
+    <div class="tab disabled" title="未開放">全市場</div>
+    <div class="tab" id="tabHelp" style="cursor:pointer;color:var(--accent)">說明</div>
+  </nav>
+
+  <!-- Settings -->
+  <details class="card" id="settings">
+    <summary style="font-weight:700;color:var(--text)">⚙️ 設定（Anthropic API 金鑰 · 資料來源）</summary>
+    <div class="hr"></div>
+    <label class="fld">Anthropic API 金鑰（只存在你的瀏覽器 localStorage，不會上傳到任何伺服器）</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-...">
+    <div style="height:10px"></div>
+    <label class="fld">分析模型</label>
+    <select id="model">
+      <option value="claude-sonnet-4-6">claude-sonnet-4-6（品質佳，預設）</option>
+      <option value="claude-haiku-4-5">claude-haiku-4-5（更省）</option>
+    </select>
+    <div style="height:10px"></div>
+    <label class="fld">逐字稿來源 URL 樣板（<code>{EP}</code> 會代換為 4 位補零集數，例 EP0671）</label>
+    <input type="text" id="srcTpl" placeholder="https://raw.githubusercontent.com/.../corrected/{EP}.md">
+    <button class="btn" id="saveSettings">儲存設定</button>
+    <p class="note" style="margin-top:10px">個股的「說明 / 題材分組 / 多空」由你的金鑰即時呼叫 Claude 產生。報價與逐字稿瀏覽不需金鑰。</p>
+  </details>
+
+  <!-- Sub tabs -->
+  <div class="subtabs">
+    <div class="subtab active" data-sub="search">搜尋集數</div>
+    <div class="subtab" data-sub="track">個股追蹤</div>
+  </div>
+
+  <!-- ───────── SEARCH ───────── -->
+  <section id="paneSearch">
+    <div class="card">
+      <label class="fld">EP 集數</label>
+      <input type="number" id="epInput" placeholder="671" inputmode="numeric">
+      <div class="btn-row">
+        <button class="btn" id="btnSearch">搜尋</button>
+        <button class="btn secondary" id="btnLatest">最新</button>
+      </div>
+      <p class="note" id="srcHint" style="margin-top:10px"></p>
+    </div>
+
+    <!-- Manual paste fallback -->
+    <details class="card" id="pasteBox">
+      <summary style="font-weight:700;color:var(--text)">📋 找不到逐字稿？手動貼上</summary>
+      <div class="hr"></div>
+      <label class="fld">逐字稿內容（Markdown / 純文字）</label>
+      <textarea id="pasteText" placeholder="把該集逐字稿貼在這裡…"></textarea>
+      <button class="btn" id="btnAnalyzePaste">分析貼上的逐字稿</button>
+    </details>
+
+    <div id="status" class="card hidden"></div>
+
+    <!-- Episode summary -->
+    <div class="card hidden" id="epCard">
+      <div class="eyebrow">Latest Episode</div>
+      <h2 id="epTitle"></h2>
+      <p class="summary" id="epSummary"></p>
+      <div class="chips" id="epMeta"></div>
+      <div class="chips" id="epLinks"></div>
+    </div>
+
+    <!-- Mentioned stocks -->
+    <div class="card hidden" id="stocksCard">
+      <div class="eyebrow">Stocks</div>
+      <h2>內容提及個股</h2>
+      <div class="hr"></div>
+      <div id="stockList"></div>
+    </div>
+
+    <!-- Theme groups -->
+    <div id="themeList"></div>
+
+    <!-- Transcript -->
+    <div class="card hidden" id="transcriptCard">
+      <div class="eyebrow">Transcript</div>
+      <h2>逐字稿短摘</h2>
+      <div class="hr"></div>
+      <p class="summary mini" id="transcriptSrc"></p>
+      <details style="margin-top:8px"><summary>展開全文</summary>
+        <p class="summary mini" id="transcriptFull" style="white-space:pre-wrap"></p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ───────── TRACK ───────── -->
+  <section id="paneTrack" class="hidden">
+    <div class="card">
+      <h2>個股追蹤</h2>
+      <p class="note">各集分析後提到的個股會記錄在這裡。<b>記錄價</b>為首次抓取當下的價格（固定不變），<b>目前股價</b>會即時更新，漲跌幅 = 目前 ÷ 記錄價。</p>
+      <button class="btn secondary" id="btnRefreshTrack" style="margin-top:12px">重新整理目前股價</button>
+    </div>
+    <div id="trackList"></div>
+  </section>
+
+  <!-- ───────── HELP ───────── -->
+  <section id="paneHelp" class="hidden">
+    <div class="card">
+      <div class="eyebrow">Guide</div>
+      <h2>操作說明</h2>
+      <div class="hr"></div>
+      <p class="summary">在「搜尋集數」輸入股癌 EP 集數後按「搜尋」，工具會抓取該集校正版逐字稿，
+      用你設定的 Claude 金鑰即時分析，列出<b>內容提及個股</b>（代號／名稱／即時報價／漲跌，附一句為何被提到）、
+      依<b>題材</b>分組並標示多空，最後可在「個股追蹤」比較節目後的股價變化。</p>
+      <p class="summary">個股代號與名稱會用 <b>TWSE / TPEx OpenAPI 公司基本資料</b>驗證，過濾 AI 可能的幻覺。</p>
+      <p class="note" style="margin-top:10px">紅＝漲、綠＝跌（台股慣例）。報價來自 Yahoo Finance（經 CORS 代理備援）。</p>
+    </div>
+  </section>
+
+  <div class="footer">
+    TTTGCM · <a href="index.html">回工具總覽</a><br>
+    本工具為內容整理／追蹤用途，不代表任何買賣建議。
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ───────────────────────── Config / storage ───────────────────────── */
+const LS = {
+  key:   'taiquant_apikey',
+  model: 'taiquant_model',
+  src:   'taiquant_srctpl',
+  track: 'taiquant_track',
+  map:   'taiquant_stockmap',
+};
+const DEFAULT_SRC = 'https://raw.githubusercontent.com/foodmo/gooaye/main/corrected/{EP}.md';
+const PROXIES = [
+  u => u,
+  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+];
+
+const $ = id => document.getElementById(id);
+const getLS = (k, d='') => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+const setLS = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+
+/* ───────────────────────── Settings UI ───────────────────────── */
+function loadSettings() {
+  $('apiKey').value = getLS(LS.key);
+  $('model').value  = getLS(LS.model) || 'claude-sonnet-4-6';
+  $('srcTpl').value = getLS(LS.src)   || DEFAULT_SRC;
+  refreshSrcHint();
+}
+function refreshSrcHint() {
+  const tpl = $('srcTpl').value || DEFAULT_SRC;
+  $('srcHint').textContent = `逐字稿來源：${tpl.replace('{EP}', 'EP0671')}`;
+}
+$('saveSettings').onclick = () => {
+  setLS(LS.key, $('apiKey').value.trim());
+  setLS(LS.model, $('model').value);
+  setLS(LS.src, $('srcTpl').value.trim() || DEFAULT_SRC);
+  refreshSrcHint();
+  $('settings').open = false;
+  toast('設定已儲存');
+};
+
+/* ───────────────────────── Tabs ───────────────────────── */
+document.querySelectorAll('.subtab').forEach(el => {
+  el.onclick = () => {
+    document.querySelectorAll('.subtab').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    const sub = el.dataset.sub;
+    $('paneSearch').classList.toggle('hidden', sub !== 'search');
+    $('paneTrack').classList.toggle('hidden', sub !== 'track');
+    $('paneHelp').classList.add('hidden');
+    if (sub === 'track') renderTrack();
+  };
+});
+$('tabHelp').onclick = () => {
+  $('paneSearch').classList.add('hidden');
+  $('paneTrack').classList.add('hidden');
+  $('paneHelp').classList.remove('hidden');
+};
+
+/* ───────────────────────── Status / toast ───────────────────────── */
+function status(html, cls='') {
+  const s = $('status');
+  s.className = 'card ' + cls;
+  s.innerHTML = html;
+  s.classList.remove('hidden');
+}
+function hideStatus() { $('status').classList.add('hidden'); }
+function toast(msg) {
+  status(msg);
+  setTimeout(() => { if ($('status').textContent === msg) hideStatus(); }, 1800);
+}
+
+/* ───────────────────────── Fetch with proxy fallback ───────────────────────── */
+async function fetchText(url) {
+  let lastErr;
+  for (const wrap of PROXIES) {
+    try {
+      const res = await fetch(wrap(url), { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.text();
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('抓取失敗');
+}
+async function fetchJson(url) {
+  let lastErr;
+  for (const wrap of PROXIES) {
+    try {
+      const res = await fetch(wrap(url), { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('抓取失敗');
+}
+
+/* ───────────────────────── Stock code↔name map (TWSE/TPEx OpenAPI) ───────────────────────── */
+let STOCK_MAP = null; // code -> { name, market: 'TW'|'TWO' }
+
+function loadCachedMap() {
+  try {
+    const raw = JSON.parse(getLS(LS.map, 'null'));
+    if (raw && raw.date === todayStr() && raw.map) return raw.map;
+  } catch {}
+  return null;
+}
+function todayStr() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+
+async function ensureStockMap() {
+  if (STOCK_MAP) return STOCK_MAP;
+  const cached = loadCachedMap();
+  if (cached) { STOCK_MAP = cached; return STOCK_MAP; }
+  const map = {};
+  // 上市 (TWSE) → .TW
+  try {
+    const listed = await fetchJson('https://openapi.twse.com.tw/v1/opendata/t187ap03_L');
+    for (const r of listed) {
+      const code = (r['公司代號'] || r.Code || '').trim();
+      const name = (r['公司簡稱'] || r['公司名稱'] || r.Name || '').trim();
+      if (/^\d{4}$/.test(code)) map[code] = { name, market: 'TW' };
+    }
+  } catch (e) { console.warn('TWSE map failed', e); }
+  // 上櫃 (TPEx) → .TWO
+  try {
+    const otc = await fetchJson('https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O');
+    for (const r of otc) {
+      const code = (r['公司代號'] || r.SecuritiesCompanyCode || '').trim();
+      const name = (r['公司簡稱'] || r['公司名稱'] || r.CompanyName || '').trim();
+      if (/^\d{4}$/.test(code) && !map[code]) map[code] = { name, market: 'TWO' };
+    }
+  } catch (e) { console.warn('TPEx map failed', e); }
+  STOCK_MAP = map;
+  if (Object.keys(map).length) setLS(LS.map, JSON.stringify({ date: todayStr(), map }));
+  return map;
+}
+
+/* ───────────────────────── Quote (Yahoo + proxy) ───────────────────────── */
+function yahooSymbols(code) {
+  const m = STOCK_MAP && STOCK_MAP[code];
+  if (m) return [`${code}.${m.market}`];
+  return [`${code}.TW`, `${code}.TWO`]; // unknown market → try both
+}
+async function fetchQuote(code) {
+  for (const sym of yahooSymbols(code)) {
+    const direct = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`;
+    try {
+      const json = await fetchJson(direct);
+      const r = json?.chart?.result?.[0];
+      if (!r) continue;
+      const m = r.meta;
+      const price = m.regularMarketPrice;
+      const prev  = m.chartPreviousClose ?? m.previousClose ?? null;
+      if (price == null) continue;
+      const chg = prev != null ? price - prev : null;
+      const pct = (prev) ? (chg / prev * 100) : null;
+      return { price, prevClose: prev, chg, pct, name: m.longName || m.shortName || '' };
+    } catch {}
+  }
+  throw new Error('報價失敗');
+}
+
+/* ───────────────────────── Claude analysis ───────────────────────── */
+const ANALYSIS_PROMPT = `你是台股研究助理。以下是「股癌」Podcast 某一集的逐字稿。請從中抽取被提到的「台股上市櫃個股」與「投資題材」。
+
+嚴格只輸出 JSON（不要任何說明文字、不要 markdown 程式碼框），格式：
+{
+  "summary": "用 2-3 句中文摘要本集重點",
+  "stocks": [ { "code": "4位數字代號", "name": "公司名稱", "reason": "一句話：節目中為何提到這檔" } ],
+  "themes": [ { "name": "題材名稱", "sentiment": "偏多|偏空|中性", "note": "一句說明", "codes": ["相關個股代號"] } ]
+}
+
+規則：
+- code 必須是 4 位數字的台股代號；不確定代號就不要放進 stocks。
+- 只收台股（上市/上櫃），不要美股或加密貨幣。
+- reason / note 用繁體中文，精簡。
+- themes 的 codes 從你列出的 stocks 中挑選。
+
+逐字稿：
+"""
+{TRANSCRIPT}
+"""`;
+
+async function analyze(transcript) {
+  const key = getLS(LS.key).trim();
+  if (!key) throw new Error('NO_KEY');
+  const model = getLS(LS.model) || 'claude-sonnet-4-6';
+  const text = transcript.length > 60000 ? transcript.slice(0, 60000) : transcript;
+  const body = {
+    model,
+    max_tokens: 4000,
+    messages: [{ role: 'user', content: ANALYSIS_PROMPT.replace('{TRANSCRIPT}', text) }],
+  };
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`Claude API ${res.status}: ${t.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const raw = (data.content || []).map(b => b.text || '').join('').trim();
+  return parseJsonLoose(raw);
+}
+function parseJsonLoose(s) {
+  let t = s.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a >= 0 && b > a) t = t.slice(a, b + 1);
+  return JSON.parse(t);
+}
+
+/* ───────────────────────── Episode pipeline ───────────────────────── */
+let CURRENT_EP = null;
+
+function epPad(n) { return 'EP' + String(n).padStart(4, '0'); }
+function srcUrl(n) { return (getLS(LS.src) || DEFAULT_SRC).replace('{EP}', epPad(n)); }
+
+async function runEpisode(ep) {
+  hideStatus();
+  resetResults();
+  CURRENT_EP = ep;
+  status(`<span class="spin"></span> 抓取逐字稿 ${epPad(ep)} …`);
+  let transcript;
+  try {
+    transcript = await fetchText(srcUrl(ep));
+    if (!transcript || transcript.length < 50 || /404: Not Found/i.test(transcript)) throw new Error('empty');
+  } catch (e) {
+    status(`找不到 ${epPad(ep)} 的逐字稿。請確認集數，或在下方<b>「手動貼上」</b>逐字稿後分析。`, 'warn');
+    $('pasteBox').open = true;
+    return;
+  }
+  await analyzeAndRender(transcript, { ep, url: srcUrl(ep) });
+}
+
+async function analyzeAndRender(transcript, meta) {
+  showTranscript(transcript, meta);
+  status('<span class="spin"></span> 載入台股代號對照表 …');
+  await ensureStockMap();
+
+  const key = getLS(LS.key).trim();
+  if (!key) {
+    status('已載入逐字稿。<b>尚未設定 Anthropic API 金鑰</b>，無法做 AI 個股／題材分析。請到上方 ⚙️ 設定填入金鑰。', 'warn');
+    $('settings').open = true;
+    return;
+  }
+  status('<span class="spin"></span> Claude 分析中（抽取個股、分題材、判多空）…');
+  let result;
+  try {
+    result = await analyze(transcript);
+  } catch (e) {
+    if (e.message === 'NO_KEY') { status('請先設定 API 金鑰。', 'warn'); return; }
+    status('分析失敗：' + e.message, 'err');
+    return;
+  }
+  hideStatus();
+  renderResult(result, meta);
+}
+
+/* ───────────────────────── Render ───────────────────────── */
+function resetResults() {
+  $('epCard').classList.add('hidden');
+  $('stocksCard').classList.add('hidden');
+  $('transcriptCard').classList.add('hidden');
+  $('themeList').innerHTML = '';
+  $('stockList').innerHTML = '';
+}
+
+function validStock(s) {
+  const code = (s.code || '').trim();
+  if (!/^\d{4}$/.test(code)) return null;
+  const m = STOCK_MAP && STOCK_MAP[code];
+  if (!m) return null;                 // 不在官方清單 → 過濾幻覺
+  return { code, name: m.name || s.name || code, reason: s.reason || '', market: m.market };
+}
+
+function renderResult(result, meta) {
+  // Episode card
+  if (result.summary) {
+    $('epTitle').textContent = `股癌 ${epPad(meta.ep ?? CURRENT_EP ?? '')}`;
+    $('epSummary').textContent = result.summary;
+    $('epMeta').innerHTML = '';
+    $('epLinks').innerHTML = `<a class="chip" href="${meta.url || '#'}" target="_blank" rel="noopener">原文</a>`;
+    $('epCard').classList.remove('hidden');
+  }
+
+  // Validated stocks
+  const stocks = (result.stocks || []).map(validStock).filter(Boolean);
+  const byCode = {};
+  stocks.forEach(s => byCode[s.code] = s);
+
+  if (stocks.length) {
+    $('stockList').innerHTML = stocks.map(stockCardHtml).join('');
+    $('stocksCard').classList.remove('hidden');
+    stocks.forEach(loadStockQuote);
+    saveTrack(meta.ep ?? CURRENT_EP, stocks);
+  } else {
+    $('stockList').innerHTML = '<p class="note warn">AI 沒有抽到可驗證的台股代號（或都被官方清單過濾掉了）。</p>';
+    $('stocksCard').classList.remove('hidden');
+  }
+
+  // Themes (theme codes are validated against the official map directly,
+  // so a theme may surface stocks beyond the mentioned list)
+  const themes = (result.themes || []);
+  $('themeList').innerHTML = themes.map(t => themeHtml(t, byCode)).join('');
+  themes.forEach(t => (t.codes || []).forEach(code => {
+    const s = resolveCode(code, byCode);
+    if (s) loadStockQuote(s);
+  }));
+}
+
+function resolveCode(code, byCode) {
+  return byCode[code] || validStock({ code });
+}
+
+function stockCardHtml(s, idPrefix='q') {
+  return `<div class="stock" id="${idPrefix}_${s.code}">
+    <div class="top">
+      <div><div class="code">${s.code}</div><div class="name">${esc(s.name)}</div></div>
+      <div class="price"><span class="loading">載入中…</span></div>
+    </div>
+    <div class="chg"></div>
+    ${s.reason ? `<div class="reason">${esc(s.reason)}</div>` : ''}
+  </div>`;
+}
+
+function themeHtml(t, byCode) {
+  const sent = t.sentiment || '中性';
+  const cls = sent.includes('多') ? 'bull' : sent.includes('空') ? 'bear' : '';
+  const resolved = (t.codes || []).map(c => resolveCode(c, byCode)).filter(Boolean);
+  const rows = resolved.map(s => stockCardHtml(s, 'qth')).join('');
+  return `<div class="theme">
+    <div class="thead">
+      <h3>${esc(t.name || '題材')}</h3>
+      <div class="tags">
+        ${resolved.length ? `<span class="badge">相關 ${resolved.length} 檔</span>` : ''}
+        <span class="badge ${cls}">${esc(sent)}</span>
+      </div>
+    </div>
+    ${t.note ? `<p class="tnote">${esc(t.note)}</p>` : ''}
+    ${rows}
+  </div>`;
+}
+
+async function loadStockQuote(s, idPrefix='q') {
+  // there may be two cards (mentioned + theme) for the same code
+  const els = [document.getElementById(`q_${s.code}`), document.getElementById(`qth_${s.code}`)].filter(Boolean);
+  if (!els.length) return;
+  let q;
+  try { q = await fetchQuote(s.code); }
+  catch {
+    els.forEach(el => { el.querySelector('.price').innerHTML = '<span class="muted mini">報價失敗</span>'; });
+    return;
+  }
+  updateTrackPrice(s.code, q.price);
+  els.forEach(el => {
+    el.querySelector('.price').textContent = 'NT$' + fmt(q.price);
+    const dir = q.chg == null ? 'flat' : q.chg > 0 ? 'up' : q.chg < 0 ? 'down' : 'flat';
+    const arrow = q.chg == null ? '' : q.chg > 0 ? '▲' : q.chg < 0 ? '▼' : '－';
+    el.querySelector('.chg').innerHTML = q.chg == null ? '' :
+      `<span class="${dir}">${arrow}${fmt(Math.abs(q.chg))}</span>
+       <span class="${dir}">${q.pct >= 0 ? '+' : ''}${q.pct.toFixed(2)}%</span>`;
+  });
+}
+
+function showTranscript(transcript, meta) {
+  $('transcriptSrc').textContent = `來源：${meta.url || '手動貼上'}　字數：${transcript.length.toLocaleString()}`;
+  $('transcriptFull').textContent = transcript.slice(0, 8000) + (transcript.length > 8000 ? ' …' : '');
+  $('transcriptCard').classList.remove('hidden');
+}
+
+/* ───────────────────────── 個股追蹤 ───────────────────────── */
+function readTrack() { try { return JSON.parse(getLS(LS.track, '{}')) || {}; } catch { return {}; } }
+function writeTrack(o) { setLS(LS.track, JSON.stringify(o)); }
+
+function saveTrack(ep, stocks) {
+  const t = readTrack();
+  stocks.forEach(s => {
+    const k = s.code;
+    if (!t[k]) t[k] = { code: s.code, name: s.name, ep, recPrice: null, recAt: Date.now(), cur: null };
+    if (s.name) t[k].name = s.name;
+    t[k].ep = ep;
+  });
+  writeTrack(t);
+}
+function updateTrackPrice(code, price) {
+  const t = readTrack();
+  if (!t[code]) return;
+  if (t[code].recPrice == null) t[code].recPrice = price; // 記錄價＝首次抓取價
+  t[code].cur = price;
+  writeTrack(t);
+}
+
+function renderTrack() {
+  const t = readTrack();
+  const items = Object.values(t).sort((a, b) => (b.ep || 0) - (a.ep || 0));
+  if (!items.length) { $('trackList').innerHTML = '<div class="card note">尚無追蹤個股。先到「搜尋集數」分析一集吧。</div>'; return; }
+  $('trackList').innerHTML = items.map(it => {
+    const rec = it.recPrice, cur = it.cur;
+    let chgHtml = '<span class="muted mini">—</span>';
+    if (rec != null && cur != null && rec) {
+      const pct = (cur - rec) / rec * 100;
+      const dir = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+      const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '－';
+      chgHtml = `<span class="${dir}">${arrow}${Math.abs(pct).toFixed(2)}%</span>`;
+    }
+    return `<div class="stock">
+      <div class="top">
+        <div><div class="code">${it.code}${it.ep ? ' · EP' + it.ep : ''}</div><div class="name">${esc(it.name || it.code)}</div></div>
+        <div class="price">${cur != null ? 'NT$' + fmt(cur) : '<span class="muted mini">未更新</span>'}</div>
+      </div>
+      <div class="chg">
+        <span class="muted mini">記錄價 ${rec != null ? 'NT$' + fmt(rec) : '—'}</span>
+        ${chgHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+$('btnRefreshTrack').onclick = async () => {
+  const t = readTrack();
+  const codes = Object.keys(t);
+  if (!codes.length) return;
+  $('btnRefreshTrack').textContent = '更新中…';
+  await ensureStockMap();
+  for (const code of codes) {
+    try { const q = await fetchQuote(code); t[code].cur = q.price; if (t[code].recPrice == null) t[code].recPrice = q.price; }
+    catch {}
+  }
+  writeTrack(t);
+  renderTrack();
+  $('btnRefreshTrack').textContent = '重新整理目前股價';
+};
+
+/* ───────────────────────── Helpers ───────────────────────── */
+function fmt(n) { return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+/* ───────────────────────── Events ───────────────────────── */
+$('btnSearch').onclick = () => {
+  const n = parseInt($('epInput').value, 10);
+  if (!n) { toast('請輸入 EP 集數'); return; }
+  runEpisode(n);
+};
+$('btnLatest').onclick = () => {
+  status('「最新」需要一個集數索引來源；目前請直接輸入已知的最新 EP 集數後按「搜尋」。', 'warn');
+};
+$('btnAnalyzePaste').onclick = () => {
+  const txt = $('pasteText').value.trim();
+  if (txt.length < 50) { toast('請貼上完整逐字稿'); return; }
+  resetResults();
+  CURRENT_EP = parseInt($('epInput').value, 10) || CURRENT_EP || 0;
+  analyzeAndRender(txt, { ep: CURRENT_EP, url: '' });
+};
+$('srcTpl').addEventListener('input', refreshSrcHint);
+$('epInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnSearch').click(); });
+
+loadSettings();
+</script>
+</body>
+</html>
