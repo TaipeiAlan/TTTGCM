@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>台北捷運路線地圖｜時間・票價・站體</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --card: #1e293b;
+    --card2: #273449;
+    --border: #334155;
+    --accent: #38bdf8;
+    --accent-hover: #7dd3fc;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --good: #34d399;
+    --warn: #fbbf24;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px 12px calc(40px + env(safe-area-inset-bottom));
+    line-height: 1.5;
+  }
+
+  .wrap { max-width: 640px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 18px; }
+  h1 {
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    font-weight: 700;
+    background: linear-gradient(90deg, #38bdf8, #a78bfa);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .panel-title {
+    font-size: 0.78rem; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
+  }
+
+  /* ---- query form ---- */
+  .field { margin-bottom: 10px; }
+  .field label { display:block; font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+  .field input {
+    width: 100%; padding: 12px 14px; font-size: 1rem;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); -webkit-appearance: none; appearance: none;
+  }
+  .field input:focus { outline: none; border-color: var(--accent); }
+
+  .swap-row { display:flex; justify-content:center; margin: -2px 0 8px; }
+  .swap-btn {
+    background: var(--card2); border: 1px solid var(--border); color: var(--accent);
+    border-radius: 999px; width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer;
+    display:flex; align-items:center; justify-content:center; transition: transform .2s, background .2s;
+  }
+  .swap-btn:active { transform: rotate(180deg); background: var(--card); }
+
+  .fare-types { display:flex; gap: 8px; margin-top: 6px; }
+  .fare-types button {
+    flex:1; padding: 9px 6px; font-size: 0.82rem; cursor: pointer;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 9px; color: var(--muted);
+  }
+  .fare-types button.active { background: rgba(56,189,248,.15); border-color: var(--accent); color: var(--accent-hover); }
+
+  /* ---- result ---- */
+  .result-empty { color: var(--muted); font-size: 0.9rem; text-align:center; padding: 10px 0; }
+  .summary {
+    display:grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px;
+  }
+  .stat {
+    background: var(--bg2); border:1px solid var(--border); border-radius: 12px;
+    padding: 12px 6px; text-align:center;
+  }
+  .stat .v { font-size: 1.5rem; font-weight: 700; line-height:1.1; }
+  .stat .v small { font-size: 0.85rem; font-weight: 500; color: var(--muted); }
+  .stat .k { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+  .stat.time .v { color: var(--accent); }
+  .stat.fare .v { color: var(--good); }
+  .stat.xfer .v { color: var(--warn); }
+
+  /* step list */
+  .steps { position: relative; padding-left: 6px; }
+  .step { display:flex; gap: 12px; }
+  .step-rail { display:flex; flex-direction:column; align-items:center; width: 18px; flex-shrink:0; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--bg2); flex-shrink:0; z-index:1; }
+  .line-bar { flex: 1; width: 6px; border-radius: 3px; min-height: 26px; }
+  .step-body { padding-bottom: 16px; flex: 1; min-width: 0; }
+  .step-sta { font-weight: 600; font-size: 1rem; cursor: pointer; display:inline-flex; align-items:center; gap:6px; }
+  .step-sta .code { font-size:.66rem; color: var(--muted); font-family: ui-monospace, monospace; border:1px solid var(--border); border-radius:4px; padding:0 3px; }
+  .step-sta:active { color: var(--accent); }
+  .ride-info { font-size: 0.84rem; color: var(--muted); margin-top: 3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .line-badge { display:inline-flex; align-items:center; gap:5px; font-size:.8rem; padding: 2px 9px; border-radius: 999px; font-weight:600; color:#fff; }
+  .xfer-note { font-size: 0.82rem; color: var(--warn); margin-top: 3px; }
+  .pass-toggle { font-size:.76rem; color: var(--accent); cursor:pointer; margin-top:4px; display:inline-block; }
+  .pass-list { font-size:.78rem; color: var(--muted); margin-top:4px; padding-left:2px; display:none; }
+  .pass-list.open { display:block; }
+
+  /* ---- network map strips ---- */
+  .line-row { margin-bottom: 14px; }
+  .line-row:last-child { margin-bottom: 0; }
+  .line-head { display:flex; align-items:center; gap:8px; margin-bottom: 6px; font-size: 0.85rem; font-weight:600; }
+  .line-chip { width: 14px; height: 14px; border-radius: 4px; flex-shrink:0; }
+  .strip {
+    display:flex; gap:0; overflow-x:auto; padding: 18px 4px 6px; -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .strip::-webkit-scrollbar { height: 5px; }
+  .strip::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+  .sta-node {
+    position: relative; flex-shrink:0; display:flex; flex-direction:column; align-items:center;
+    cursor: pointer; padding: 0 1px;
+  }
+  .sta-node .seg { width: 30px; height: 5px; }
+  .sta-node:first-child .seg { background: transparent !important; }
+  .sta-node .pin { width: 12px; height: 12px; border-radius:50%; background: var(--bg); border:3px solid; margin-top:-8px; }
+  .sta-node.xfer .pin { width: 15px; height:15px; box-shadow: 0 0 0 2px var(--bg2), 0 0 0 4px #fff3; }
+  .sta-node .nm {
+    font-size: 0.62rem; color: var(--muted); margin-top: 5px; writing-mode: vertical-rl;
+    white-space: nowrap; height: 64px; letter-spacing: 1px;
+  }
+  .sta-node:active .nm, .sta-node.sel .nm { color: var(--accent-hover); }
+  .sta-node.sel .pin { transform: scale(1.35); }
+
+  /* ---- modal ---- */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(2,6,23,.72); backdrop-filter: blur(3px);
+    display:none; align-items:flex-end; justify-content:center; z-index: 50; padding: 0;
+  }
+  .modal-bg.open { display:flex; }
+  .sheet {
+    background: var(--card); border: 1px solid var(--border); border-bottom:none;
+    border-radius: 18px 18px 0 0; width:100%; max-width: 640px; max-height: 90vh; overflow-y:auto;
+    padding: 8px 16px calc(24px + env(safe-area-inset-bottom)); animation: slideUp .22s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(40px); opacity:.4; } to { transform:none; opacity:1; } }
+  .sheet-grip { width: 44px; height: 5px; border-radius:3px; background: var(--border); margin: 6px auto 12px; }
+  .sheet h2 { font-size: 1.2rem; margin-bottom: 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .sheet .badges { display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0 14px; }
+  .sheet-actions { display:flex; gap:8px; margin: 4px 0 14px; }
+  .sheet-actions button {
+    flex:1; padding: 11px; border-radius: 10px; font-size:.9rem; font-weight:600; cursor:pointer;
+    border:1px solid var(--border); background: var(--bg2); color: var(--text);
+  }
+  .sheet-actions button.start { border-color:#34d399; color:#6ee7b7; }
+  .sheet-actions button.end { border-color:#f87171; color:#fca5a5; }
+  .svg-box { background: #0b1220; border:1px solid var(--border); border-radius: 12px; padding: 8px; overflow-x:auto; }
+  .svg-box svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+  .close-x { position: sticky; top:0; float:right; background:none; border:none; color: var(--muted); font-size:1.4rem; cursor:pointer; }
+
+  .hint { font-size: 0.78rem; color: var(--muted); line-height:1.6; }
+  .hint b { color: var(--text); }
+  footer { text-align:center; margin-top: 26px; color: var(--muted); font-size: 0.76rem; }
+  footer a { color: var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🚇 台北捷運路線地圖</h1>
+    <p class="subtitle">查任意站間時間・票價（含轉乘步行）｜點站看 SVG 站體結構</p>
+  </header>
+
+  <!-- 查詢 -->
+  <section class="panel">
+    <div class="panel-title">行程查詢</div>
+    <div class="field">
+      <label for="fromIn">起站</label>
+      <input id="fromIn" list="staList" placeholder="輸入或選擇車站，如 淡水" autocomplete="off" enterkeyhint="search">
+    </div>
+    <div class="swap-row"><button class="swap-btn" id="swapBtn" title="對調起訖">⇅</button></div>
+    <div class="field">
+      <label for="toIn">訖站</label>
+      <input id="toIn" list="staList" placeholder="輸入或選擇車站，如 台北101/世貿" autocomplete="off" enterkeyhint="search">
+    </div>
+    <datalist id="staList"></datalist>
+    <div class="fare-types" id="fareTypes">
+      <button data-t="full" class="active">全票</button>
+      <button data-t="conc">兒童／敬老愛心（半價）</button>
+    </div>
+  </section>
+
+  <!-- 結果 -->
+  <section class="panel" id="resultPanel">
+    <div class="panel-title">建議路線</div>
+    <div id="resultBody"><div class="result-empty">選擇起站與訖站後，自動規劃最快路線。</div></div>
+  </section>
+
+  <!-- 路網圖 -->
+  <section class="panel">
+    <div class="panel-title">路網圖（點站可設起／訖站、看站體）</div>
+    <div id="netMap"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title">說明</div>
+    <p class="hint">
+      • <b>時間</b>＝各站行駛時間＋轉乘步行時間，依站距與官方資料推估的最快路線。<br>
+      • <b>票價</b>＝依台北捷運「最短里程」分段計費；半價適用兒童、敬老、愛心票。<br>
+      • <b>站體結構</b>為依資料生成的通用示意圖（樓層、月台方向、轉乘通道、出口），非工程平面圖。<br>
+      • 可用網址分享行程，例如 <code>#淡水→象山</code>。資料為概估，實際以台北捷運公告為準。
+    </p>
+  </section>
+
+  <footer>TTTGCM · <a href="index.html">← 工具總覽</a></footer>
+</div>
+
+<!-- 站體 modal -->
+<div class="modal-bg" id="modal">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   1. 路網資料（站碼採台北捷運官方代號）
+   每條線：codes 依序、kms 為相鄰站距(公里)；
+   行駛時間 ≈ 站距 ×100 秒（已含停站，內部一致估算）。
+   ============================================================ */
+const LINE_META = {
+  BR:{name:'文湖線',   color:'#C48C31'},
+  R: {name:'淡水信義線',color:'#E3002C'},
+  G: {name:'松山新店線',color:'#008659'},
+  O: {name:'中和新蘆線',color:'#F8B61C'},
+  BL:{name:'板南線',   color:'#0070BD'},
+  Y: {name:'環狀線',   color:'#FFDB00'},
+};
+
+// 每段定義：line=路線, label=路網圖列名, codes/names 依序, kms 為相鄰站距
+const SEGMENTS = [
+  { line:'BR', label:'文湖線',
+    items:[['BR01','動物園'],['BR02','木柵'],['BR03','萬芳社區'],['BR04','萬芳醫院'],['BR05','辛亥'],['BR06','麟光'],['BR07','六張犁'],['BR08','科技大樓'],['BR09','大安'],['BR10','忠孝復興'],['BR11','南京復興'],['BR12','中山國中'],['BR13','松山機場'],['BR14','大直'],['BR15','劍南路'],['BR16','西湖'],['BR17','港墘'],['BR18','文德'],['BR19','內湖'],['BR20','大湖公園'],['BR21','葫洲'],['BR22','東湖'],['BR23','南港軟體園區'],['BR24','南港展覽館']],
+    kms:[1.4,1.0,0.7,1.0,1.1,1.0,1.1,0.9,0.9,1.2,0.9,1.1,1.5,1.0,1.0,0.8,0.9,1.0,1.0,1.0,0.9,1.4,1.1] },
+
+  { line:'R', label:'淡水信義線',
+    items:[['R28','淡水'],['R27','紅樹林'],['R26','竹圍'],['R25','關渡'],['R24','忠義'],['R23','復興崗'],['R22','北投'],['R21','奇岩'],['R20','唭哩岸'],['R19','石牌'],['R18','明德'],['R17','芝山'],['R16','士林'],['R15','劍潭'],['R14','圓山'],['R13','民權西路'],['R12','雙連'],['R11','中山'],['R10','台北車站'],['R09','台大醫院'],['R08','中正紀念堂'],['R07','東門'],['R06','大安森林公園'],['R05','大安'],['R04','信義安和'],['R03','台北101/世貿'],['R02','象山']],
+    kms:[1.8,1.5,1.4,1.2,1.0,1.1,1.0,0.9,0.9,0.9,0.9,1.1,1.0,1.0,1.0,0.9,0.7,0.8,0.8,0.8,0.9,0.8,0.7,0.8,0.9,0.9] },
+  { line:'R', label:'新北投支線', branch:true,
+    items:[['R22','北投'],['R22A','新北投']], kms:[1.2] },
+
+  { line:'G', label:'松山新店線',
+    items:[['G19','松山'],['G18','南京三民'],['G17','台北小巨蛋'],['G16','南京復興'],['G15','松江南京'],['G14','中山'],['G13','北門'],['G12','西門'],['G11','小南門'],['G10','中正紀念堂'],['G09','古亭'],['G08','台電大樓'],['G07','公館'],['G06','萬隆'],['G05','景美'],['G04','大坪林'],['G03','七張'],['G02','新店區公所'],['G01','新店']],
+    kms:[1.1,0.9,0.9,1.0,1.1,0.9,0.9,0.8,0.8,1.0,0.9,1.0,1.3,1.0,1.2,0.9,1.1,1.0] },
+  { line:'G', label:'小碧潭支線', branch:true,
+    items:[['G03','七張'],['G03A','小碧潭']], kms:[1.0] },
+
+  { line:'O', label:'中和新蘆線（南勢角—迴龍）',
+    items:[['O01','南勢角'],['O02','景安'],['O03','永安市場'],['O04','頂溪'],['O05','古亭'],['O06','東門'],['O07','忠孝新生'],['O08','松江南京'],['O09','行天宮'],['O10','中山國小'],['O11','民權西路'],['O12','大橋頭'],['O13','台北橋'],['O14','菜寮'],['O15','三重'],['O16','先嗇宮'],['O17','頭前庄'],['O18','新莊'],['O19','輔大'],['O20','丹鳳'],['O21','迴龍']],
+    kms:[1.0,1.0,1.1,1.4,1.0,1.0,0.9,0.9,0.8,0.8,1.0,0.8,1.0,0.9,1.0,1.0,1.0,1.2,1.2,1.3] },
+  { line:'O', label:'蘆洲支線', branch:true,
+    items:[['O12','大橋頭'],['O50','三重國小'],['O51','三和國中'],['O52','徐匯中學'],['O53','三民高中'],['O54','蘆洲']],
+    kms:[1.2,0.9,0.9,1.0,1.0] },
+
+  { line:'BL', label:'板南線',
+    items:[['BL01','頂埔'],['BL02','永寧'],['BL03','土城'],['BL04','海山'],['BL05','亞東醫院'],['BL06','府中'],['BL07','板橋'],['BL08','新埔'],['BL09','江子翠'],['BL10','龍山寺'],['BL11','西門'],['BL12','台北車站'],['BL13','善導寺'],['BL14','忠孝新生'],['BL15','忠孝復興'],['BL16','忠孝敦化'],['BL17','國父紀念館'],['BL18','市政府'],['BL19','永春'],['BL20','後山埤'],['BL21','昆陽'],['BL22','南港'],['BL23','南港展覽館']],
+    kms:[1.5,1.1,1.0,1.1,1.3,0.9,0.9,1.0,1.8,1.0,1.0,0.9,0.8,0.9,0.8,0.9,1.0,0.9,1.0,1.2,1.3,1.0] },
+
+  { line:'Y', label:'環狀線',
+    items:[['Y07','新北產業園區'],['Y08','幸福'],['Y09','新莊副都心'],['Y10','頭前庄'],['Y11','先嗇宮'],['Y12','新埔民生'],['Y13','板新'],['Y14','板橋'],['Y15','中原'],['Y16','橋和'],['Y17','中和'],['Y18','景安'],['Y19','景平'],['Y20','大坪林']],
+    kms:[1.1,1.0,1.1,1.0,1.2,1.0,1.0,0.9,0.9,1.0,1.0,0.9,2.3] },
+];
+
+// 轉乘步行時間(秒)：[codeA, codeB, 秒]
+const TRANSFERS = [
+  ['R10','BL12',300], ['R11','G14',150], ['R13','O11',150], ['R07','O06',150],
+  ['G09','O05',120], ['R08','G10',180], ['R05','BR09',180], ['BL15','BR10',200],
+  ['G16','BR11',180], ['G15','O08',120], ['BL14','O07',180], ['G12','BL11',150],
+  ['BL23','BR24',200], ['O17','Y10',150], ['BL07','Y14',300], ['O02','Y18',150],
+  ['G04','Y20',240], ['BL08','Y12',360],
+];
+
+// 出口數覆寫（未列者依是否轉乘給預設）
+const EXITS = { 'R10':'M1-M8','BL12':'M1-M8','R28':4,'R22':7,'G14':4,'R11':4,'BL11':6,'G12':6,'BL15':14,'BR10':14,'R05':8,'BR09':8,'BL18':4,'G07':4,'R16':2,'R15':5 };
+
+const KM_TO_SEC = 100; // 站距→秒
+
+/* ---------- 建圖 ---------- */
+const ST = {};        // code -> {name, line}
+const adj = {};       // code -> [{to, sec, km, type:'ride'|'transfer', line}]
+const lineRide = {};  // line -> code -> [neighborCodes]  (僅同線乘車)
+const nameToCodes = {}; // name -> [codes]
+
+function addEdge(a,b,sec,km,type,line){
+  (adj[a]=adj[a]||[]).push({to:b,sec,km,type,line});
+  (adj[b]=adj[b]||[]).push({to:a,sec,km,type,line});
+}
+SEGMENTS.forEach(seg=>{
+  const L = seg.line;
+  lineRide[L] = lineRide[L] || {};
+  seg.items.forEach(([code,name],i)=>{
+    if(!ST[code]) ST[code] = {name, line:L};
+    (nameToCodes[name]=nameToCodes[name]||[]);
+    if(!nameToCodes[name].includes(code)) nameToCodes[name].push(code);
+    if(i>0){
+      const prev = seg.items[i-1][0];
+      const km = seg.kms[i-1];
+      const sec = Math.round(km*KM_TO_SEC);
+      addEdge(prev,code,sec,km,'ride',L);
+      (lineRide[L][prev]=lineRide[L][prev]||[]).push(code);
+      (lineRide[L][code]=lineRide[L][code]||[]).push(prev);
+    }
+  });
+});
+TRANSFERS.forEach(([a,b,sec])=> addEdge(a,b,sec,0,'transfer',null));
+
+const ALL_NAMES = Object.keys(nameToCodes).sort((x,y)=>x.localeCompare(y,'zh-Hant'));
+
+/* ---------- 終點方向推算 ---------- */
+function terminusName(line, fromCode, toCode){
+  let prev = fromCode, cur = toCode, guard = 0;
+  while(guard++ < 60){
+    const nb = (lineRide[line][cur]||[]).filter(n=>n!==prev);
+    if(nb.length===0) return ST[cur].name;     // 到終點
+    prev = cur; cur = nb[0];                    // 分歧時取第一條
+  }
+  return ST[cur].name;
+}
+// 同線內兩站的乘車路徑（BFS）
+function ridePathInLine(line, a, b){
+  const q=[[a]], seen={}; seen[a]=1;
+  while(q.length){
+    const p=q.shift(), last=p[p.length-1];
+    if(last===b) return p;
+    (lineRide[line][last]||[]).forEach(n=>{ if(!seen[n]){ seen[n]=1; q.push(p.concat(n)); } });
+  }
+  return [a,b];
+}
+// 乘車段的行進方向終點（依實際抵達站所在分支）
+function runTerminus(line, fromCode, toCode){
+  const p = ridePathInLine(line, fromCode, toCode);
+  const prev = p.length>=2 ? p[p.length-2] : fromCode;
+  return terminusName(line, prev, toCode);
+}
+
+/* ---------- Dijkstra（多源多終點）---------- */
+function dijkstra(startCodes, weightKey){
+  const dist = {}, prev = {};
+  const pq = []; // 簡易陣列 priority queue
+  startCodes.forEach(c=>{ dist[c]=0; pq.push(c); });
+  const visited = {};
+  while(pq.length){
+    // 取最小
+    let bi=0; for(let i=1;i<pq.length;i++) if(dist[pq[i]]<dist[pq[bi]]) bi=i;
+    const u = pq.splice(bi,1)[0];
+    if(visited[u]) continue; visited[u]=true;
+    (adj[u]||[]).forEach(e=>{
+      const w = e[weightKey];
+      const nd = dist[u] + w;
+      if(dist[e.to]===undefined || nd < dist[e.to]){
+        dist[e.to]=nd; prev[e.to]={from:u, edge:e};
+        pq.push(e.to);
+      }
+    });
+  }
+  return {dist, prev};
+}
+
+function bestEnd(dist, endCodes){
+  let best=null, bv=Infinity;
+  endCodes.forEach(c=>{ if(dist[c]!==undefined && dist[c]<bv){ bv=dist[c]; best=c; } });
+  return best;
+}
+
+function reconstruct(prev, endCode){
+  const path=[]; let cur=endCode;
+  while(cur!==undefined){
+    path.unshift({code:cur, edge: prev[cur]?prev[cur].edge:null});
+    cur = prev[cur] ? prev[cur].from : undefined;
+  }
+  return path; // [{code, edgeFromPrev}]
+}
+
+/* ---------- 規劃行程 ---------- */
+function planRoute(fromName, toName){
+  const starts = nameToCodes[fromName], ends = nameToCodes[toName];
+  if(!starts || !ends) return null;
+  if(fromName===toName) return {same:true};
+
+  // 最快(時間)
+  const t = dijkstra(starts, 'sec');
+  const endT = bestEnd(t.dist, ends);
+  if(endT===null) return null;
+  const path = reconstruct(t.prev, endT);
+  const totalSec = t.dist[endT];
+
+  // 最短里程→票價（與時間分開算，符合官方計費）
+  const d = dijkstra(starts, 'km');
+  const endD = bestEnd(d.dist, ends);
+  const totalKm = d.dist[endD];
+
+  // 拆成乘車段 + 轉乘
+  const runs = []; let cur=null;
+  for(let i=1;i<path.length;i++){
+    const e = path[i].edge;
+    if(e.type==='ride'){
+      if(!cur || cur.line!==e.line){
+        cur = {line:e.line, fromCode:path[i-1].code, toCode:path[i].code, stops:1, sec:e.sec, pass:[path[i-1].code]};
+        runs.push(cur);
+      } else {
+        cur.toCode = path[i].code; cur.stops++; cur.sec+=e.sec;
+      }
+      cur.pass.push(path[i].code);
+    } else { // transfer
+      runs.push({transfer:true, fromCode:path[i-1].code, toCode:path[i].code, sec:e.sec});
+      cur=null;
+    }
+  }
+  const xfers = runs.filter(r=>r.transfer).length;
+  return {totalSec, totalKm, fare:fareFromKm(totalKm), runs, xfers};
+}
+
+/* ---------- 票價分段（依里程，全票）---------- */
+function fareFromKm(km){
+  const b=[[5,20],[9,25],[14,30],[19,35],[24,40],[30,45],[37,50],[45,55],[55,60]];
+  for(const [lim,f] of b) if(km<=lim) return f;
+  return 65;
+}
+
+/* ============================================================
+   2. 介面渲染
+   ============================================================ */
+let fareType = 'full';
+const $ = s=>document.querySelector(s);
+const fromIn=$('#fromIn'), toIn=$('#toIn');
+
+// datalist
+$('#staList').innerHTML = ALL_NAMES.map(n=>`<option value="${n}">`).join('');
+
+function fmtMin(sec){ return Math.max(1, Math.round(sec/60)); }
+function lineBadge(line){
+  const m=LINE_META[line];
+  return `<span class="line-badge" style="background:${m.color};${line==='Y'?'color:#1a1a1a;':''}">${m.name}</span>`;
+}
+function codeTag(code){ return `<span class="code">${code}</span>`; }
+
+function renderResult(){
+  const f=fromIn.value.trim(), t=toIn.value.trim();
+  const body=$('#resultBody');
+  if(!f||!t){ body.innerHTML='<div class="result-empty">選擇起站與訖站後，自動規劃最快路線。</div>'; return; }
+  if(!nameToCodes[f]||!nameToCodes[t]){
+    body.innerHTML='<div class="result-empty">找不到車站，請從清單選擇正確站名。</div>'; return;
+  }
+  const r=planRoute(f,t);
+  if(r && r.same){ body.innerHTML='<div class="result-empty">起站與訖站相同。</div>'; return; }
+  if(!r){ body.innerHTML='<div class="result-empty">查無可行路線。</div>'; return; }
+
+  setHash(f,t);
+  const fare = fareType==='conc' ? Math.round(r.fare/2) : r.fare;
+  let html = `<div class="summary">
+    <div class="stat time"><div class="v">${fmtMin(r.totalSec)}<small> 分</small></div><div class="k">乘車時間</div></div>
+    <div class="stat fare"><div class="v">${fare}<small> 元</small></div><div class="k">${fareType==='conc'?'半價':'全票'}</div></div>
+    <div class="stat xfer"><div class="v">${r.xfers}<small> 次</small></div><div class="k">轉乘</div></div>
+  </div>`;
+
+  html += '<div class="steps">';
+  // 起點
+  const startCode = r.runs[0].fromCode;
+  html += stepNode(startCode, r.runs[0].line ? r.runs[0].line : null, true, false);
+
+  r.runs.forEach((run,idx)=>{
+    if(run.transfer){
+      const sameName = ST[run.fromCode].name===ST[run.toCode].name;
+      const lbl = sameName ? `於 ${ST[run.fromCode].name} 站內轉乘` : `步行至 ${ST[run.toCode].name}`;
+      html += `<div class="step"><div class="step-rail"><div class="line-bar" style="background:repeating-linear-gradient(180deg,var(--warn) 0 5px,transparent 5px 10px)"></div></div>
+        <div class="step-body"><div class="xfer-note">🚶 ${lbl}・步行約 ${fmtMin(run.sec)} 分</div></div></div>`;
+    } else {
+      const term = runTerminus(run.line, run.fromCode, run.toCode);
+      const passInner = run.pass.slice(1,-1);
+      const pid = 'p'+idx;
+      html += `<div class="step"><div class="step-rail"><div class="line-bar" style="background:${LINE_META[run.line].color}"></div></div>
+        <div class="step-body">
+          <div class="ride-info">${lineBadge(run.line)}<span>往 ${term} 方向</span></div>
+          <div class="ride-info">${run.stops} 站・約 ${fmtMin(run.sec)} 分
+          ${passInner.length?`<span class="pass-toggle" data-p="${pid}">· 經過 ${passInner.length} 站 ▾</span>`:''}</div>
+          ${passInner.length?`<div class="pass-list" id="${pid}">${passInner.map(c=>ST[c].name).join('　→　')}</div>`:''}
+        </div></div>`;
+      // 抵達該段終點站
+      html += stepNode(run.toCode, run.line, false, idx===r.runs.length-1);
+    }
+  });
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+function stepNode(code, line, isStart, isEnd){
+  const color = line ? LINE_META[line].color : 'var(--accent)';
+  const label = isStart ? '起' : isEnd ? '迄' : '';
+  return `<div class="step"><div class="step-rail">
+      <div class="dot" style="background:${isStart||isEnd?'var(--bg)':color};border-color:${color}"></div>
+      ${isEnd?'':'<div class="line-bar" style="background:'+color+'"></div>'}
+    </div>
+    <div class="step-body" style="padding-bottom:${isEnd?'0':'10px'}">
+      <span class="step-sta" data-sta="${ST[code].name}">${label?'<b style="color:'+(isStart?'#6ee7b7':'#fca5a5')+'">['+label+']</b> ':''}${ST[code].name} ${codeTag(code)}</span>
+    </div></div>`;
+}
+
+/* ---------- 路網圖 ---------- */
+function renderNetMap(){
+  const host=$('#netMap');
+  let html='';
+  SEGMENTS.forEach(seg=>{
+    const color=LINE_META[seg.line].color;
+    html += `<div class="line-row"><div class="line-head"><span class="line-chip" style="background:${color}"></span>${seg.label}</div><div class="strip">`;
+    seg.items.forEach(([code,name],i)=>{
+      const xfer = nameToCodes[name].length>1 || TRANSFERS.some(t=>t[0]===code||t[1]===code);
+      html += `<div class="sta-node ${xfer?'xfer':''}" data-sta="${name}">
+        <div class="seg" style="background:${color}"></div>
+        <div class="pin" style="border-color:${color}"></div>
+        <div class="nm">${name}</div></div>`;
+    });
+    html += '</div></div>';
+  });
+  host.innerHTML=html;
+}
+
+/* ============================================================
+   3. 站體結構 SVG（資料驅動通用示意圖）
+   ============================================================ */
+function stationLines(name){
+  // 此實體站涵蓋的路線 + 該站於各線之 code
+  const codes = nameToCodes[name];
+  const seen={}; const list=[];
+  codes.forEach(c=>{ const L=ST[c].line; if(!seen[L]){ seen[L]=true; list.push({line:L, code:c}); } });
+  return list;
+}
+function platformEnds(line, code){
+  const nb = lineRide[line][code]||[];
+  if(nb.length===0) return ['—','—'];
+  if(nb.length===1){
+    const t=terminusName(line, code, nb[0]);
+    return ['（終點）', '往 '+t];
+  }
+  return ['往 '+terminusName(line,code,nb[0]), '往 '+terminusName(line,code,nb[1])];
+}
+function transferWalk(codeA, codeB){
+  const t=TRANSFERS.find(x=>(x[0]===codeA&&x[1]===codeB)||(x[0]===codeB&&x[1]===codeA));
+  return t?Math.round(t[2]/60):null;
+}
+function exitCount(code){
+  const e=EXITS[code];
+  if(typeof e==='number') return e;
+  if(typeof e==='string') return 8; // 區段出口（如 M1-M8）
+  return nameToCodes[ST[code].name].length>1 ? 5 : 3;
+}
+
+function buildStationSVG(name){
+  const lines = stationLines(name);
+  const W=340;
+  const concY=44, concH=46;
+  const platTop=120, platH=54, platGap=22;
+  const H = platTop + lines.length*(platH+platGap) + 30;
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang TC',sans-serif">`;
+  s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="#0b1220"/>`;
+
+  // 地面線
+  s+=`<line x1="10" y1="30" x2="${W-10}" y2="30" stroke="#475569" stroke-dasharray="4 3"/>`;
+  s+=`<text x="16" y="24" fill="#64748b" font-size="10">地面 / 出口</text>`;
+
+  // 出口（取各線 code 出口數的最大者）
+  let exits=0; lines.forEach(l=> exits=Math.max(exits, exitCount(l.code)));
+  exits=Math.min(exits,8);
+  for(let i=0;i<exits;i++){
+    const x=18 + i*((W-46)/Math.max(exits,1));
+    s+=`<g><rect x="${x}" y="8" rx="3" width="${(W-46)/Math.max(exits,1)-6}" height="15" fill="#1e293b" stroke="#475569"/>`;
+    s+=`<text x="${x+((W-46)/Math.max(exits,1)-6)/2}" y="19" fill="#cbd5e1" font-size="9" text-anchor="middle">出${i+1}</text></g>`;
+  }
+
+  // 穿堂層
+  s+=`<rect x="14" y="${concY}" rx="6" width="${W-28}" height="${concH}" fill="#162033" stroke="#334155"/>`;
+  s+=`<text x="24" y="${concY+17}" fill="#e2e8f0" font-size="12" font-weight="600">穿堂層 B1</text>`;
+  s+=`<text x="24" y="${concY+34}" fill="#94a3b8" font-size="10">🎫 閘門　ℹ️ 詢問處　🛗 電梯　🚻 廁所</text>`;
+  // 出口連接
+  for(let i=0;i<exits;i++){
+    const x=18 + i*((W-46)/Math.max(exits,1)) + ((W-46)/Math.max(exits,1)-6)/2;
+    s+=`<line x1="${x}" y1="23" x2="${x}" y2="${concY}" stroke="#334155"/>`;
+  }
+
+  // 月台層
+  lines.forEach((l,idx)=>{
+    const y=platTop + idx*(platH+platGap);
+    const m=LINE_META[l.line];
+    const ends=platformEnds(l.line, l.code);
+    // 穿堂→月台 樓梯
+    s+=`<line x1="${W/2}" y1="${concY+concH}" x2="${W/2}" y2="${y}" stroke="#475569" stroke-width="2" stroke-dasharray="3 3"/>`;
+    s+=`<text x="${W/2+6}" y="${y-4}" fill="#64748b" font-size="9">電扶梯／樓梯</text>`;
+    // 月台底
+    s+=`<rect x="14" y="${y}" rx="6" width="${W-28}" height="${platH}" fill="#0f1726" stroke="#334155"/>`;
+    // 兩條軌道（線色）
+    s+=`<rect x="20" y="${y+8}" width="${W-40}" height="7" rx="3" fill="${m.color}"/>`;
+    s+=`<rect x="20" y="${y+platH-15}" width="${W-40}" height="7" rx="3" fill="${m.color}"/>`;
+    // 島式月台
+    s+=`<rect x="60" y="${y+18}" width="${W-120}" height="${platH-30}" rx="3" fill="#1e293b" stroke="#475569"/>`;
+    s+=`<text x="${W/2}" y="${y+platH/2+3}" fill="#cbd5e1" font-size="10" text-anchor="middle">月台</text>`;
+    // 線名 + 樓層
+    s+=`<rect x="14" y="${y}" width="6" height="${platH}" fill="${m.color}"/>`;
+    s+=`<text x="26" y="${y+15}" fill="${m.color}" font-size="11" font-weight="700">${m.name} B${idx+2}</text>`;
+    // 方向（左右端）
+    s+=`<text x="24" y="${y+platH+13}" fill="#94a3b8" font-size="9.5">◀ ${esc(ends[0])}</text>`;
+    s+=`<text x="${W-24}" y="${y+platH+13}" fill="#94a3b8" font-size="9.5" text-anchor="end">${esc(ends[1])} ▶</text>`;
+  });
+
+  // 轉乘通道
+  if(lines.length>1){
+    for(let i=0;i<lines.length-1;i++){
+      const y1=platTop + i*(platH+platGap)+platH;
+      const y2=platTop + (i+1)*(platH+platGap);
+      const w=transferWalk(lines[i].code, lines[i+1].code);
+      s+=`<line x1="40" y1="${y1}" x2="40" y2="${y2}" stroke="${LINE_META[lines[i].line].color}" stroke-width="2"/>`;
+      s+=`<line x1="40" y1="${(y1+y2)/2}" x2="${W-40}" y2="${(y1+y2)/2}" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+      if(w) s+=`<text x="${W/2}" y="${(y1+y2)/2-4}" fill="#fbbf24" font-size="10" text-anchor="middle">🚶 轉乘步行約 ${w} 分</text>`;
+    }
+  }
+  s+='</svg>';
+  return s;
+}
+
+/* ---------- 站體 modal ---------- */
+function openStation(name){
+  const lines=stationLines(name);
+  const codes=nameToCodes[name];
+  const sheet=$('#sheet');
+  let badges = lines.map(l=>lineBadge(l.line)).join('');
+  let codeStr = codes.map(c=>codeTag(c)).join(' ');
+  sheet.innerHTML = `
+    <button class="close-x" id="closeX">✕</button>
+    <div class="sheet-grip"></div>
+    <h2>${name} ${codeStr}</h2>
+    <div class="badges">${badges}${lines.length>1?'<span class="line-badge" style="background:#334155">轉乘站</span>':''}</div>
+    <div class="sheet-actions">
+      <button class="start" data-set="from" data-n="${name}">設為起站</button>
+      <button class="end" data-set="to" data-n="${name}">設為訖站</button>
+    </div>
+    <div class="svg-box">${buildStationSVG(name)}</div>
+    <p class="hint" style="margin-top:10px">示意圖：上為穿堂層與出口，下為各線月台與行進方向${lines.length>1?'，黃色虛線為線間轉乘通道':''}。樓層、出口數為概略示意。</p>`;
+  $('#modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeModal(){ $('#modal').classList.remove('open'); document.body.style.overflow=''; }
+
+/* ============================================================
+   4. 事件
+   ============================================================ */
+[fromIn,toIn].forEach(el=> el.addEventListener('input', renderResult));
+$('#swapBtn').addEventListener('click', ()=>{
+  const a=fromIn.value; fromIn.value=toIn.value; toIn.value=a; renderResult();
+});
+$('#fareTypes').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  fareType=b.dataset.t;
+  $('#fareTypes').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
+  renderResult();
+});
+// 站名點擊（結果列 / 路網圖）開站體
+document.addEventListener('click', e=>{
+  const sta=e.target.closest('[data-sta]');
+  if(sta){ openStation(sta.dataset.sta); return; }
+  const tog=e.target.closest('.pass-toggle');
+  if(tog){ const l=document.getElementById(tog.dataset.p); if(l) l.classList.toggle('open'); return; }
+});
+// modal 內部
+$('#sheet').addEventListener('click', e=>{
+  if(e.target.id==='closeX'){ closeModal(); return; }
+  const set=e.target.closest('[data-set]');
+  if(set){
+    if(set.dataset.set==='from') fromIn.value=set.dataset.n; else toIn.value=set.dataset.n;
+    closeModal(); renderResult();
+    document.querySelector('#resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+});
+$('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') closeModal(); });
+
+// 標記路網圖已選
+function markSelected(){
+  document.querySelectorAll('.sta-node').forEach(n=>{
+    const nm=n.dataset.sta;
+    n.classList.toggle('sel', nm===fromIn.value || nm===toIn.value);
+  });
+}
+const _rr=renderResult; renderResult=function(){ _rr(); markSelected(); };
+
+/* ---------- URL hash 分享 ---------- */
+function setHash(f,t){ history.replaceState(null,'', '#'+encodeURIComponent(f)+'→'+encodeURIComponent(t)); }
+function loadHash(){
+  const h=decodeURIComponent(location.hash.replace(/^#/,''));
+  if(h.includes('→')){
+    const [f,t]=h.split('→');
+    if(nameToCodes[f]) fromIn.value=f;
+    if(nameToCodes[t]) toIn.value=t;
+  }
+}
+
+/* ---------- init ---------- */
+renderNetMap();
+loadHash();
+renderResult();
+</script>
+</body>
+</html>
