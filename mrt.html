@@ -141,6 +141,26 @@
   .sta-node:active .nm, .sta-node.sel .nm { color: var(--accent-hover); }
   .sta-node.sel .pin { transform: scale(1.35); }
 
+  /* ---- 2D 路網圖 ---- */
+  .map-tools { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .map-tools button {
+    width:38px; height:34px; font-size:1rem; cursor:pointer; color:var(--text);
+    background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  }
+  .map-tools button[data-z="fit"] { width:auto; padding:0 12px; font-size:.85rem; }
+  .map-tools button:active { background:var(--card2); border-color:var(--accent); }
+  .map-hint { font-size:.72rem; color:var(--muted); margin-left:auto; }
+  .map-scroll {
+    overflow:auto; -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y;
+    background:#0b1220; border:1px solid var(--border); border-radius:12px;
+    max-height:72vh;
+  }
+  .map-scroll svg { display:block; }
+  .netnode { cursor:pointer; }
+  .netnode:active .nd { stroke:var(--accent-hover); }
+  .netnode.sel .nd { stroke:var(--accent); stroke-width:4; }
+  .netnode.sel .lbl { fill:var(--accent-hover); font-weight:700; }
+
   /* ---- modal ---- */
   .modal-bg {
     position: fixed; inset: 0; background: rgba(2,6,23,.72); backdrop-filter: blur(3px);
@@ -276,8 +296,8 @@ const SEGMENTS = [
     kms:[1.5,1.1,1.0,1.1,1.3,0.9,0.9,1.0,1.8,1.0,1.0,0.9,0.8,0.9,0.8,0.9,1.0,0.9,1.0,1.2,1.3,1.0] },
 
   { line:'Y', label:'環狀線',
-    items:[['Y07','新北產業園區'],['Y08','幸福'],['Y09','新莊副都心'],['Y10','頭前庄'],['Y11','先嗇宮'],['Y12','新埔民生'],['Y13','板新'],['Y14','板橋'],['Y15','中原'],['Y16','橋和'],['Y17','中和'],['Y18','景安'],['Y19','景平'],['Y20','大坪林']],
-    kms:[1.1,1.0,1.1,1.0,1.2,1.0,1.0,0.9,0.9,1.0,1.0,0.9,2.3] },
+    items:[['Y20','新北產業園區'],['Y19','幸福'],['Y18','頭前庄'],['Y17','新埔民生'],['Y16','板橋'],['Y15','板新'],['Y14','中原'],['Y13','橋和'],['Y12','中和'],['Y11','景安'],['Y10','景平'],['Y09','秀朗橋'],['Y08','十四張'],['Y07','大坪林']],
+    kms:[1.1,1.2,1.4,0.9,0.9,1.0,0.9,1.0,1.1,0.9,1.0,1.0,1.2] },
 ];
 
 // 轉乘步行時間(秒)：[codeA, codeB, 秒]
@@ -285,14 +305,43 @@ const TRANSFERS = [
   ['R10','BL12',300], ['R11','G14',150], ['R13','O11',150], ['R07','O06',150],
   ['G09','O05',120], ['R08','G10',180], ['R05','BR09',180], ['BL15','BR10',200],
   ['G16','BR11',180], ['G15','O08',120], ['BL14','O07',180], ['G12','BL11',150],
-  ['BL23','BR24',200], ['O17','Y10',150], ['BL07','Y14',300], ['O02','Y18',150],
-  ['G04','Y20',240], ['BL08','Y12',360],
+  ['BL23','BR24',200], ['O17','Y18',150], ['BL07','Y16',300], ['O02','Y11',150],
+  ['G04','Y07',240], ['BL08','Y17',360],
 ];
 
 // 出口數覆寫（未列者依是否轉乘給預設）
 const EXITS = { 'R10':'M1-M8','BL12':'M1-M8','R28':4,'R22':7,'G14':4,'R11':4,'BL11':6,'G12':6,'BL15':14,'BR10':14,'R05':8,'BR09':8,'BL18':4,'G07':4,'R16':2,'R15':5 };
 
 const KM_TO_SEC = 100; // 站距→秒
+
+// 路網圖佈局座標（格線單位；仿官方示意圖之八方位佈局）
+const COORD = {
+  // 淡水信義線
+  R28:[13,-3],R27:[13,-2],R26:[13,-1],R25:[13,0],R24:[13,1],R23:[13,2],R22:[13,3],R22A:[12,2.2],
+  R21:[13,4],R20:[13,5],R19:[13,6],R18:[13,7],R17:[13,8],R16:[13,9],R15:[13,10],R14:[13,11],
+  R13:[13,12],R12:[13,13],R11:[13,14],R10:[13,15],R09:[13,16],R08:[13,17],R07:[13,18],
+  R06:[14,19],R05:[15,20],R04:[16,21],R03:[17,22],R02:[18,23],
+  // 板南線
+  BL01:[1,15],BL02:[2,15],BL03:[3,15],BL04:[4,15],BL05:[5,15],BL06:[6,15],BL07:[7,15],BL08:[8,15],
+  BL09:[9,15],BL10:[10,15],BL11:[11,15],BL12:[13,15],BL13:[14,15],BL14:[15,15],BL15:[16,15],
+  BL16:[17,15],BL17:[18,15],BL18:[19,15],BL19:[20,15],BL20:[21,15],BL21:[22,15],BL22:[23,15],BL23:[24,15],
+  // 松山新店線
+  G01:[10,27],G02:[10,26],G03:[10,25],G03A:[9,25.7],G04:[10,24],G05:[10,23],G06:[10,22],G07:[10,21],
+  G08:[10,20],G09:[11,19],G10:[13,17],G11:[12,16],G12:[11,15],G13:[12,14],G14:[13,14],G15:[15,13],
+  G16:[17,13],G17:[19,13],G18:[21,13],G19:[23,13],
+  // 中和新蘆線
+  O01:[11,23],O02:[11,22],O03:[11,21],O04:[11,20],O05:[11,19],O06:[13,18],O07:[15,15],O08:[15,13],
+  O09:[15,12],O10:[14,12],O11:[13,12],O12:[11,11],O13:[10,11],O14:[9,11],O15:[8,11],O16:[7,11],
+  O17:[6,11],O18:[5,11],O19:[4,11],O20:[3,11],O21:[2,11],
+  O50:[10,10],O51:[9,9],O52:[8.5,8],O53:[8,7],O54:[7.5,6],
+  // 文湖線
+  BR01:[17,28],BR02:[17,27],BR03:[17,26],BR04:[17,25],BR05:[16,24],BR06:[16,23],BR07:[15,22],BR08:[15,21],
+  BR09:[15,20],BR10:[16,15],BR11:[17,13],BR12:[18,12],BR13:[19,11],BR14:[20,10],BR15:[21,10],BR16:[22,10],
+  BR17:[23,10],BR18:[24,10],BR19:[25,10],BR20:[26,10],BR21:[27,11],BR22:[27,12],BR23:[26,14],BR24:[24,15],
+  // 環狀線
+  Y20:[4,9],Y19:[5,10],Y18:[6,11],Y17:[8,14],Y16:[7,15],Y15:[7,16],Y14:[8,17],Y13:[9,18],
+  Y12:[9.5,20],Y11:[11,22],Y10:[12,22.5],Y09:[12,23.5],Y08:[11,24],Y07:[10,24],
+};
 
 /* ---------- 建圖 ---------- */
 const ST = {};        // code -> {name, line}
@@ -514,23 +563,69 @@ function stepNode(code, line, isStart, isEnd){
     </div></div>`;
 }
 
-/* ---------- 路網圖 ---------- */
-function renderNetMap(){
-  const host=$('#netMap');
-  let html='';
+/* ---------- 路網圖（2D 示意佈局）---------- */
+const NET_UNIT=46, NET_PAD=70;
+let netScale=1;
+function netExtent(){
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for(const c in COORD){ const [x,y]=COORD[c];
+    if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; }
+  return {minX,maxX,minY,maxY};
+}
+const _ext=netExtent();
+function SX(x){ return ((x-_ext.minX)*NET_UNIT+NET_PAD).toFixed(1); }
+function SY(y){ return ((y-_ext.minY)*NET_UNIT+NET_PAD).toFixed(1); }
+
+function buildNetSVG(){
+  const W=Math.round((_ext.maxX-_ext.minX)*NET_UNIT+NET_PAD*2);
+  const H=Math.round((_ext.maxY-_ext.minY)*NET_UNIT+NET_PAD*2);
+  let s=`<svg id="netSvg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,'PingFang TC',sans-serif">`;
+  s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="#0b1220"/>`;
+  // 路線（先畫線、轉乘較粗以便分辨）
   SEGMENTS.forEach(seg=>{
-    const color=LINE_META[seg.line].color;
-    html += `<div class="line-row"><div class="line-head"><span class="line-chip" style="background:${color}"></span>${seg.label}</div><div class="strip">`;
-    seg.items.forEach(([code,name],i)=>{
-      const xfer = nameToCodes[name].length>1 || TRANSFERS.some(t=>t[0]===code||t[1]===code);
-      html += `<div class="sta-node ${xfer?'xfer':''}" data-sta="${name}">
-        <div class="seg" style="background:${color}"></div>
-        <div class="pin" style="border-color:${color}"></div>
-        <div class="nm">${name}</div></div>`;
-    });
-    html += '</div></div>';
+    const pts=seg.items.map(([c])=> COORD[c] ? `${SX(COORD[c][0])},${SY(COORD[c][1])}` : null).filter(Boolean).join(' ');
+    s+=`<polyline points="${pts}" fill="none" stroke="${LINE_META[seg.line].color}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" opacity="0.95"/>`;
   });
-  host.innerHTML=html;
+  // 車站節點 + 名稱（依站名去重）
+  for(const name in nameToCodes){
+    const codes=nameToCodes[name];
+    const c=codes.find(c=>COORD[c]); if(!c) continue;
+    const x=SX(COORD[c][0]), y=SY(COORD[c][1]);
+    const inter=codes.length>1;
+    s+=`<g class="netnode" data-sta="${name}">`;
+    // 透明點擊區
+    s+=`<circle cx="${x}" cy="${y}" r="13" fill="transparent"/>`;
+    if(inter) s+=`<circle class="nd" cx="${x}" cy="${y}" r="8" fill="#fff" stroke="#0b1220" stroke-width="2.5"/>`;
+    else      s+=`<circle class="nd" cx="${x}" cy="${y}" r="4.5" fill="#0b1220" stroke="${LINE_META[ST[c].line].color}" stroke-width="3"/>`;
+    s+=`<text class="lbl" x="${(+x+8).toFixed(1)}" y="${(+y-8).toFixed(1)}" transform="rotate(-42 ${(+x+8).toFixed(1)} ${(+y-8).toFixed(1)})" font-size="${inter?12:10.5}" font-weight="${inter?'700':'400'}" fill="${inter?'#f8fafc':'#cbd5e1'}">${name}</text>`;
+    s+=`</g>`;
+  }
+  s+='</svg>';
+  return s;
+}
+function renderNetMap(){
+  $('#netMap').innerHTML =
+    `<div class="map-tools">
+       <button data-z="out" title="縮小">－</button>
+       <button data-z="fit" title="適應寬度">適應</button>
+       <button data-z="in" title="放大">＋</button>
+       <span class="map-hint">點站可設起／訖站・看站體</span>
+     </div>
+     <div class="map-scroll" id="mapScroll">${buildNetSVG()}</div>`;
+  fitNet();
+}
+function applyNetScale(){
+  const svg=document.getElementById('netSvg'); if(!svg) return;
+  const vb=svg.viewBox.baseVal;
+  svg.setAttribute('width', Math.round(vb.width*netScale));
+  svg.setAttribute('height', Math.round(vb.height*netScale));
+}
+function fitNet(){
+  const sc=document.getElementById('mapScroll'), svg=document.getElementById('netSvg');
+  if(!sc||!svg) return;
+  const vb=svg.viewBox.baseVal;
+  netScale = Math.max(0.45, Math.min(1.4, (sc.clientWidth-6)/vb.width));
+  applyNetScale();
 }
 
 /* ============================================================
@@ -693,11 +788,19 @@ $('#modal').addEventListener('click', e=>{ if(e.target.id==='modal') closeModal(
 
 // 標記路網圖已選
 function markSelected(){
-  document.querySelectorAll('.sta-node').forEach(n=>{
-    const nm=n.dataset.sta;
+  document.querySelectorAll('.netnode').forEach(n=>{
+    const nm=n.getAttribute('data-sta');
     n.classList.toggle('sel', nm===fromIn.value || nm===toIn.value);
   });
 }
+// 路網圖縮放鈕
+document.addEventListener('click', e=>{
+  const z=e.target.closest('[data-z]'); if(!z) return;
+  if(z.dataset.z==='fit'){ fitNet(); return; }
+  netScale = z.dataset.z==='in' ? Math.min(netScale*1.25, 3) : Math.max(netScale/1.25, 0.35);
+  applyNetScale();
+});
+window.addEventListener('resize', ()=>{ /* 重新適應僅在較大變動時 */ });
 const _rr=renderResult; renderResult=function(){ _rr(); markSelected(); };
 
 /* ---------- URL hash 分享 ---------- */
