@@ -28,6 +28,8 @@
     background: #0b1220;
     color: var(--text);
     line-height: 1.5;
+    touch-action: manipulation;       /* 停用 double-tap 放大 */
+    overscroll-behavior: none;
   }
 
   /* ---- 以地圖為主體的 app 外殼 ---- */
@@ -940,9 +942,20 @@ function setupPinch(){
   }, {passive:false});
 }
 
+/* ---------- 鎖定原生頁面縮放（只允許地圖縮放）---------- */
+function lockPageZoom(){
+  // iOS Safari 會忽略 user-scalable=no，需主動攔截縮放手勢
+  ['gesturestart','gesturechange','gestureend'].forEach(t=>
+    document.addEventListener(t, e=>e.preventDefault(), {passive:false}));
+  // 任意雙指拖移都不縮放整頁；地圖自身的 pinch handler 仍會縮放 SVG
+  document.addEventListener('touchmove', e=>{ if(e.touches.length>1) e.preventDefault(); }, {passive:false});
+  // double-tap 放大已由 CSS touch-action: manipulation 停用
+}
+
 /* ---------- init ---------- */
 renderNetMap();
 setupPinch();
+lockPageZoom();
 loadHash();
 updatePill();
 runQuery();
