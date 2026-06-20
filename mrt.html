@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>台北捷運路線地圖｜時間・票價・站體</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -345,8 +345,8 @@ const COORD = {
   // 淡水信義線
   R28:[13,-3],R27:[13,-2],R26:[13,-1],R25:[13,0],R24:[13,1],R23:[13,2],R22:[13,3],R22A:[12,2.2],
   R21:[13,4],R20:[13,5],R19:[13,6],R18:[13,7],R17:[13,8],R16:[13,9],R15:[13,10],R14:[13,11],
-  R13:[13,12],R12:[13,13],R11:[13,14],R10:[13,15],R09:[13,16],R08:[13,17],R07:[13,18],
-  R06:[14,19],R05:[15,20],R04:[16,21],R03:[17,22],R02:[18,23],
+  R13:[13,12],R12:[13,13],R11:[13,14],R10:[13,15],R09:[13,16],R08:[13,17],R07:[14,18],
+  R06:[15,19],R05:[16,20],R04:[17,21],R03:[18,22],R02:[19,23],
   // 板南線
   BL01:[1,15],BL02:[2,15],BL03:[3,15],BL04:[4,15],BL05:[5,15],BL06:[6,15],BL07:[7,15],BL08:[8,15],
   BL09:[9,15],BL10:[10,15],BL11:[11,15],BL12:[13,15],BL13:[14,15],BL14:[15,15],BL15:[16,15],
@@ -356,13 +356,13 @@ const COORD = {
   G08:[10,20],G09:[11,19],G10:[13,17],G11:[12,16],G12:[11,15],G13:[12,14],G14:[13,14],G15:[15,13],
   G16:[17,13],G17:[19,13],G18:[21,13],G19:[23,13],
   // 中和新蘆線
-  O01:[11,23],O02:[11,22],O03:[11,21],O04:[11,20],O05:[11,19],O06:[13,18],O07:[15,15],O08:[15,13],
+  O01:[11,23],O02:[11,22],O03:[11,21],O04:[11,20],O05:[11,19],O06:[14,18],O07:[15,15],O08:[15,13],
   O09:[15,12],O10:[14,12],O11:[13,12],O12:[11,11],O13:[10,11],O14:[9,11],O15:[8,11],O16:[7,11],
   O17:[6,11],O18:[5,11],O19:[4,11],O20:[3,11],O21:[2,11],
   O50:[10,10],O51:[9,9],O52:[8.5,8],O53:[8,7],O54:[7.5,6],
   // 文湖線
-  BR01:[17,28],BR02:[17,27],BR03:[17,26],BR04:[17,25],BR05:[16,24],BR06:[16,23],BR07:[15,22],BR08:[15,21],
-  BR09:[15,20],BR10:[16,15],BR11:[17,13],BR12:[18,12],BR13:[19,11],BR14:[20,10],BR15:[21,10],BR16:[22,10],
+  BR01:[18,28],BR02:[18,27],BR03:[18,26],BR04:[18,25],BR05:[17,24],BR06:[17,23],BR07:[16,22],BR08:[16,21],
+  BR09:[16,20],BR10:[16,15],BR11:[17,13],BR12:[18,12],BR13:[19,11],BR14:[20,10],BR15:[21,10],BR16:[22,10],
   BR17:[23,10],BR18:[24,10],BR19:[25,10],BR20:[26,10],BR21:[27,11],BR22:[27,12],BR23:[26,14],BR24:[24,15],
   // 環狀線
   Y20:[4,9],Y19:[5,10],Y18:[6,11],Y17:[8,14],Y16:[7,15],Y15:[7,16],Y14:[8,17],Y13:[9,18],
@@ -902,8 +902,47 @@ function loadHash(){
     if(nameToCodes[f]) sel.from=f; if(nameToCodes[t]) sel.to=t; }
 }
 
+/* ---------- 兩指縮放（pinch-zoom）---------- */
+function setupPinch(){
+  const sc=document.getElementById('mapScroll'); if(!sc) return;
+  let pinching=false, startDist=0, startScale=1, anchor={x:0,y:0}, rect=null;
+  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  const mid=t=>({x:(t[0].clientX+t[1].clientX)/2-rect.left, y:(t[0].clientY+t[1].clientY)/2-rect.top});
+  sc.addEventListener('touchstart', e=>{
+    if(e.touches.length===2){
+      pinching=true; rect=sc.getBoundingClientRect();
+      startDist=dist(e.touches); startScale=netScale;
+      const m=mid(e.touches);
+      anchor={ x:(sc.scrollLeft+m.x)/netScale, y:(sc.scrollTop+m.y)/netScale }; // 內容座標
+      e.preventDefault();
+    }
+  }, {passive:false});
+  sc.addEventListener('touchmove', e=>{
+    if(pinching && e.touches.length===2){
+      e.preventDefault();
+      netScale = Math.max(0.3, Math.min(4, startScale * dist(e.touches)/startDist));
+      applyNetScale();
+      const m=mid(e.touches);            // 讓錨點維持在兩指中心下
+      sc.scrollLeft = anchor.x*netScale - m.x;
+      sc.scrollTop  = anchor.y*netScale - m.y;
+    }
+  }, {passive:false});
+  sc.addEventListener('touchend', e=>{ if(e.touches.length<2) pinching=false; });
+  // 桌機：Ctrl/⌘ + 滾輪 也可縮放
+  sc.addEventListener('wheel', e=>{
+    if(!(e.ctrlKey||e.metaKey)) return;
+    e.preventDefault(); rect=sc.getBoundingClientRect();
+    const m={x:e.clientX-rect.left, y:e.clientY-rect.top};
+    const ax=(sc.scrollLeft+m.x)/netScale, ay=(sc.scrollTop+m.y)/netScale;
+    netScale=Math.max(0.3, Math.min(4, netScale*(e.deltaY<0?1.1:1/1.1)));
+    applyNetScale();
+    sc.scrollLeft=ax*netScale-m.x; sc.scrollTop=ay*netScale-m.y;
+  }, {passive:false});
+}
+
 /* ---------- init ---------- */
 renderNetMap();
+setupPinch();
 loadHash();
 updatePill();
 runQuery();
