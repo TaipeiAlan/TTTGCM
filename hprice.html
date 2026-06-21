@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>銷控表 hprice</title>
+  <title>銷控表 hprice（預售屋房屋）</title>
   <style>
     :root {
       --bg:#f7f4ee;--card:#fff;--line:#d9d1c4;--head:#ead4ab;--floor:#efe5d5;--text:#2f2f2f;--muted:#7f7f7f;
@@ -47,8 +47,10 @@
     .u{font-size:var(--sub-size);font-weight:700}.total{font-size:var(--total-size);font-weight:850;line-height:1.1}
     .badge{position:absolute;top:0;right:0;background:var(--accent);color:#fff;border-radius:0 0 0 8px;font-size:10px;padding:2px 5px}
 
-    body.emph-unit .total{opacity:.3}
-    body.emph-total .unit-price{opacity:.3}
+    body.emph-unit .total{opacity:.45;font-size:calc(var(--total-size)*.6);font-weight:700}
+    body.emph-total .unit-price{opacity:.45}
+    body.emph-total .num{font-size:calc(var(--num-size)*.58)}
+    body.emph-total .u{font-size:calc(var(--sub-size)*.85)}
     .hover-row,.hover-col,.hover-head,.hover-floor{background:#fff4de!important}
     .hover-row.hover-col{background:#ffe7c5!important}
 
@@ -91,13 +93,13 @@
   <div class="wrap">
     <section class="topbar">
       <div class="top-row">
-        <h1>銷控表 hprice</h1>
+        <h1>銷控表 hprice（預售屋房屋）</h1>
         <div class="controls">
-          <label class="btn" for="fileInput">開啟 XLS/XLSX</label>
-          <input id="fileInput" type="file" accept=".xls,.xlsx" hidden>
           <div style="position:relative;display:inline-block">
-            <button id="csvMenuBtn" class="btn">CSV ▾</button>
-            <div id="csvMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1.5px solid #5ba8bf;border-radius:8px;box-shadow:0 4px 12px #0002;padding:6px;min-width:150px;z-index:100;flex-direction:column;gap:4px;">
+            <button id="openMenuBtn" class="btn">開啟 ▾</button>
+            <div id="openMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1.5px solid #c7954f;border-radius:8px;box-shadow:0 4px 12px #0002;padding:6px;min-width:160px;z-index:100;flex-direction:column;gap:4px;">
+              <label class="btn" for="fileInput" style="cursor:pointer;text-align:center;display:block;box-sizing:border-box;">開啟 XLS/XLSX</label>
+              <input id="fileInput" type="file" accept=".xls,.xlsx" hidden>
               <label class="btn csv-btn" for="csvInput" style="cursor:pointer;text-align:center;display:block;box-sizing:border-box;">讀取 CSV</label>
               <input id="csvInput" type="file" accept=".csv" hidden>
               <button id="csvToggleBtn" class="btn csv-btn" style="display:none;">隱藏 CSV 疊層</button>
@@ -126,12 +128,19 @@
           <button class="btn emph-btn" data-emph="total">總價</button>
         </div>
         <div id="deadlineCtrl" class="deadline-ctrl">
+          <span style="font-size:12px;color:#7d7d7d;">起始：</span>
+          <div class="deadline-pill all-mode" id="startPill">
+            <button class="darrow" id="startPrev" title="往前一個月">◀</button>
+            <button class="darrow" id="startNext" title="往後一個月">▶</button>
+            <button class="darrow dall" id="startAll" title="不限起始月份">全</button>
+            <span class="dlabel" id="startLabel" title="拖曳左右調整起始月份，雙擊取消起始"><span id="startLabelText">全部</span><span class="dbound" id="startBoundary"></span></span>
+          </div>
           <span style="font-size:12px;color:#7d7d7d;">截止：</span>
           <div class="deadline-pill all-mode" id="deadlinePill">
             <button class="darrow" id="deadlinePrev" title="往前一個月">◀</button>
             <button class="darrow" id="deadlineNext" title="往後一個月">▶</button>
-            <button class="darrow dall" id="deadlineAll" title="顯示全部月份">全</button>
-            <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊顯示全部"><span id="deadlineLabelText">全部</span><span class="dbound" id="deadlineBoundary"></span></span>
+            <button class="darrow dall" id="deadlineAll" title="不限截止月份">全</button>
+            <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊取消截止"><span id="deadlineLabelText">全部</span><span class="dbound" id="deadlineBoundary"></span></span>
           </div>
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
@@ -187,6 +196,7 @@
     let withParkingPrice=true;
     let currentRecords=[];
     let deadlineYM=null;
+    let startYM=null;
     let deadlineMonthRange=[];
     let csvState={records:[],dataDate:'',visible:true};
 
@@ -516,7 +526,8 @@
 
       table.appendChild(tbody);gridWrap.innerHTML='';gridWrap.appendChild(table);
       const dataDate=info.dataDate||'-';const cachedAt=info.cachedAt?new Date(info.cachedAt).toLocaleString('zh-TW'):new Date().toLocaleString('zh-TW');
-      const deadlineStr=deadlineYM?`截止：${toROCYM(deadlineYM)}｜`:'';
+      const rangeStr=(startYM||deadlineYM)?`區間：${startYM?toROCYM(startYM):'最早'}～${deadlineYM?toROCYM(deadlineYM):'最新'}｜`:'';
+      const deadlineStr=rangeStr;
       const csvCount=csvState.records.length;const csvNullCount=csvState.records.filter(r=>r.樓層===null||r.樓層===undefined).length;
       const csvStr=(csvLatestMap||csvNullFloor)?`｜CSV：${csvCount}筆${csvNullCount?'（'+csvNullCount+'筆未知樓層）':''}`:'';
       statusEl.textContent=`${deadlineStr}資料日期：${dataDate}｜快取時間：${cachedAt}｜交易筆數：${records.length}${csvStr}｜單價模式：${withParkingPrice?'含車位':'不含車位'}`;
@@ -627,7 +638,7 @@
 
     function updateCsvMenu(){
       const hasCsv=csvState.records.length>0;
-      const menuBtn=document.getElementById('csvMenuBtn');
+      const menuBtn=document.getElementById('openMenuBtn');
       const toggleBtn=document.getElementById('csvToggleBtn');
       const clearBtn=document.getElementById('csvClearBtn');
       toggleBtn.style.display=hasCsv?'':'none';
@@ -1127,17 +1138,18 @@
 
     // ── CSV 選單控制 ──────────────────────────────────────────────────────────
     (()=>{
-      const btn=document.getElementById('csvMenuBtn');
-      const menu=document.getElementById('csvMenu');
+      const btn=document.getElementById('openMenuBtn');
+      const menu=document.getElementById('openMenu');
       btn.addEventListener('click',e=>{
         e.stopPropagation();
         const open=menu.style.display==='flex';
         menu.style.display=open?'none':'flex';
       });
       document.addEventListener('click',e=>{
-        if(!e.target.closest('#csvMenu')&&!e.target.closest('#csvMenuBtn'))menu.style.display='none';
+        if(!e.target.closest('#openMenu')&&!e.target.closest('#openMenuBtn'))menu.style.display='none';
       });
       document.getElementById('csvInput').addEventListener('change',()=>{menu.style.display='none';});
+      document.getElementById('fileInput').addEventListener('change',()=>{menu.style.display='none';});
     })();
     document.getElementById('csvToggleBtn').addEventListener('click',()=>{
       csvState.visible=!csvState.visible;
@@ -1173,25 +1185,35 @@
     }
 
     function getFilteredRecords(){
-      if(!deadlineYM)return currentRecords;
-      return currentRecords.filter(r=>{const iso=rocToISO(r.交易日期);return iso?iso.slice(0,7)<=deadlineYM:true});
+      if(!startYM&&!deadlineYM)return currentRecords;
+      return currentRecords.filter(r=>{
+        const iso=rocToISO(r.交易日期);if(!iso)return true;
+        const ym=iso.slice(0,7);
+        if(startYM&&ym<startYM)return false;
+        if(deadlineYM&&ym>deadlineYM)return false;
+        return true;
+      });
     }
 
     function updateDeadlineUI(){
       const ctrl=document.getElementById('deadlineCtrl');
-      const pill=document.getElementById('deadlinePill');
-      const labelText=document.getElementById('deadlineLabelText');
-      const bound=document.getElementById('deadlineBoundary');
       if(!currentRecords.length){ctrl.style.display='none';return}
       ctrl.style.display='flex';
-      if(!deadlineYM){
+      updateRangePill('start',startYM);
+      updateRangePill('deadline',deadlineYM);
+    }
+    function updateRangePill(kind,ym){
+      const pill=document.getElementById(kind+'Pill');
+      const labelText=document.getElementById(kind+'LabelText');
+      const bound=document.getElementById(kind+'Boundary');
+      if(!ym){
         pill.classList.add('all-mode');
         labelText.textContent='全部';
         bound.textContent='';
       } else {
         pill.classList.remove('all-mode');
-        labelText.textContent=toROCYM(deadlineYM);
-        const idx=deadlineMonthRange.indexOf(deadlineYM);
+        labelText.textContent=toROCYM(ym);
+        const idx=deadlineMonthRange.indexOf(ym);
         if(idx===0&&deadlineMonthRange.length>1)bound.textContent='最早';
         else if(idx===deadlineMonthRange.length-1&&deadlineMonthRange.length>1)bound.textContent='最新';
         else bound.textContent='';
@@ -1199,61 +1221,89 @@
     }
 
     function setDeadlineYM(ym){
-      deadlineYM=ym;updateDeadlineUI();
+      deadlineYM=ym;
+      if(deadlineYM&&startYM&&deadlineYM<startYM)startYM=deadlineYM;
+      updateDeadlineUI();
+      const cached=loadCache();
+      renderWithCsv(getFilteredRecords(),cached||{});
+    }
+    function setStartYM(ym){
+      startYM=ym;
+      if(startYM&&deadlineYM&&startYM>deadlineYM)deadlineYM=startYM;
+      updateDeadlineUI();
       const cached=loadCache();
       renderWithCsv(getFilteredRecords(),cached||{});
     }
 
     (function(){
       const PXPM=28;
-      let dragging=false,dragStartX=0,dragStartIdx=0;
 
-      function getCurrentIdx(){
-        if(!deadlineYM||!deadlineMonthRange.length)return deadlineMonthRange.length-1;
-        const i=deadlineMonthRange.indexOf(deadlineYM);
-        return i<0?deadlineMonthRange.length-1:i;
+      function idxOf(ym,fallback){
+        if(!ym||!deadlineMonthRange.length)return fallback;
+        const i=deadlineMonthRange.indexOf(ym);
+        return i<0?fallback:i;
       }
 
-      const pill=document.getElementById('deadlinePill');
-      const label=document.getElementById('deadlineLabel');
-      const prevBtn=document.getElementById('deadlinePrev');
-      const nextBtn=document.getElementById('deadlineNext');
-      const allBtn=document.getElementById('deadlineAll');
+      function setupPill(kind){
+        const isStart=kind==='start';
+        const getYM=()=>isStart?startYM:deadlineYM;
+        const setYM=isStart?setStartYM:setDeadlineYM;
+        const fallback=()=>isStart?0:deadlineMonthRange.length-1;
+        let dragging=false,dragStartX=0,dragStartIdx=0;
 
-      function startDrag(clientX){
-        if(!deadlineMonthRange.length)return;
-        dragging=true;dragStartX=clientX;dragStartIdx=getCurrentIdx();
-        pill.classList.add('dragging');
+        const pill=document.getElementById(kind+'Pill');
+        const label=document.getElementById(kind+'Label');
+        const prevBtn=document.getElementById(kind+'Prev');
+        const nextBtn=document.getElementById(kind+'Next');
+        const allBtn=document.getElementById(kind+'All');
+
+        function startDrag(clientX){
+          if(!deadlineMonthRange.length)return;
+          dragging=true;dragStartX=clientX;dragStartIdx=idxOf(getYM(),fallback());
+          pill.classList.add('dragging');
+        }
+        function moveDrag(clientX){
+          if(!dragging||!deadlineMonthRange.length)return;
+          const shift=Math.round((clientX-dragStartX)/PXPM);
+          const newIdx=Math.max(0,Math.min(deadlineMonthRange.length-1,dragStartIdx+shift));
+          const newYm=deadlineMonthRange[newIdx];
+          if(newYm!==getYM())setYM(newYm);
+        }
+        function endDrag(){if(dragging){dragging=false;pill.classList.remove('dragging');}}
+
+        label.addEventListener('mousedown',e=>{startDrag(e.clientX);e.preventDefault();});
+        document.addEventListener('mousemove',e=>{moveDrag(e.clientX);});
+        document.addEventListener('mouseup',endDrag);
+        label.addEventListener('touchstart',e=>{startDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
+        label.addEventListener('touchmove',e=>{moveDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
+        label.addEventListener('touchend',endDrag);
+        label.addEventListener('dblclick',()=>setYM(null));
+
+        prevBtn.addEventListener('click',()=>{
+          if(!deadlineMonthRange.length)return;
+          const i=idxOf(getYM(),fallback());
+          if(isStart){
+            // 往更早；已在最早 → 取消起始（全部）
+            if(i<=0)setYM(null);else setYM(deadlineMonthRange[i-1]);
+          } else {
+            setYM(deadlineMonthRange[Math.max(0,i-1)]);
+          }
+        });
+        nextBtn.addEventListener('click',()=>{
+          if(!deadlineMonthRange.length)return;
+          const i=idxOf(getYM(),fallback());
+          if(isStart){
+            setYM(deadlineMonthRange[Math.min(deadlineMonthRange.length-1,i+1)]);
+          } else {
+            // 往更新；已在最新 → 取消截止（全部）
+            if(i>=deadlineMonthRange.length-1)setYM(null);else setYM(deadlineMonthRange[i+1]);
+          }
+        });
+        allBtn.addEventListener('click',()=>setYM(null));
       }
-      function moveDrag(clientX){
-        if(!dragging||!deadlineMonthRange.length)return;
-        const shift=Math.round((clientX-dragStartX)/PXPM);
-        const newIdx=Math.max(0,Math.min(deadlineMonthRange.length-1,dragStartIdx+shift));
-        const newYm=deadlineMonthRange[newIdx];
-        if(newYm!==deadlineYM){deadlineYM=newYm;updateDeadlineUI();const cached=loadCache();renderWithCsv(getFilteredRecords(),cached||{});}
-      }
-      function endDrag(){if(dragging){dragging=false;pill.classList.remove('dragging');}}
 
-      label.addEventListener('mousedown',e=>{startDrag(e.clientX);e.preventDefault();});
-      document.addEventListener('mousemove',e=>{moveDrag(e.clientX);});
-      document.addEventListener('mouseup',endDrag);
-      label.addEventListener('touchstart',e=>{startDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
-      label.addEventListener('touchmove',e=>{moveDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
-      label.addEventListener('touchend',endDrag);
-      label.addEventListener('dblclick',()=>setDeadlineYM(null));
-
-      prevBtn.addEventListener('click',()=>{
-        if(!deadlineMonthRange.length)return;
-        const i=getCurrentIdx();
-        setDeadlineYM(i>0?deadlineMonthRange[i-1]:deadlineMonthRange[0]);
-      });
-      nextBtn.addEventListener('click',()=>{
-        if(!deadlineMonthRange.length)return;
-        const i=getCurrentIdx();
-        if(i>=deadlineMonthRange.length-1)setDeadlineYM(null);
-        else setDeadlineYM(deadlineMonthRange[i+1]);
-      });
-      allBtn.addEventListener('click',()=>setDeadlineYM(null));
+      setupPill('start');
+      setupPill('deadline');
     })();
     // ─────────────────────────────────────────────────────────────────────────
   </script>
