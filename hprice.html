@@ -65,7 +65,8 @@
     .detail th,.stats-table th,.summary-grid th{background:#f5f1e8;color:#5f513c}
 
     @media (max-width:640px){.unit-name{font-size:16px}}
-    .deadline-ctrl{display:none;align-items:center;gap:5px;user-select:none}
+    .deadline-ctrl{display:none;align-items:center;gap:5px;user-select:none;flex-wrap:wrap}
+    .deadline-ctrl>span{font-size:12px;color:#7d7d7d;white-space:nowrap;flex-shrink:0}
     .deadline-pill{display:inline-flex;align-items:center;background:#e5f3e5;border:1.5px solid #7ab87a;border-radius:20px;overflow:hidden;font-weight:700;font-size:12px;color:#2d6b2d;line-height:1}
     .deadline-pill .darrow{border:none;background:transparent;color:#2d6b2d;cursor:pointer;padding:4px 0;width:26px;font-size:12px;transition:.12s;text-align:center}
     .deadline-pill .darrow:hover{background:#c5e8c5}
@@ -1126,9 +1127,11 @@
     const trendBtn=document.getElementById('trendBtn');
 
     trendBtn.addEventListener('click',()=>{
-      const csvRecs=getCsvTrendRecords(currentRecords);
-      const merged=[...currentRecords,...csvRecs];
-      if(!merged.length){alert('請先載入資料');return;}
+      if(!currentRecords.length&&!csvState.records.length){alert('請先載入資料');return;}
+      // 趨勢圖同步套用起始／截止月份範圍
+      const xlsRecs=getFilteredRecords();
+      const csvRecs=getCsvTrendRecords(currentRecords).filter(inRange);
+      const merged=[...xlsRecs,...csvRecs];
       chartModal.classList.add('show');
       buildTrendChart(merged);
     });
@@ -1184,15 +1187,16 @@
       deadlineMonthRange=range;
     }
 
+    function inRange(r){
+      if(!startYM&&!deadlineYM)return true;
+      const iso=rocToISO(r.交易日期);if(!iso)return true;
+      const ym=iso.slice(0,7);
+      if(startYM&&ym<startYM)return false;
+      if(deadlineYM&&ym>deadlineYM)return false;
+      return true;
+    }
     function getFilteredRecords(){
-      if(!startYM&&!deadlineYM)return currentRecords;
-      return currentRecords.filter(r=>{
-        const iso=rocToISO(r.交易日期);if(!iso)return true;
-        const ym=iso.slice(0,7);
-        if(startYM&&ym<startYM)return false;
-        if(deadlineYM&&ym>deadlineYM)return false;
-        return true;
-      });
+      return (!startYM&&!deadlineYM)?currentRecords:currentRecords.filter(inRange);
     }
 
     function updateDeadlineUI(){
