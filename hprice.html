@@ -69,16 +69,17 @@
     .deadline-ctrl>span{font-size:12px;color:#7d7d7d;white-space:nowrap;flex-shrink:0}
     .deadline-pill{display:inline-flex;align-items:center;background:#e5f3e5;border:1.5px solid #7ab87a;border-radius:20px;overflow:hidden;font-weight:700;font-size:12px;color:#2d6b2d;line-height:1}
     .deadline-pill .darrow{border:none;background:transparent;color:#2d6b2d;cursor:pointer;padding:4px 0;width:26px;font-size:12px;transition:.12s;text-align:center}
-    .deadline-pill .darrow:hover{background:#c5e8c5}
-    .deadline-pill .darrow + .darrow{border-left:1px solid #b6dab6}
-    .deadline-pill .dlabel{padding:4px 10px;cursor:ew-resize;width:118px;text-align:center;touch-action:none;border-left:1px solid #b6dab6;display:inline-flex;align-items:baseline;justify-content:center;gap:4px;white-space:nowrap}
-    .deadline-pill .dbound{font-size:10px;font-weight:600;opacity:.75}
-    .deadline-pill .dlabel:hover{background:#d4ecda}
-    .deadline-pill.dragging .dlabel{background:#c5e8c5}
+    .deadline-pill .darrow:hover:not(:disabled){background:#c5e8c5}
+    .deadline-pill .darrow:disabled{color:#bcdcbc;cursor:default}
+    .deadline-pill .dlabel{padding:4px 12px;min-width:150px;text-align:center;white-space:nowrap;display:inline-flex;align-items:baseline;justify-content:center;gap:4px}
+    .deadline-pill .dsep{opacity:.6;font-weight:600;padding:0 1px}
+    .deadline-pill .dall{font-weight:800}
+    .deadline-pill > *:not(:first-child){border-left:1px solid #b6dab6}
     .deadline-pill.all-mode{background:#f7e8cd;border-color:#c7954f;color:#79552a}
     .deadline-pill.all-mode .darrow{color:#79552a}
-    .deadline-pill.all-mode .darrow:hover,.deadline-pill.all-mode .dlabel:hover{background:#ead4ab}
-    .deadline-pill.all-mode .darrow + .darrow,.deadline-pill.all-mode .dlabel{border-color:#dcbf8a}
+    .deadline-pill.all-mode .darrow:hover:not(:disabled){background:#ead4ab}
+    .deadline-pill.all-mode .darrow:disabled{color:#d8c39a}
+    .deadline-pill.all-mode > *:not(:first-child){border-color:#dcbf8a}
     /* CSV overlay */
     .btn.csv-btn{border-color:#5ba8bf;background:#d0ecf5;color:#1a5f7a}
     .btn.csv-hide{background:#5ba8bf;color:#fff;border-color:#3d8fa8}
@@ -129,19 +130,14 @@
           <button class="btn emph-btn" data-emph="total">總價</button>
         </div>
         <div id="deadlineCtrl" class="deadline-ctrl">
-          <span style="font-size:12px;color:#7d7d7d;">起始：</span>
-          <div class="deadline-pill all-mode" id="startPill">
-            <button class="darrow" id="startPrev" title="往前一個月">◀</button>
-            <button class="darrow" id="startNext" title="往後一個月">▶</button>
-            <button class="darrow dall" id="startAll" title="不限起始月份">全</button>
-            <span class="dlabel" id="startLabel" title="拖曳左右調整起始月份，雙擊取消起始"><span id="startLabelText">全部</span><span class="dbound" id="startBoundary"></span></span>
-          </div>
-          <span style="font-size:12px;color:#7d7d7d;">截止：</span>
-          <div class="deadline-pill all-mode" id="deadlinePill">
-            <button class="darrow" id="deadlinePrev" title="往前一個月">◀</button>
-            <button class="darrow" id="deadlineNext" title="往後一個月">▶</button>
-            <button class="darrow dall" id="deadlineAll" title="不限截止月份">全</button>
-            <span class="dlabel" id="deadlineLabel" title="拖曳左右調整截止月份，雙擊取消截止"><span id="deadlineLabelText">全部</span><span class="dbound" id="deadlineBoundary"></span></span>
+          <span style="font-size:12px;color:#7d7d7d;">區間：</span>
+          <div class="deadline-pill all-mode" id="rangePill">
+            <button class="darrow" id="startPrev" title="起始往前一個月">◀</button>
+            <button class="darrow" id="startNext" title="起始往後一個月">▶</button>
+            <span class="dlabel" title="左側兩鈕調整起始、右側兩鈕調整截止"><span id="rangeStartText">全部</span><span class="dsep">～</span><span id="rangeEndText"></span></span>
+            <button class="darrow" id="endPrev" title="截止往前一個月">◀</button>
+            <button class="darrow" id="endNext" title="截止往後一個月">▶</button>
+            <button class="darrow dall" id="rangeAll" title="顯示全部區間">全</button>
           </div>
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
@@ -1199,29 +1195,33 @@
       return (!startYM&&!deadlineYM)?currentRecords:currentRecords.filter(inRange);
     }
 
+    // 依目前 startYM / deadlineYM 推算在月份範圍內的索引（null 視為最早／最新）
+    function rangeIdxs(){
+      const last=deadlineMonthRange.length-1;
+      if(last<0)return null;
+      let s=startYM?deadlineMonthRange.indexOf(startYM):0;if(s<0)s=0;
+      let e=deadlineYM?deadlineMonthRange.indexOf(deadlineYM):last;if(e<0)e=last;
+      if(s>e)s=e;
+      return {s,e,last};
+    }
     function updateDeadlineUI(){
       const ctrl=document.getElementById('deadlineCtrl');
-      if(!currentRecords.length){ctrl.style.display='none';return}
+      const r=rangeIdxs();
+      if(!currentRecords.length||!r){ctrl.style.display='none';return}
       ctrl.style.display='flex';
-      updateRangePill('start',startYM);
-      updateRangePill('deadline',deadlineYM);
-    }
-    function updateRangePill(kind,ym){
-      const pill=document.getElementById(kind+'Pill');
-      const labelText=document.getElementById(kind+'LabelText');
-      const bound=document.getElementById(kind+'Boundary');
-      if(!ym){
-        pill.classList.add('all-mode');
-        labelText.textContent='全部';
-        bound.textContent='';
-      } else {
-        pill.classList.remove('all-mode');
-        labelText.textContent=toROCYM(ym);
-        const idx=deadlineMonthRange.indexOf(ym);
-        if(idx===0&&deadlineMonthRange.length>1)bound.textContent='最早';
-        else if(idx===deadlineMonthRange.length-1&&deadlineMonthRange.length>1)bound.textContent='最新';
-        else bound.textContent='';
-      }
+      const {s,e,last}=r;
+      document.getElementById('rangeStartText').textContent=toROCYM(deadlineMonthRange[s]);
+      document.getElementById('rangeEndText').textContent=toROCYM(deadlineMonthRange[e]);
+      const isFull=(s===0&&e===last);
+      document.getElementById('rangePill').classList.toggle('all-mode',isFull);
+      // 起始：已最早→不能再往前；不能超過截止
+      document.getElementById('startPrev').disabled=(s<=0);
+      document.getElementById('startNext').disabled=(s>=e);
+      // 截止：不能早於起始；已最新→不能再往後
+      document.getElementById('endPrev').disabled=(e<=s);
+      document.getElementById('endNext').disabled=(e>=last);
+      // 只有非全區間時才能點「全」
+      document.getElementById('rangeAll').disabled=isFull;
     }
 
     function setDeadlineYM(ym){
@@ -1240,74 +1240,24 @@
     }
 
     (function(){
-      const PXPM=28;
-
-      function idxOf(ym,fallback){
-        if(!ym||!deadlineMonthRange.length)return fallback;
-        const i=deadlineMonthRange.indexOf(ym);
-        return i<0?fallback:i;
+      function moveStart(delta){
+        const r=rangeIdxs();if(!r)return;
+        const ni=r.s+delta;
+        if(ni>=0&&ni<=r.e)setStartYM(deadlineMonthRange[ni]);
       }
-
-      function setupPill(kind){
-        const isStart=kind==='start';
-        const getYM=()=>isStart?startYM:deadlineYM;
-        const setYM=isStart?setStartYM:setDeadlineYM;
-        const fallback=()=>isStart?0:deadlineMonthRange.length-1;
-        let dragging=false,dragStartX=0,dragStartIdx=0;
-
-        const pill=document.getElementById(kind+'Pill');
-        const label=document.getElementById(kind+'Label');
-        const prevBtn=document.getElementById(kind+'Prev');
-        const nextBtn=document.getElementById(kind+'Next');
-        const allBtn=document.getElementById(kind+'All');
-
-        function startDrag(clientX){
-          if(!deadlineMonthRange.length)return;
-          dragging=true;dragStartX=clientX;dragStartIdx=idxOf(getYM(),fallback());
-          pill.classList.add('dragging');
-        }
-        function moveDrag(clientX){
-          if(!dragging||!deadlineMonthRange.length)return;
-          const shift=Math.round((clientX-dragStartX)/PXPM);
-          const newIdx=Math.max(0,Math.min(deadlineMonthRange.length-1,dragStartIdx+shift));
-          const newYm=deadlineMonthRange[newIdx];
-          if(newYm!==getYM())setYM(newYm);
-        }
-        function endDrag(){if(dragging){dragging=false;pill.classList.remove('dragging');}}
-
-        label.addEventListener('mousedown',e=>{startDrag(e.clientX);e.preventDefault();});
-        document.addEventListener('mousemove',e=>{moveDrag(e.clientX);});
-        document.addEventListener('mouseup',endDrag);
-        label.addEventListener('touchstart',e=>{startDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
-        label.addEventListener('touchmove',e=>{moveDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
-        label.addEventListener('touchend',endDrag);
-        label.addEventListener('dblclick',()=>setYM(null));
-
-        prevBtn.addEventListener('click',()=>{
-          if(!deadlineMonthRange.length)return;
-          const i=idxOf(getYM(),fallback());
-          if(isStart){
-            // 往更早；已在最早 → 取消起始（全部）
-            if(i<=0)setYM(null);else setYM(deadlineMonthRange[i-1]);
-          } else {
-            setYM(deadlineMonthRange[Math.max(0,i-1)]);
-          }
-        });
-        nextBtn.addEventListener('click',()=>{
-          if(!deadlineMonthRange.length)return;
-          const i=idxOf(getYM(),fallback());
-          if(isStart){
-            setYM(deadlineMonthRange[Math.min(deadlineMonthRange.length-1,i+1)]);
-          } else {
-            // 往更新；已在最新 → 取消截止（全部）
-            if(i>=deadlineMonthRange.length-1)setYM(null);else setYM(deadlineMonthRange[i+1]);
-          }
-        });
-        allBtn.addEventListener('click',()=>setYM(null));
+      function moveEnd(delta){
+        const r=rangeIdxs();if(!r)return;
+        const ni=r.e+delta;
+        if(ni>=r.s&&ni<=r.last)setDeadlineYM(deadlineMonthRange[ni]);
       }
-
-      setupPill('start');
-      setupPill('deadline');
+      document.getElementById('startPrev').addEventListener('click',()=>moveStart(-1));
+      document.getElementById('startNext').addEventListener('click',()=>moveStart(1));
+      document.getElementById('endPrev').addEventListener('click',()=>moveEnd(-1));
+      document.getElementById('endNext').addEventListener('click',()=>moveEnd(1));
+      document.getElementById('rangeAll').addEventListener('click',()=>{
+        startYM=null;deadlineYM=null;updateDeadlineUI();
+        const cached=loadCache();renderWithCsv(getFilteredRecords(),cached||{});
+      });
     })();
     // ─────────────────────────────────────────────────────────────────────────
   </script>
