@@ -742,9 +742,10 @@ function getMonthPillar(birthDate, yearStemIdx) {
 
 function getDayPillar(y, m, d) {
   const jdn = dateToJDN(y, m, d);
-  // Anchor: JDN 2415021 = 1900-01-01 CST (甲辰日, cycle index 40)
+  // Anchor: JDN 2415021 = 1900-01-01 CST (甲戌日, cycle index 10)
+  // 驗證錨點：1949-10-01 甲子、1970-01-01 辛巳、2000-01-01 戊午 均相符
   const ANCHOR_JDN = 2415021;
-  const ANCHOR_CYCLE = 40;
+  const ANCHOR_CYCLE = 10;
   const diff = jdn - ANCHOR_JDN;
   const cycle60 = ((diff + ANCHOR_CYCLE) % 60 + 60) % 60;
   const stemIdx   = cycle60 % 10;
