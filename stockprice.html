@@ -910,7 +910,7 @@
     if (!confirm(`確定移除 ${price} 元？`)) return;
     tableItems = tableItems.filter(p => p !== price);
     saveItems();
-    const row = document.querySelector(`tr[data-price="${price}"]`);
+    const row = document.querySelector(`tr[data-price="${price}"]:not(.dyn-row)`);
     if (row) row.remove();
     refreshSaveBtn();
     refreshDynRow();
@@ -953,7 +953,7 @@
 
   function rebuildTableRows() {
     const tbody = document.getElementById('refBody');
-    [...tbody.querySelectorAll('tr[data-price]')].forEach(r => r.remove());
+    [...tbody.querySelectorAll('tr[data-price]:not(.dyn-row)')].forEach(r => r.remove());
     tableItems.forEach(price => tbody.appendChild(makeStaticRow(price)));
   }
 

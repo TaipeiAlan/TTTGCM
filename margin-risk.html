@@ -903,10 +903,9 @@ function renderTable(entries) {
     return;
   }
   const rev = [...entries].reverse();
-  tbody.innerHTML = rev.map((e, rawIdx) => {
+  tbody.innerHTML = rev.map(e => {
     const belowMA = e.index > 0 && e.ma60 > 0 && e.index < e.ma60;
     const ratioStr = e.ratio > 0 ? e.ratio.toFixed(2) : '--';
-    const origIdx = entries.length - 1 - rawIdx;
     return `<tr>
       <td>${e.date}</td>
       <td>${e.margin ? e.margin.toFixed(0) : '--'}</td>
@@ -919,7 +918,7 @@ function renderTable(entries) {
       <td class="${belowMA ? 'td-alert' : 'td-safe'}">${e.index > 0 && e.ma60 > 0 ? (belowMA ? '破季線' : '站上') : '--'}</td>
       <td class="${e.consec >= 5 ? 'td-alert' : e.consec >= 3 ? 'td-danger' : ''}">${e.consec}</td>
       <td class="${riskTdClass(e.risk)}">${riskLabel(e.risk)}</td>
-      <td><button class="del-btn" onclick="deleteEntry(${origIdx})" title="刪除">✕</button></td>
+      <td><button class="del-btn" onclick="deleteEntry('${e.date}')" title="刪除">✕</button></td>
     </tr>`;
   }).join('');
 }
@@ -974,8 +973,10 @@ function saveEntry() {
   render();
 }
 
-function deleteEntry(idx) {
+function deleteEntry(date) {
   const raw = loadData();
+  const idx = raw.findIndex(e => e.date === date);
+  if (idx < 0) return;
   raw.splice(idx, 1);
   saveData(raw);
   render();

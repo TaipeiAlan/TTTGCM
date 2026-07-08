@@ -1168,25 +1168,6 @@ function isStale(s) {
   return (Date.now() - new Date(s.lastUpdated)) > staleDuration(s);
 }
 
-async function refreshAll() {
-  const btn = document.getElementById('refreshAllBtn');
-  btn.disabled = true;
-  btn.textContent = '整理中…';
-
-  const stale = portfolio.filter(isStale);
-  const skipped = portfolio.length - stale.length;
-  await Promise.allSettled(stale.map(s => fetchAndUpdate(s.id)));
-
-  btn.disabled = false;
-  btn.textContent = '重新整理';
-
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const note = skipped > 0 ? `（略過 ${skipped} 筆新資料）` : '';
-  document.getElementById('globalRefreshTime').textContent = `${time}${note}`;
-}
-
 async function forceRefreshAll() {
   const btn = document.getElementById('menuBtn');
   btn.disabled = true;
@@ -1269,10 +1250,13 @@ function saveBatchEdit() {
   rows.forEach(row => {
     const id      = row.dataset.id;
     const symbol  = row.querySelector('.b-sym').value.trim();
-    const buyPrice = parseFloat(row.querySelector('.b-buy').value);
+    const buyRaw  = row.querySelector('.b-buy').value.trim();
+    const buyPrice = buyRaw === '' ? null : parseFloat(buyRaw);
     const qty     = parseFloat(row.querySelector('.b-qty').value) || 0;
     const note    = row.querySelector('.b-note').value.trim();
-    if (!symbol || isNaN(buyPrice) || buyPrice <= 0) return;
+    if (!symbol) return;
+    // 買入價留空的持股（如雲端下載清單）保留為 null；填了無效值才略過
+    if (buyRaw !== '' && (isNaN(buyPrice) || buyPrice <= 0)) return;
 
     if (id.startsWith('new_')) {
       // Brand-new entry
