@@ -815,7 +815,7 @@
     if (p <   50) return 0.05;
     if (p <  100) return 0.1;
     if (p <  500) return 0.5;
-    if (p < 1000) return 1;
+    if (p < 2500) return 1;
     return 5;
   }
   function decimals(t) { return t >= 1 ? 0 : t.toString().split('.')[1].length; }
