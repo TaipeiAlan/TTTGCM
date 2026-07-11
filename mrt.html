@@ -38,7 +38,12 @@
     position: absolute; inset: 0;
     overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
     background: #0b1220;
+    cursor: grab;
+    user-select: none; -webkit-user-select: none;
+    scrollbar-width: none;               /* 以拖曳為主，隱藏捲軸 */
   }
+  #mapScroll::-webkit-scrollbar { display: none; }
+  #mapScroll.dragging { cursor: grabbing; }
   #mapScroll svg { display: block; }
 
   /* 頂部浮層：搜尋膠囊 + icon */
@@ -64,6 +69,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   .icon-btn:active { background: var(--card2); border-color: var(--accent); }
+  .icon-btn[hidden] { display: none; }
 
   /* 右下浮動縮放 icon */
   .fab-col {
@@ -256,6 +262,7 @@
       <span class="pill-ico">🔍</span>
       <span class="pill-text" id="pillText"><span class="ph">起站</span> → <span class="ph">訖站</span></span>
     </button>
+    <button class="icon-btn" id="clearBtn" title="清除起訖站" hidden>✕</button>
     <button class="icon-btn" id="infoBtn" title="說明">ℹ️</button>
   </div>
 
@@ -342,33 +349,33 @@ const EXITS = { 'R10':'M1-M8','BL12':'M1-M8','R28':4,'R22':7,'G14':4,'R11':4,'BL
 
 const KM_TO_SEC = 100; // 站距→秒
 
-// 路網圖佈局座標（格線單位；仿官方示意圖之八方位佈局）
+// 路網圖佈局座標（格線單位；x 向東、y 向南，依官方路網圖相對位置排布）
 const COORD = {
-  // 淡水信義線
-  R28:[13,-3],R27:[13,-2],R26:[13,-1],R25:[13,0],R24:[13,1],R23:[13,2],R22:[13,3],R22A:[12,2.2],
-  R21:[13,4],R20:[13,5],R19:[13,6],R18:[13,7],R17:[13,8],R16:[13,9],R15:[13,10],R14:[13,11],
-  R13:[13,12],R12:[13,13],R11:[13,14],R10:[13,15],R09:[13,16],R08:[13,17],R07:[14,18],
-  R06:[15,19],R05:[16,20],R04:[17,21],R03:[18,22],R02:[19,23],
-  // 板南線
+  // 淡水信義線：北段沿中央縱軸南下，過中正紀念堂後沿信義路向東
+  R28:[12,-5],R27:[12,-4],R26:[12,-3],R25:[12,-2],R24:[12,-1],R23:[12,0],R22:[12,1],R22A:[13.4,0.2],
+  R21:[12,2],R20:[12,3],R19:[12,4],R18:[12,5],R17:[12,6],R16:[12,7],R15:[12,8],R14:[12,9],
+  R13:[12,10],R12:[12,11],R11:[12,12],R10:[12,15],R09:[12,16],R08:[12,17],
+  R07:[14,17],R06:[15,17],R05:[16,17],R04:[17,17],R03:[18,17],R02:[19,17],
+  // 板南線：東西橫軸
   BL01:[1,15],BL02:[2,15],BL03:[3,15],BL04:[4,15],BL05:[5,15],BL06:[6,15],BL07:[7,15],BL08:[8,15],
-  BL09:[9,15],BL10:[10,15],BL11:[11,15],BL12:[13,15],BL13:[14,15],BL14:[15,15],BL15:[16,15],
+  BL09:[9,15],BL10:[10,15],BL11:[11,15],BL12:[12,15],BL13:[13,15],BL14:[14,15],BL15:[16,15],
   BL16:[17,15],BL17:[18,15],BL18:[19,15],BL19:[20,15],BL20:[21,15],BL21:[22,15],BL22:[23,15],BL23:[24,15],
-  // 松山新店線
-  G01:[10,27],G02:[10,26],G03:[10,25],G03A:[9,25.7],G04:[10,24],G05:[10,23],G06:[10,22],G07:[10,21],
-  G08:[10,20],G09:[11,19],G10:[13,17],G11:[12,16],G12:[11,15],G13:[12,14],G14:[13,14],G15:[15,13],
-  G16:[17,13],G17:[19,13],G18:[21,13],G19:[23,13],
-  // 中和新蘆線
-  O01:[11,23],O02:[11,22],O03:[11,21],O04:[11,20],O05:[11,19],O06:[14,18],O07:[15,15],O08:[15,13],
-  O09:[15,12],O10:[14,12],O11:[13,12],O12:[11,11],O13:[10,11],O14:[9,11],O15:[8,11],O16:[7,11],
-  O17:[6,11],O18:[5,11],O19:[4,11],O20:[3,11],O21:[2,11],
-  O50:[10,10],O51:[9,9],O52:[8.5,8],O53:[8,7],O54:[7.5,6],
-  // 文湖線
-  BR01:[18,28],BR02:[18,27],BR03:[18,26],BR04:[18,25],BR05:[17,24],BR06:[17,23],BR07:[16,22],BR08:[16,21],
-  BR09:[16,20],BR10:[16,15],BR11:[17,13],BR12:[18,12],BR13:[19,11],BR14:[20,10],BR15:[21,10],BR16:[22,10],
-  BR17:[23,10],BR18:[24,10],BR19:[25,10],BR20:[26,10],BR21:[27,11],BR22:[27,12],BR23:[26,14],BR24:[24,15],
-  // 環狀線
-  Y20:[4,9],Y19:[5,10],Y18:[6,11],Y17:[8,14],Y16:[7,15],Y15:[7,16],Y14:[8,17],Y13:[9,18],
-  Y12:[9.5,20],Y11:[11,22],Y10:[12,22.5],Y09:[12,23.5],Y08:[11,24],Y07:[10,24],
+  // 松山新店線：南段縱走，西門—北門北上後沿南京東路向東
+  G01:[14,27],G02:[14,26],G03:[14,25],G03A:[12.8,25.6],G04:[14,24],G05:[14,23],G06:[14,22],G07:[14,21],
+  G08:[14,20],G09:[14,19],G10:[12,17],G11:[11,16],G12:[11,15],G13:[11,13],G14:[12,12],G15:[14,12],
+  G16:[16,12],G17:[18,12],G18:[20,12],G19:[22,12],
+  // 中和新蘆線：南勢角西南斜下，市區沿松江路縱走，西側分出新莊、蘆洲兩支
+  O01:[10.2,23.5],O02:[11,22.5],O03:[11.8,21.5],O04:[12.5,20.5],O05:[14,19],O06:[14,17],O07:[14,15],O08:[14,12],
+  O09:[14,10],O10:[13,10],O11:[12,10],O12:[10,9],O13:[8.8,9.6],O14:[8,10],O15:[7,10],O16:[6,10],
+  O17:[5,10],O18:[4,10],O19:[3,10],O20:[2,10],O21:[1,10],
+  O50:[9,8],O51:[8,7],O52:[7,6],O53:[6,5],O54:[5,4],
+  // 文湖線：南段沿復興南北路縱走，內湖段沿北側向東再南折接南港展覽館
+  BR01:[17,26],BR02:[17,25],BR03:[17,24],BR04:[17,23],BR05:[17,22],BR06:[17,21],BR07:[17,20],BR08:[16.5,18.5],
+  BR09:[16,17],BR10:[16,15],BR11:[16,12],BR12:[16,10.5],BR13:[16,9],BR14:[17,8],BR15:[18.5,7.3],BR16:[20,7],
+  BR17:[21,7],BR18:[22,7],BR19:[23,7],BR20:[24,7],BR21:[25,7.6],BR22:[25.3,9],BR23:[25,11],BR24:[24,15],
+  // 環狀線：西南側弧線（大坪林—板橋—新北產業園區）
+  Y20:[4,7.4],Y19:[4.4,8.6],Y18:[5,10],Y17:[7.4,13.2],Y16:[7,15],Y15:[7.5,18.5],Y14:[8.5,21],Y13:[9.2,21.6],
+  Y12:[10,22.2],Y11:[11,22.5],Y10:[11.4,23.2],Y09:[11.9,23.9],Y08:[12.8,24.3],Y07:[14,24],
 };
 
 /* ---------- 建圖 ---------- */
@@ -536,16 +543,23 @@ function updatePill(){
   const f=sel.from?`<b>${sel.from}</b>`:'<span class="ph">起站</span>';
   const t=sel.to?`<b>${sel.to}</b>`:'<span class="ph">訖站</span>';
   $('#pillText').innerHTML=`${f} → ${t}`;
+  $('#clearBtn').hidden = !(sel.from || sel.to);
+}
+
+// 一鍵清除起訖選取
+function clearSelection(){
+  sel.from=''; sel.to=''; lastRoute=null;
+  runQuery();
 }
 
 // 主查詢：地圖高亮 + 浮動結果卡
 function runQuery(){
   markSelected(); updatePill();
   const chip=$('#resultChip'), f=sel.from, t=sel.to;
-  if(!f||!t||!nameToCodes[f]||!nameToCodes[t]){ lastRoute=null; chip.hidden=true; clearRouteOverlay(); return; }
-  if(f===t){ lastRoute=null; clearRouteOverlay(); chip.hidden=false; chip.innerHTML='<span class="chip-sub">起訖相同</span>'; return; }
+  if(!f||!t||!nameToCodes[f]||!nameToCodes[t]){ lastRoute=null; chip.hidden=true; clearRouteOverlay(); clearHash(); return; }
+  if(f===t){ lastRoute=null; clearRouteOverlay(); clearHash(); chip.hidden=false; chip.innerHTML='<span class="chip-sub">起訖相同</span>'; return; }
   const r=planRoute(f,t);
-  if(!r){ lastRoute=null; chip.hidden=true; clearRouteOverlay(); return; }
+  if(!r){ lastRoute=null; chip.hidden=true; clearRouteOverlay(); clearHash(); return; }
   lastRoute=r; setHash(f,t); drawRouteOverlay(r);
   const fare=sel.fare==='conc'?Math.round(r.fare/2):r.fare;
   chip.hidden=false;
@@ -665,6 +679,36 @@ function fitNet(center){
       sc.scrollTop  = SY(c[1])*netScale - sc.clientHeight/2;
     });
   }
+}
+// 以視窗中心為錨點縮放，畫面不會亂跳
+function zoomTo(target){
+  const sc=document.getElementById('mapScroll'); if(!sc) return;
+  const cx=sc.clientWidth/2, cy=sc.clientHeight/2;
+  const ax=(sc.scrollLeft+cx)/netScale, ay=(sc.scrollTop+cy)/netScale;
+  netScale=Math.max(0.3, Math.min(3.5, target));
+  applyNetScale();
+  sc.scrollLeft=ax*netScale-cx; sc.scrollTop=ay*netScale-cy;
+}
+/* ---------- 滑鼠按住拖曳平移（觸控交給原生捲動）---------- */
+function setupDrag(){
+  const sc=document.getElementById('mapScroll'); if(!sc) return;
+  let down=false, moved=false, sx=0, sy=0, sl=0, st=0;
+  sc.addEventListener('pointerdown', e=>{
+    if(e.pointerType==='touch') return;
+    down=true; moved=false; sx=e.clientX; sy=e.clientY;
+    sl=sc.scrollLeft; st=sc.scrollTop;
+    sc.classList.add('dragging');
+    e.preventDefault();
+  });
+  window.addEventListener('pointermove', e=>{
+    if(!down) return;
+    const dx=e.clientX-sx, dy=e.clientY-sy;
+    if(Math.abs(dx)>4 || Math.abs(dy)>4) moved=true;
+    sc.scrollLeft=sl-dx; sc.scrollTop=st-dy;
+  });
+  window.addEventListener('pointerup', ()=>{ down=false; sc.classList.remove('dragging'); });
+  // 拖曳後放開時不要觸發站點點擊
+  sc.addEventListener('click', e=>{ if(moved){ e.stopPropagation(); e.preventDefault(); moved=false; } }, true);
 }
 /* ---------- 路線高亮 ---------- */
 function drawRouteOverlay(r){
@@ -806,8 +850,8 @@ function openStation(name){
     <h2>${name} ${codeStr}</h2>
     <div class="badges">${badges}${lines.length>1?'<span class="line-badge" style="background:#334155">轉乘站</span>':''}</div>
     <div class="sheet-actions">
-      <button class="start" data-set="from" data-n="${name}">設為起站</button>
-      <button class="end" data-set="to" data-n="${name}">設為訖站</button>
+      <button class="start" data-set="from" data-n="${name}">${sel.from===name?'✕ 取消起站':'設為起站'}</button>
+      <button class="end" data-set="to" data-n="${name}">${sel.to===name?'✕ 取消訖站':'設為訖站'}</button>
     </div>
     <div class="svg-box">${buildStationSVG(name)}</div>
     <p class="hint" style="margin-top:10px">示意圖：上為穿堂層與出口，下為各線月台與行進方向${lines.length>1?'，黃色虛線為線間轉乘通道':''}。樓層、出口數為概略示意。</p>`;
@@ -836,11 +880,12 @@ function openSearch(){
       <button data-t="full" class="${sel.fare==='full'?'active':''}">全票</button>
       <button data-t="conc" class="${sel.fare==='conc'?'active':''}">兒童／敬老愛心（半價）</button>
     </div>
-    <div class="sheet-actions"><button class="primary" data-close>完成</button></div>`);
+    <div class="sheet-actions"><button id="clearFormBtn">清除</button><button class="primary" data-close>完成</button></div>`);
   const fromIn=$('#fromIn'), toIn=$('#toIn');
   fromIn.value=sel.from; toIn.value=sel.to;
   fromIn.addEventListener('input', ()=>{ sel.from=fromIn.value.trim(); runQuery(); });
   toIn.addEventListener('input', ()=>{ sel.to=toIn.value.trim(); runQuery(); });
+  $('#clearFormBtn').addEventListener('click', ()=>{ fromIn.value=''; toIn.value=''; clearSelection(); });
   $('#swapBtn').addEventListener('click', ()=>{ const a=sel.from; sel.from=sel.to; sel.to=a; fromIn.value=sel.from; toIn.value=sel.to; runQuery(); });
   $('#fareTypes').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
     sel.fare=b.dataset.t; $('#fareTypes').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b)); runQuery(); });
@@ -862,8 +907,9 @@ function openInfo(){
     <h2>說明</h2>
     <div class="legend">${legend}</div>
     <p class="hint">
-      • <b>以地圖為主體</b>：可縮放、拖曳；點任一站可設為起／訖站或查看 SVG 站體結構。<br>
+      • <b>以地圖為主體</b>：滑鼠按住拖曳、手指滑動即可平移，兩指或 Ctrl+滾輪縮放；點任一站可設為起／訖站或查看 SVG 站體結構。<br>
       • 上方膠囊輸入起訖站，下方浮卡顯示時間／票價，點浮卡看逐段指引。<br>
+      • <b>取消選取</b>：點膠囊旁的 ✕ 一鍵清除；或再點同一站、按「取消起站／訖站」個別取消。<br>
       • <b>時間</b>＝行駛＋轉乘步行時間（最快路線）；<b>票價</b>＝依最短里程分段，半價適用兒童／敬老／愛心票。<br>
       • 站體結構為示意圖，資料為概估，實際以台北捷運公告為準。　<a href="index.html" style="color:var(--accent)">← 工具總覽</a>
     </p>`);
@@ -873,14 +919,17 @@ function openInfo(){
 document.addEventListener('click', e=>{
   if(e.target.closest('[data-close]')){ closeModal(); return; }
   if(e.target.closest('#routePill')){ openSearch(); return; }
+  if(e.target.closest('#clearBtn')){ clearSelection(); return; }
   if(e.target.closest('#infoBtn')){ openInfo(); return; }
   if(e.target.closest('#resultChip')){ openSteps(); return; }
   const z=e.target.closest('[data-z]');
   if(z){ if(z.dataset.z==='fit') fitNet(true);
-    else { netScale = z.dataset.z==='in' ? Math.min(netScale*1.3,3.5) : Math.max(netScale/1.3,0.3); applyNetScale(); }
+    else zoomTo(z.dataset.z==='in' ? netScale*1.3 : netScale/1.3);
     return; }
   const set=e.target.closest('[data-set]');
-  if(set){ if(set.dataset.set==='from') sel.from=set.dataset.n; else sel.to=set.dataset.n; closeModal(); runQuery(); return; }
+  if(set){ const k=set.dataset.set, n=set.dataset.n;
+    sel[k] = (sel[k]===n) ? '' : n;   // 再點一次即取消選取
+    closeModal(); runQuery(); return; }
   const tog=e.target.closest('.pass-toggle');
   if(tog){ const l=document.getElementById(tog.dataset.p); if(l) l.classList.toggle('open'); return; }
   const sta=e.target.closest('[data-sta]');
@@ -898,6 +947,7 @@ function markSelected(){
 
 /* ---------- URL hash 分享 ---------- */
 function setHash(f,t){ history.replaceState(null,'', '#'+encodeURIComponent(f)+'→'+encodeURIComponent(t)); }
+function clearHash(){ if(location.hash) history.replaceState(null,'', location.pathname+location.search); }
 function loadHash(){
   const h=decodeURIComponent(location.hash.replace(/^#/,''));
   if(h.includes('→')){ const [f,t]=h.split('→');
@@ -954,6 +1004,7 @@ function lockPageZoom(){
 
 /* ---------- init ---------- */
 renderNetMap();
+setupDrag();
 setupPinch();
 lockPageZoom();
 loadHash();
