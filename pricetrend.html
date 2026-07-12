@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>實價登錄剖析 pricetrend</title>
+<style>
+:root{
+  --surface-1:#fcfcfb; --page:#f9f9f7;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+  --accent:#2a78d6; --accent-soft:rgba(42,120,214,.10);
+  --s1:#2a78d6; --s2:#1baf7a; --s3:#eda100; --s4:#008300; --s5:#4a3aa7; --s6:#e34948; --s7:#e87ba4; --s8:#eb6834;
+  --o1:#86b6ef; --o2:#5598e7; --o3:#2a78d6; --o4:#1c5cab; --o5:#104281;
+  --danger:#d03b3b;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+    --accent:#3987e5; --accent-soft:rgba(57,135,229,.16);
+    --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s4:#008300; --s5:#9085e9; --s6:#e66767; --s7:#d55181; --s8:#d95926;
+    --o1:#9ec5f4; --o2:#6da7ec; --o3:#3987e5; --o4:#256abf; --o5:#184f95;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text-primary);
+  font-family:system-ui,-apple-system,"Segoe UI","PingFang TC","Noto Sans TC",sans-serif;font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 14px 60px}
+h1{font-size:20px;margin:0}
+.sub{color:var(--text-secondary);font-size:12.5px;margin:2px 0 0}
+header.top{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:14px}
+.drop{border:2px dashed var(--axis);border-radius:12px;padding:34px 16px;text-align:center;cursor:pointer;transition:.15s;background:var(--surface-1)}
+.drop.on{border-color:var(--accent);background:var(--accent-soft)}
+.drop b{font-size:15px}
+.drop .hint{color:var(--muted);font-size:12px;margin-top:6px}
+#fileMeta{color:var(--text-secondary);font-size:12px;margin-top:8px;word-break:break-all}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:10px 14px}
+.tile .lb{color:var(--text-secondary);font-size:12px}
+.tile .v{font-size:26px;font-weight:600;line-height:1.2}
+.tile .u{font-size:12px;color:var(--muted);font-weight:400;margin-left:2px}
+
+.filters{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;background:var(--surface-1);
+  border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin:0 0 14px}
+.filters label{display:flex;align-items:center;gap:5px;color:var(--text-secondary);font-size:13px;white-space:nowrap}
+.filters select{background:var(--surface-1);color:var(--text-primary);border:1px solid var(--axis);border-radius:8px;padding:4px 6px;font-size:13px}
+.filters input[type=checkbox]{accent-color:var(--accent)}
+
+.sec{margin:20px 0 8px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.sec h2{font-size:16px;margin:0}
+.sec .note{color:var(--muted);font-size:12px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{border:1px solid var(--axis);background:var(--surface-1);color:var(--text-secondary);
+  border-radius:999px;padding:4px 12px;font-size:13px;cursor:pointer}
+.tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+.charts2{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}
+.chartCard{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:12px 12px 8px}
+.chartCard h3{margin:0 0 4px;font-size:13.5px;color:var(--text-secondary);font-weight:600}
+.chartBox{position:relative;height:320px}
+.notice{color:var(--muted);font-size:13px;padding:8px 2px}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;max-height:132px;overflow-y:auto;padding:2px}
+.chip{border:1px solid var(--axis);background:var(--surface-1);color:var(--text-secondary);border-radius:999px;
+  padding:3px 10px;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.chip .dot{width:9px;height:9px;border-radius:50%;background:transparent;border:1px solid var(--axis)}
+.chip.on{color:var(--text-primary);border-color:var(--text-secondary);font-weight:600}
+.chip.on .dot{border:none}
+.chip .n{color:var(--muted);font-size:11px}
+.chip:disabled{opacity:.4;cursor:not-allowed}
+
+table.tb{width:100%;border-collapse:collapse;font-size:12.5px}
+.tb th,.tb td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.tb th{color:var(--text-secondary);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--surface-1)}
+.tb th.sorted{color:var(--accent)}
+.tb td.tL,.tb th.tL{text-align:left}
+.tb tr:hover td{background:var(--accent-soft)}
+.badge{display:inline-block;border-radius:6px;padding:0 5px;font-size:11px;color:#fff;background:var(--danger)}
+.badge.gray{background:var(--muted)}
+.tblWrap{overflow:auto;max-height:480px;border:1px solid var(--border);border-radius:12px;background:var(--surface-1)}
+.sumWrap{overflow-x:auto;margin-top:10px}
+#main{display:none}
+footer{margin-top:26px;color:var(--muted);font-size:12px}
+footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>🏠 實價登錄剖析</h1>
+      <p class="sub">匯入「不動產交易實價查詢服務網」下載的 Excel（.xls），分析總價 / 單價演變趨勢</p>
+    </div>
+  </header>
+
+  <div class="drop" id="drop">
+    <b>點擊或拖曳上傳實價登錄 Excel 檔</b>
+    <div class="hint">支援官網（lvr.land.moi.gov.tw）匯出的預售屋 / 成屋案件列表（.xls / .xlsx / .csv）。資料僅在瀏覽器內處理，不會上傳。</div>
+    <div id="fileMeta"></div>
+    <input type="file" id="file" accept=".xls,.xlsx,.csv" hidden>
+  </div>
+
+  <div id="main">
+    <div class="tiles" id="tiles"></div>
+
+    <div class="filters" id="filters">
+      <label>期間
+        <select id="fFrom"></select> ～ <select id="fTo"></select>
+      </label>
+      <label>型態 <select id="fType"></select></label>
+      <label>統計 <select id="fStat"><option value="mean">平均</option><option value="median">中位數</option></select></label>
+      <label><input type="checkbox" id="fCancel" checked>排除解約</label>
+      <label><input type="checkbox" id="fSpecial" checked>排除特殊關係交易</label>
+      <label><input type="checkbox" id="fScatter" checked>顯示個別成交點</label>
+    </div>
+
+    <div class="sec">
+      <h2>價格趨勢（月）</h2>
+      <div class="tabs" id="groupTabs"></div>
+      <span class="note" id="groupNote"></span>
+    </div>
+    <div class="charts2">
+      <div class="chartCard"><h3>單價（萬元/坪）</h3><div class="chartBox"><canvas id="cUnit"></canvas></div></div>
+      <div class="chartCard"><h3>總價（萬元）</h3><div class="chartBox"><canvas id="cTotal"></canvas></div></div>
+    </div>
+
+    <div class="sec">
+      <h2>指定建案 / 路段趨勢</h2>
+      <div class="tabs" id="selModeTabs">
+        <button data-m="project" class="on">依建案</button>
+        <button data-m="road">依路段</button>
+      </div>
+      <div class="tabs" id="metricTabs">
+        <button data-k="unit" class="on">單價</button>
+        <button data-k="total">總價</button>
+      </div>
+      <span class="note">最多選 6 項，灰線為全體參考</span>
+    </div>
+    <div class="chartCard">
+      <div class="chips" id="chips"></div>
+      <div class="chartBox" style="margin-top:8px"><canvas id="cFocus"></canvas></div>
+      <div class="sumWrap"><table class="tb" id="sumTb"></table></div>
+    </div>
+
+    <div class="sec"><h2>成交明細</h2><span class="note" id="tblNote"></span></div>
+    <div class="tblWrap"><table class="tb" id="tb"></table></div>
+  </div>
+
+  <footer>資料來源：內政部不動產交易實價查詢服務網 · <a href="index.html">回工具總覽</a></footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script>
+'use strict';
+/* ================= 狀態 ================= */
+let rows = [];                 // 全部解析後交易
+let meta = { title:'', hasAge:false };
+let topRoads = [];             // 依全檔筆數排序的前 7 路段（固定，避免篩選時換色）
+const state = {
+  from:'', to:'', type:'', stat:'mean',
+  exCancel:true, exSpecial:true, scatter:true,
+  group:'all',
+  selMode:'project', metric:'unit',
+  selected:new Map(),          // 名稱 -> 色槽 index（選取期間固定，符合「顏色跟著實體」）
+};
+let chUnit=null, chTotal=null, chFocus=null;
+let sortKey='date', sortAsc=false;
+
+const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const CAT = () => [1,2,3,4,5,6,7,8].map(i=>css('--s'+i));
+const ORD = () => [1,2,3,4,5].map(i=>css('--o'+i));
+
+/* ================= 解析 ================= */
+const COLDEFS = [
+  ['parkTotal', /車位總價/],
+  ['id',       /^編號/],
+  ['addr',     /坐落|門牌|土地位置/],
+  ['bldg',     /棟及號/],
+  ['project',  /建案名稱/],
+  ['date',     /交易日期|交易年月/],
+  ['total',    /^總價/],
+  ['unit',     /^單價/],
+  ['area',     /總面積/],
+  ['btype',    /^型態/],
+  ['floorInfo',/樓別/],
+  ['target',   /交易標的/],
+  ['counts',   /交易筆棟數/],
+  ['layout',   /格局/],
+  ['age',      /屋齡/],
+  ['cancel',   /解約/],
+  ['note',     /備註/],
+];
+const num = s => { const v = parseFloat(String(s??'').replace(/[,%\s]/g,'')); return isFinite(v)?v:null; };
+function rocDate(s){
+  const m = String(s??'').match(/(\d{2,3})\/(\d{1,2})(?:\/(\d{1,2}))?/);
+  if(!m) return null;
+  return new Date(+m[1]+1911, +m[2]-1, +(m[3]||15));
+}
+function roadOf(addr){
+  let s = String(addr??'').replace(/^.*?[縣市](?![^區鄉鎮]*[縣市])/,'');
+  s = s.replace(/^[^路街道巷]{1,4}?[區鄉鎮市]/,'');
+  const m = s.match(/^([^\s,、。;；()（）與及和]+?(?:大道|路|街|道))((?:[一二三四五六七八九十]+段)?)/);
+  return m ? m[1]+m[2] : (s.slice(0,8) || '(未知)');
+}
+function parseWb(wb, fname){
+  let sname = wb.SheetNames.find(n=>/案件|列表|清單/.test(n)) || wb.SheetNames[0];
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sname], {header:1, raw:false, defval:''});
+  // 找標題列：同時含「編號」與「交易日期/交易年月」
+  let hi = aoa.findIndex(r => r.some(c=>/^編號/.test(String(c))) && r.some(c=>/交易日期|交易年月/.test(String(c))));
+  if(hi < 0) throw new Error('找不到欄位標題列（需含「編號」「交易日期」），請確認為實價登錄網匯出的案件列表檔案');
+  const hdr = aoa[hi].map(String);
+  const col = {};
+  hdr.forEach((h,i)=>{ for(const [k,re] of COLDEFS){ if(col[k]===undefined && re.test(h)){ col[k]=i; break; } } });
+  const g = (r,k)=> col[k]===undefined ? '' : String(r[col[k]]??'').trim();
+
+  // 車位工作表：序號 "12-1" -> 類別清單
+  const parkTypes = {};
+  const pn = wb.SheetNames.find(n=>/車位/.test(n));
+  if(pn){
+    const pa = XLSX.utils.sheet_to_json(wb.Sheets[pn], {header:1, raw:false, defval:''});
+    const phi = pa.findIndex(r=>r.some(c=>/序號/.test(String(c))));
+    if(phi>=0){
+      const pc = pa[phi].findIndex(c=>/類別/.test(String(c)));
+      for(let i=phi+1;i<pa.length;i++){
+        const id = String(pa[i][0]??'').split('-')[0];
+        if(id && pc>=0 && pa[i][pc]) (parkTypes[id] = parkTypes[id]||[]).push(String(pa[i][pc]));
+      }
+    }
+  }
+
+  const out = [];
+  for(let i=hi+1;i<aoa.length;i++){
+    const r = aoa[i];
+    const d = rocDate(g(r,'date'));
+    const total = num(g(r,'total'));
+    if(!d || total===null) continue;
+    const counts = g(r,'counts');
+    const pm = counts.match(/車位[:：]\s*(\d+)/);
+    const nPark = pm ? +pm[1] : 0;
+    const rec = {
+      id: g(r,'id'), addr: g(r,'addr'), bldg: g(r,'bldg'),
+      project: g(r,'project') || '(未填建案)',
+      date: d, ym: d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),
+      total, unit: num(g(r,'unit')), area: num(g(r,'area')),
+      btype: g(r,'btype'), floorInfo: g(r,'floorInfo'), layout: g(r,'layout'),
+      age: num(g(r,'age')),
+      hasPark: /車位/.test(g(r,'target')) || nPark>0 || (num(g(r,'parkTotal'))||0)>0,
+      nPark, parkTypes: (parkTypes[g(r,'id')]||[]).join('、'),
+      cancelled: !!g(r,'cancel'),
+      special: /親友|員工|共有人|特殊關係|債權債務|急買急賣|瑕疵/.test(g(r,'note')),
+      note: g(r,'note'),
+    };
+    rec.road = roadOf(rec.addr);
+    out.push(rec);
+  }
+  if(!out.length) throw new Error('沒有解析到任何交易資料');
+  rows = out;
+  meta.hasAge = out.some(r=>r.age!==null);
+  meta.title = String(aoa[0]?.[0]??'') || fname;
+  const cnt = {};
+  rows.forEach(r=>cnt[r.road]=(cnt[r.road]||0)+1);
+  topRoads = Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,7);
+}
+
+/* ================= 篩選 / 統計 ================= */
+function filtered(){
+  return rows.filter(r=>
+    (!state.exCancel || !r.cancelled) &&
+    (!state.exSpecial || !r.special) &&
+    (!state.type || r.btype===state.type) &&
+    (!state.from || r.ym>=state.from) && (!state.to || r.ym<=state.to)
+  );
+}
+const mean = a => a.reduce((s,v)=>s+v,0)/a.length;
+const median = a => { const b=[...a].sort((x,y)=>x-y), m=b.length>>1; return b.length%2 ? b[m] : (b[m-1]+b[m])/2; };
+const agg = a => a.length ? (state.stat==='median' ? median(a) : mean(a)) : null;
+function monthly(list, val){
+  const by = {};
+  list.forEach(r=>{ const v=val(r); if(v!==null&&isFinite(v)) (by[r.ym]=by[r.ym]||[]).push(v); });
+  return Object.keys(by).sort().map(ym=>({
+    x:new Date(+ym.slice(0,4), +ym.slice(5)-1, 15), y:agg(by[ym]), n:by[ym].length
+  }));
+}
+const rocYM = d => (d.getFullYear()-1911)+'/'+String(d.getMonth()+1).padStart(2,'0');
+const fmt = (v,dg=1) => v===null||v===undefined ? '–' : (+v).toLocaleString('zh-TW',{maximumFractionDigits:dg});
+
+/* ================= 分組定義 ================= */
+const AGE_BINS = ['0-5年','5-10年','10-20年','20-30年','30年以上'];
+const AREA_BINS = ['20坪以下','20-30坪','30-40坪','40-50坪','50坪以上'];
+const ageBin  = v => v===null ? null : v<5?AGE_BINS[0] : v<10?AGE_BINS[1] : v<20?AGE_BINS[2] : v<30?AGE_BINS[3] : AGE_BINS[4];
+const areaBin = v => v===null ? null : v<20?AREA_BINS[0] : v<30?AREA_BINS[1] : v<40?AREA_BINS[2] : v<50?AREA_BINS[3] : AREA_BINS[4];
+const GROUPS = {
+  all:  {label:'全部混合', of:()=>'全部'},
+  age:  {label:'依屋齡',   of:r=>ageBin(r.age),  order:AGE_BINS,  ordinal:true},
+  road: {label:'依路段',   of:r=>topRoads.includes(r.road)?r.road:'其他', order:()=>[...topRoads,'其他']},
+  area: {label:'依坪數',   of:r=>areaBin(r.area), order:AREA_BINS, ordinal:true},
+  park: {label:'車位有無', of:r=>r.hasPark?'含車位':'不含車位', order:['含車位','不含車位']},
+};
+function groupSeries(list, key){
+  const G = GROUPS[key];
+  const by = {};
+  list.forEach(r=>{ const g=G.of(r); if(g!==null) (by[g]=by[g]||[]).push(r); });
+  let names = typeof G.order==='function' ? G.order() : (G.order || Object.keys(by));
+  names = names.filter(n=>by[n]&&by[n].length);
+  const colors = G.ordinal ? ORD() : CAT();
+  return names.map((name,i)=>({
+    name, rows:by[name],
+    color: key==='road'&&name==='其他' ? css('--muted') : colors[i%colors.length],
+  }));
+}
+
+/* ================= 圖表 ================= */
+function baseOpts(unitSuffix){
+  const grid=css('--grid'), tick=css('--muted'), ink=css('--text-primary'), sec=css('--text-secondary'), surf=css('--surface-1');
+  return {
+    responsive:true, maintainAspectRatio:false, animation:false,
+    interaction:{mode:'nearest', axis:'xy', intersect:false},
+    scales:{
+      x:{type:'time', time:{unit:'month'}, grid:{color:grid,drawTicks:false}, border:{color:css('--axis')},
+         ticks:{color:tick, font:{size:11}, callback:v=>rocYM(new Date(v))}},
+      y:{grid:{color:grid,drawTicks:false}, border:{display:false},
+         ticks:{color:tick, font:{size:11}, callback:v=>fmt(v,1)}},
+    },
+    plugins:{
+      legend:{labels:{color:sec, boxWidth:18, boxHeight:2, font:{size:12},
+        filter:it=>!it.text.startsWith('·')}},
+      tooltip:{
+        backgroundColor:surf, titleColor:ink, bodyColor:sec, borderColor:css('--border'), borderWidth:1,
+        titleFont:{size:12}, bodyFont:{size:12}, displayColors:true, boxWidth:10, boxHeight:2, usePointStyle:false,
+        callbacks:{
+          title:its=>its.length?rocYM(new Date(its[0].parsed.x)):'',
+          label:it=>{
+            const raw = it.raw||{};
+            if(raw.rec){ const r=raw.rec;
+              return `${r.project} ${r.bldg} — ${fmt(it.parsed.y)}${unitSuffix}（${fmt(r.area)}坪）`; }
+            return `${it.dataset.label.replace(/^·/,'')}：${fmt(it.parsed.y)}${unitSuffix}` + (raw.n?`（${raw.n}筆）`:'');
+          }
+        }
+      }
+    }
+  };
+}
+function lineDs(name, color, pts){
+  return {label:name, data:pts, borderColor:color, backgroundColor:color,
+    borderWidth:2, pointRadius:3, pointHoverRadius:6, pointBorderColor:css('--surface-1'), pointBorderWidth:2,
+    tension:.15, spanGaps:true};
+}
+function scatterDs(name, color, list, val){
+  const pts = list.map(r=>{ const v=val(r); return v===null?null:{x:r.date, y:v, rec:r}; }).filter(Boolean);
+  return {label:'·'+name, data:pts, type:'scatter', showLine:false,
+    backgroundColor:color+'59', borderColor:css('--surface-1'), borderWidth:1,
+    pointRadius:3, pointHoverRadius:6, pointHitRadius:10};
+}
+function buildChart(old, canvasId, series, val, unitSuffix){
+  if(old) old.destroy();
+  const ds = [];
+  series.forEach(s=>ds.push(lineDs(s.name, s.color, monthly(s.rows,val))));
+  if(state.scatter) series.forEach(s=>ds.push(scatterDs(s.name, s.color, s.rows, val)));
+  const opts = baseOpts(unitSuffix);
+  if(series.length<2) opts.plugins.legend.display=false;
+  return new Chart(document.getElementById(canvasId), {type:'line', data:{datasets:ds}, options:opts});
+}
+
+function renderTrend(){
+  const list = filtered();
+  let key = state.group;
+  const note = document.getElementById('groupNote');
+  note.textContent='';
+  if(key==='age' && !meta.hasAge){
+    note.textContent = '⚠ 此檔案無屋齡欄位（預售屋案件），改顯示全部混合';
+    key='all';
+  }
+  const series = groupSeries(list, key);
+  chUnit  = buildChart(chUnit,  'cUnit',  series, r=>r.unit,  '萬/坪');
+  chTotal = buildChart(chTotal, 'cTotal', series, r=>r.total, '萬');
+}
+
+/* ================= 指定建案 / 路段 ================= */
+function entityCounts(){
+  const keyOf = state.selMode==='project' ? (r=>r.project) : (r=>r.road);
+  const cnt = {};
+  rows.forEach(r=>cnt[keyOf(r)]=(cnt[keyOf(r)]||0)+1);
+  return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(n=>[n,cnt[n]]);
+}
+function freeSlot(){
+  const used = new Set(state.selected.values());
+  for(let i=0;i<8;i++) if(!used.has(i)) return i;
+  return 0;
+}
+function renderChips(){
+  const box = document.getElementById('chips');
+  box.textContent='';
+  const cat = CAT();
+  for(const [name,n] of entityCounts()){
+    const b = document.createElement('button');
+    b.className = 'chip'+(state.selected.has(name)?' on':'');
+    const dot = document.createElement('span'); dot.className='dot';
+    if(state.selected.has(name)) dot.style.background = cat[state.selected.get(name)];
+    const t = document.createElement('span'); t.textContent = name;
+    const c = document.createElement('span'); c.className='n'; c.textContent = n+'筆';
+    b.append(dot,t,c);
+    if(!state.selected.has(name) && state.selected.size>=6) b.disabled = true;
+    b.onclick = ()=>{
+      if(state.selected.has(name)) state.selected.delete(name);
+      else if(state.selected.size<6) state.selected.set(name, freeSlot());
+      renderChips(); renderFocus();
+    };
+    box.appendChild(b);
+  }
+}
+function renderFocus(){
+  const list = filtered();
+  const keyOf = state.selMode==='project' ? (r=>r.project) : (r=>r.road);
+  const val = state.metric==='unit' ? (r=>r.unit) : (r=>r.total);
+  const suffix = state.metric==='unit' ? '萬/坪' : '萬';
+  const cat = CAT();
+  const series = [...state.selected.entries()].map(([name,slot])=>({
+    name, color:cat[slot], rows:list.filter(r=>keyOf(r)===name)
+  })).filter(s=>s.rows.length);
+
+  if(chFocus) chFocus.destroy();
+  const ds = [ Object.assign(lineDs('全體'+(state.stat==='median'?'中位數':'平均'), css('--muted'), monthly(list,val)), {borderDash:[6,4], pointRadius:0}) ];
+  series.forEach(s=>ds.push(lineDs(s.name, s.color, monthly(s.rows,val))));
+  if(state.scatter) series.forEach(s=>ds.push(scatterDs(s.name, s.color, s.rows, val)));
+  chFocus = new Chart(document.getElementById('cFocus'), {type:'line', data:{datasets:ds}, options:baseOpts(suffix)});
+
+  // 摘要表
+  const tb = document.getElementById('sumTb');
+  tb.textContent='';
+  if(series.length){
+    const thr = tb.insertRow();
+    [[state.selMode==='project'?'建案':'路段','tL'],['筆數'],['平均單價(萬/坪)'],['中位數單價'],['平均總價(萬)'],['平均坪數'],['期間','tL']]
+      .forEach(([t,cls])=>{ const th=document.createElement('th'); th.textContent=t; if(cls)th.className=cls; thr.appendChild(th); });
+    series.forEach(s=>{
+      const units = s.rows.map(r=>r.unit).filter(v=>v!==null);
+      const tr = tb.insertRow();
+      const c0 = tr.insertCell(); c0.className='tL';
+      const dot = document.createElement('span');
+      dot.style.cssText=`display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:${s.color}`;
+      c0.append(dot, document.createTextNode(s.name));
+      [s.rows.length, units.length?fmt(mean(units)):'–', units.length?fmt(median(units)):'–',
+       fmt(mean(s.rows.map(r=>r.total))), fmt(mean(s.rows.map(r=>r.area).filter(v=>v!==null))),
+      ].forEach(v=>{ tr.insertCell().textContent = String(v); });
+      const ds2 = s.rows.map(r=>r.date).sort((a,b)=>a-b);
+      const cE = tr.insertCell(); cE.className='tL';
+      cE.textContent = rocYM(ds2[0])+' ～ '+rocYM(ds2[ds2.length-1]);
+    });
+  }
+}
+
+/* ================= 明細表 ================= */
+const TCOLS = [
+  ['date','交易日期', r=>rocYM(r.date)+'/'+String(r.date.getDate()).padStart(2,'0'), r=>+r.date],
+  ['project','建案名稱', r=>r.project, r=>r.project, 'tL'],
+  ['road','路段', r=>r.road, r=>r.road, 'tL'],
+  ['bldg','棟及號', r=>r.bldg, r=>r.bldg, 'tL'],
+  ['floorInfo','樓別', r=>r.floorInfo, r=>r.floorInfo],
+  ['area','坪數', r=>fmt(r.area,2), r=>r.area??-1],
+  ['total','總價(萬)', r=>fmt(r.total,0), r=>r.total],
+  ['unit','單價(萬/坪)', r=>fmt(r.unit,2), r=>r.unit??-1],
+  ['park','車位', r=>r.hasPark?(r.nPark||1)+(r.parkTypes?'('+r.parkTypes+')':''):'—', r=>r.nPark],
+  ['age','屋齡', r=>r.age===null?'—':fmt(r.age), r=>r.age??-1],
+  ['btype','型態', r=>r.btype, r=>r.btype, 'tL'],
+];
+function renderTable(){
+  const list = [...filtered()];
+  const col = TCOLS.find(c=>c[0]===sortKey) || TCOLS[0];
+  list.sort((a,b)=>{ const x=col[3](a), y=col[3](b); return (x<y?-1:x>y?1:0)*(sortAsc?1:-1); });
+  document.getElementById('tblNote').textContent = `${list.length} 筆（點欄位標題排序）`;
+  const tb = document.getElementById('tb');
+  tb.textContent='';
+  const thr = tb.insertRow();
+  const cols = TCOLS.filter(c=>c[0]!=='age' || meta.hasAge);
+  cols.forEach(c=>{
+    const th=document.createElement('th');
+    th.textContent = c[1]+(sortKey===c[0]?(sortAsc?' ▲':' ▼'):'');
+    if(c[4]) th.className=c[4];
+    if(sortKey===c[0]) th.classList.add('sorted');
+    th.onclick=()=>{ if(sortKey===c[0]) sortAsc=!sortAsc; else {sortKey=c[0]; sortAsc=true;} renderTable(); };
+    thr.appendChild(th);
+  });
+  const thM=document.createElement('th'); thM.textContent='註記'; thr.appendChild(thM);
+  for(const r of list.slice(0,2000)){
+    const tr = tb.insertRow();
+    cols.forEach(c=>{ const td=tr.insertCell(); td.textContent=c[2](r)||'—'; if(c[4]) td.className=c[4]; });
+    const tdM = tr.insertCell(); tdM.className='tL';
+    if(r.cancelled){ const b=document.createElement('span'); b.className='badge'; b.textContent='解約'; tdM.appendChild(b); }
+    if(r.special){ const b=document.createElement('span'); b.className='badge gray'; b.textContent='特殊'; tdM.appendChild(b); }
+    if(r.note && !r.special) tdM.title = r.note;
+  }
+}
+
+/* ================= 統計磚 ================= */
+function renderTiles(){
+  const list = filtered();
+  const units = list.map(r=>r.unit).filter(v=>v!==null);
+  const box = document.getElementById('tiles');
+  box.textContent='';
+  [['有效交易','',list.length,0,'筆'],
+   ['平均單價','',units.length?mean(units):null,2,'萬/坪'],
+   ['中位數單價','',units.length?median(units):null,2,'萬/坪'],
+   ['平均總價','',list.length?mean(list.map(r=>r.total)):null,0,'萬'],
+  ].forEach(([lb,_,v,dg,u])=>{
+    const d=document.createElement('div'); d.className='tile';
+    const l=document.createElement('div'); l.className='lb'; l.textContent=lb;
+    const vv=document.createElement('div'); vv.className='v'; vv.textContent=fmt(v,dg);
+    const uu=document.createElement('span'); uu.className='u'; uu.textContent=u;
+    vv.appendChild(uu); d.append(l,vv); box.appendChild(d);
+  });
+}
+
+/* ================= 控制項 ================= */
+function buildControls(){
+  const months = [...new Set(rows.map(r=>r.ym))].sort();
+  const mk = (id, first) => {
+    const sel = document.getElementById(id);
+    sel.textContent='';
+    months.forEach(m=>{
+      const o=document.createElement('option'); o.value=m;
+      o.textContent=(+m.slice(0,4)-1911)+'/'+m.slice(5);
+      sel.appendChild(o);
+    });
+    sel.value = first ? months[0] : months[months.length-1];
+  };
+  mk('fFrom',true); mk('fTo',false);
+  state.from=months[0]; state.to=months[months.length-1];
+
+  const types = [...new Set(rows.map(r=>r.btype).filter(Boolean))];
+  const ft = document.getElementById('fType');
+  ft.textContent='';
+  const all=document.createElement('option'); all.value=''; all.textContent='全部型態'; ft.appendChild(all);
+  types.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; ft.appendChild(o); });
+
+  const tabs = document.getElementById('groupTabs');
+  tabs.textContent='';
+  Object.entries(GROUPS).forEach(([k,g])=>{
+    const b=document.createElement('button'); b.textContent=g.label;
+    if(k===state.group) b.classList.add('on');
+    if(k==='age' && !meta.hasAge) b.title='此檔案無屋齡欄位';
+    b.onclick=()=>{ state.group=k;
+      tabs.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+      renderTrend(); };
+    tabs.appendChild(b);
+  });
+}
+function renderAll(){ renderTiles(); renderTrend(); renderFocus(); renderTable(); }
+
+document.getElementById('filters').addEventListener('change', e=>{
+  state.from = document.getElementById('fFrom').value;
+  state.to = document.getElementById('fTo').value;
+  if(state.from>state.to){ // 起迄顛倒時自動交換
+    [state.from,state.to]=[state.to,state.from];
+    document.getElementById('fFrom').value=state.from; document.getElementById('fTo').value=state.to;
+  }
+  state.type = document.getElementById('fType').value;
+  state.stat = document.getElementById('fStat').value;
+  state.exCancel = document.getElementById('fCancel').checked;
+  state.exSpecial = document.getElementById('fSpecial').checked;
+  state.scatter = document.getElementById('fScatter').checked;
+  renderAll();
+});
+document.getElementById('selModeTabs').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  state.selMode=b.dataset.m; state.selected.clear();
+  document.querySelectorAll('#selModeTabs button').forEach(x=>x.classList.toggle('on',x===b));
+  // 預設選取筆數最多的前 3 名，立即看得到趨勢
+  entityCounts().slice(0,3).forEach(([n])=>state.selected.set(n, freeSlot()));
+  renderChips(); renderFocus();
+});
+document.getElementById('metricTabs').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  state.metric=b.dataset.k;
+  document.querySelectorAll('#metricTabs button').forEach(x=>x.classList.toggle('on',x===b));
+  renderFocus();
+});
+
+/* ================= 載入 ================= */
+const drop = document.getElementById('drop'), fileIn = document.getElementById('file');
+drop.onclick = ()=>fileIn.click();
+drop.ondragover = e=>{ e.preventDefault(); drop.classList.add('on'); };
+drop.ondragleave = ()=>drop.classList.remove('on');
+drop.ondrop = e=>{ e.preventDefault(); drop.classList.remove('on'); if(e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); };
+fileIn.onchange = ()=>{ if(fileIn.files[0]) load(fileIn.files[0]); };
+function load(f){
+  const meta$ = document.getElementById('fileMeta');
+  meta$.textContent = '解析中…';
+  f.arrayBuffer().then(buf=>{
+    parseWb(XLSX.read(buf, {type:'array'}), f.name);
+    meta$.textContent = `✅ ${f.name} — ${rows.length} 筆 · ${meta.title}`;
+    document.getElementById('main').style.display='block';
+    state.selected.clear();
+    buildControls();
+    entityCounts().slice(0,3).forEach(([n])=>state.selected.set(n, freeSlot()));
+    renderChips(); renderAll();
+    document.getElementById('main').scrollIntoView({behavior:'smooth'});
+  }).catch(err=>{ meta$.textContent = '❌ '+err.message; console.error(err); });
+}
+
+/* 深淺色切換時以新色重繪 */
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ if(rows.length){ renderAll(); renderChips(); } });
+</script>
+</body>
+</html>
