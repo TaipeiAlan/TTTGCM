@@ -306,6 +306,64 @@
   .memo b { color: var(--text); }
   .memo .hl { color: var(--playing); }
 
+  /* ---- 課本 tip 說明卡 ---- */
+  .tip {
+    border: 1px solid var(--border);
+    border-left-width: 3px;
+    border-radius: 10px;
+    padding: 11px 14px;
+    margin-bottom: 14px;
+    overflow-x: auto;
+  }
+  .tip-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .tip-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+  .tip-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+  .tip-body { font-size: 0.85rem; color: var(--muted); }
+  .tip-body b { color: var(--text); }
+  .tip-body .hl { color: var(--playing); }
+  .tip-body ul { margin: 4px 0 0 1.1em; }
+  .tip-body li { margin-bottom: 3px; }
+
+  .tip--warn { background: rgba(251, 191, 36, 0.06); border-color: #334155; border-left-color: #fbbf24; }
+  .tip--warn .tip-label { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+
+  .tip--must { background: rgba(56, 189, 248, 0.06); border-left-color: var(--accent); }
+  .tip--must .tip-label { background: rgba(56, 189, 248, 0.15); color: var(--accent); }
+
+  .tip--extra { background: rgba(167, 139, 250, 0.06); border-left-color: var(--purple); }
+  .tip--extra .tip-label { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
+
+  .tip--note { background: rgba(148, 163, 184, 0.06); border-left-color: var(--muted); }
+  .tip--note .tip-label { background: rgba(148, 163, 184, 0.15); color: var(--muted); }
+
+  .tip table.ref {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0 6px;
+    font-size: 0.8rem;
+    min-width: 520px;
+  }
+  .tip table.ref th, .tip table.ref td {
+    border: 1px solid var(--border);
+    padding: 5px 7px;
+    text-align: center;
+    vertical-align: middle;
+  }
+  .tip table.ref th { background: rgba(56, 189, 248, 0.12); color: var(--text); font-weight: 600; }
+  .tip table.ref td { color: var(--text); }
+
   .memo table.ref {
     border-collapse: collapse;
     width: 100%;
@@ -465,7 +523,10 @@ const PAGES = [
   },
   {
         course: "第01課", page: "018", lesson: "學習目標 1", title: "名詞肯定句", mp3: "MP3 002",
-    memo: "<b>私 は 学生 です。</b>　助詞「は」（唸作 wa）表示主語・主題；「です」表示肯定・斷定。「～さん」可以指「先生」或是「小姐」。",
+    memo: "<b>私 は 学生 です。</b>　助詞「は」（唸作 wa）表示主語・主題；「です」表示肯定・斷定。",
+    tips: [
+      { label: "小提醒", title: "「～さん」的用法", html: "「～さん」可以指「先生」或是「小姐」。" }
+    ],
     groups: [
       {
         name: "句型", type: "phrase",
@@ -485,7 +546,18 @@ const PAGES = [
   },
   {
         course: "第01課", page: "019", lesson: "要注意！", title: "助詞「は」的發音",
-    memo: "助詞「は」的發音 ⇒「wa」（與「わ」發音相同）。平假名的破音字只有兩個：<b>「は」和「へ」</b>。",
+    tips: [
+      {
+        label: "要注意！", title: "助詞「は」的發音",
+        html: "助詞「は」的發音 ⇒「<b>wa</b>」（＊與「わ」發音相同）。平假名的破音字只有兩個，<b>「は」和「へ」</b>：" +
+          "<ul>" +
+          "<li>「は」一般狀況：發音為 <b class='hl'>ha</b>。（例）おはようございます。（o <b class='hl'>ha</b> yo u go za i ma su）</li>" +
+          "<li>「は」當助詞時：發音為「<b class='hl'>wa</b>」，與「わ」發音相同，表示主題。（例）私は会社員です。（wa ta shi／<b class='hl'>wa</b>／ka i sha i n／de su）</li>" +
+          "<li>「へ」一般狀況：發音為 <b class='hl'>he</b>。（例）平和な世界。（<b class='hl'>he</b> i wa／na／se ka i）</li>" +
+          "<li>「へ」當助詞時：發音為「<b class='hl'>e</b>」，與「え」發音相同，表示移動方向。（例）日本へ行きます。（ni ho n／<b class='hl'>e</b>／i ki ma su）</li>" +
+          "</ul>"
+      }
+    ],
     groups: [
       {
         name: "「は」", note: "一般狀況唸 ha；當助詞時唸 wa",
@@ -507,7 +579,13 @@ const PAGES = [
   },
   {
         course: "第01課", page: "020", lesson: "學習目標 2", title: "名詞否定句", mp3: "MP3 003",
-    memo: "<b>私 は 会社員 じゃありません。</b>　「は」表示主題，「じゃありません」表示否定。<br>助詞「も」的意思是「也」，功能和「は」一樣，也是表示「主題」，所以句子裡不需要放原本的「は」。",
+    memo: "<b>私 は 会社員 じゃありません。</b>　「は」表示主題，「じゃありません」表示否定。",
+    tips: [
+      {
+        label: "一定要會的！", title: "助詞「も」的用法",
+        html: "助詞「も」的意思是「<b>也</b>」，功能和「は」一樣，也是表示「<b>主題</b>」，所以句子裡不需要放原本的「は」。"
+      }
+    ],
     groups: [
       {
         name: "句型", type: "phrase",
@@ -570,7 +648,23 @@ const PAGES = [
   },
   {
         course: "第01課", page: "023", lesson: "第01課", title: "疑問句的「か」與語氣助詞「ね」「よ」",
-    memo: "只要是疑問句就需要「か」：<b>あの人 は 誰 です か。</b>（那個人是誰？）日文裡，正式的文章不需要加上「？」；非正式的文章，例如簡訊、網路或生活上的文章，還是會用到「？、！」等符號。",
+    tips: [
+      {
+        label: "要注意！", title: "只要是疑問句就需要「か」",
+        html: "<b>あの人 は 誰 です か。</b>（那個人是誰？）句尾語調提高 ↗。<br>" +
+          "日文裡，正式的文章不需要加上「？」；非正式的文章，例如簡訊、網路或生活上的文章，還是會用到「？、！」等符號。"
+      },
+      {
+        label: "一定要會的！", title: "助詞「ね」和「よ」的用法",
+        html: "「ね」和「よ」是常出現在句尾的語氣助詞。" +
+          "<ul>" +
+          "<li>「ね」：あなたは学生です<b>ね</b>。（你是學生，<b>對吧</b>？）── 再確認</li>" +
+          "<li>「ね」：A：今日は寒いです<b>ね</b>。（今天很冷<b>耶</b>。）── 期待同意</li>" +
+          "<li>「ね」：B：そうです<b>ね</b>。寒いです<b>ね</b>。（是<b>啊</b>，很冷<b>耶</b>。）── 表示同意</li>" +
+          "<li>「よ」：もう8時です<b>よ</b>。（已經8點<b>囉</b>。）── 提醒</li>" +
+          "</ul>"
+      }
+    ],
     groups: [
       {
         name: "例文", type: "dialog",
@@ -638,6 +732,17 @@ const PAGES = [
   {
     course: "第01課", page: "027", lesson: "應用會話", title: "自我介紹應答／「から来ました」／「そうですか」的語調",
     memo: "<b>A：はじめまして、（自己的名字）です。どうぞよろしく。</b><br><b>B：はじめまして、（自己的名字）です。こちらこそよろしく。</b><br>這是雙方初次見面時，「一定會這樣說」的日語對話應答。",
+    tips: [
+      {
+        label: "補充說明", title: "「…から来ました」",
+        html: "「…から来ました。」＝從…來、來自…。（例）高雄から来ました。（從高雄來、來自高雄。）"
+      },
+      {
+        label: "補充說明", title: "「そうですか」的語調",
+        html: "語尾的「か」<b>語調上揚 ↗</b>，表示「是這樣子嗎？」的<b>疑問語氣</b>。<br>" +
+          "語尾的「か」<b>語調下降 ↘</b>，表示「是這樣子啊！」的<b>了解語氣</b>。"
+      }
+    ],
     groups: [
       {
         name: "初次見面的應答", note: "括號處請換成自己的名字",
@@ -825,7 +930,13 @@ const PAGES = [
   },
   {
     course: "第02課", page: "032", lesson: "學習目標 5", title: "指示詞：指地方的說法", mp3: "MP3 009",
-    memo: "<b>トイレ は どこ です か。</b>　「どこ」＝哪裡，「です」＋「か」表示疑問。<br>要注意！助動詞「です」的翻譯：「～です」一般翻譯為「是～」，如果提到與地方有關的內容，翻譯為「在～」較恰當。",
+    memo: "<b>トイレ は どこ です か。</b>　「どこ」＝哪裡，「です」＋「か」表示疑問。",
+    tips: [
+      {
+        label: "要注意！", title: "助動詞「です」的翻譯",
+        html: "「～です」一般翻譯為「<b>是～</b>」，如果提到與地方有關的內容，翻譯為「<b>在～</b>」較恰當。"
+      }
+    ],
     groups: [
       {
         name: "句型", type: "phrase",
@@ -848,15 +959,26 @@ const PAGES = [
   },
   {
     course: "第02課", page: "033", lesson: "一定要會的！", title: "指示詞「ここ、そこ、あそこ」的範圍與種類",
-    memo: "「指示詞」的開頭發音都是「<b>こ・そ・あ・ど</b>」。<br><br>" +
-      "<table class='ref'>" +
+    tips: [
+      {
+        label: "一定要會的！", title: "指示詞「ここ、そこ、あそこ」的範圍",
+        html: "<b>ここ</b>（這裡）：靠近自己的地方。<br>" +
+          "<b>そこ</b>（那裡）：靠近對方的地方。<br>" +
+          "<b>あそこ</b>（那裡）：距離自己和對方都遠的地方。"
+      },
+      {
+        label: "行有餘力再多學！", title: "指示詞的種類",
+        html: "「指示詞」的開頭發音都是「<b>こ・そ・あ・ど</b>」。" +
+          "<table class='ref'>" +
       "<tr><th></th><th>指「東西」</th><th>指「東西」<br>（後面一定要接續名詞）</th><th>指「地方」</th><th>指「東西、地方、人」<br>（有禮貌的說法）</th></tr>" +
       "<tr><th>靠近自己</th><td>これ<br>這（個）</td><td>この～<br>這個～</td><td>ここ<br>這裡</td><td>こちら<br>這（個）、這裡、這位</td></tr>" +
       "<tr><th>靠近對方</th><td>それ<br>那（個）</td><td>その～<br>那個～</td><td>そこ<br>那裡</td><td>そちら<br>那（個）、那裡、那位</td></tr>" +
       "<tr><th>遠方</th><td>あれ<br>那（個）</td><td>あの～<br>那個～</td><td>あそこ<br>那裡</td><td>あちら<br>那（個）、那裡、那位</td></tr>" +
-      "<tr><th>疑問詞</th><td>どれ<br>哪（個）</td><td>どの～<br>哪個～</td><td>どこ<br>哪裡</td><td>どちら<br>哪（個）、哪裡、哪位</td></tr>" +
-      "</table>" +
-      "※「どちら」也用於二選一時的「哪一個」。",
+          "<tr><th>疑問詞</th><td>どれ<br>哪（個）</td><td>どの～<br>哪個～</td><td>どこ<br>哪裡</td><td>どちら<br>哪（個）、哪裡、哪位</td></tr>" +
+          "</table>" +
+          "※「どちら」也用於二選一時的「哪一個」。"
+      }
+    ],
     groups: [
       {
         name: "指地方的指示詞", note: "以說話者與對方的距離區分",
@@ -901,9 +1023,14 @@ const PAGES = [
   },
   {
     course: "第02課", page: "035", lesson: "一定要會的！", title: "指示詞「これ、それ、あれ」的範圍",
-    memo: "「<b>これ</b>」：說話者本人摸得到的，用「これ」。<br>" +
-      "「<b>それ</b>」：對方摸得到，但說話者自己摸不到的，用「それ」。<br>" +
-      "「<b>あれ</b>」：東西在自己和對方都摸不到的遠方，用「あれ」。",
+    tips: [
+      {
+        label: "一定要會的！", title: "指示詞「これ、それ、あれ」的範圍",
+        html: "「<b>これ</b>」：說話者本人摸得到的，用「これ」。<br>" +
+          "「<b>それ</b>」：對方摸得到，但說話者自己摸不到的，用「それ」。<br>" +
+          "「<b>あれ</b>」：東西在自己和對方都摸不到的遠方，用「あれ」。"
+      }
+    ],
     groups: [
       {
         name: "指東西的指示詞", type: "word",
@@ -942,12 +1069,20 @@ const PAGES = [
   },
   {
     course: "第02課", page: "037", lesson: "要注意！／一定要會的！", title: "「この、その、あの、どの」＋名詞・價格的說法",
-    memo: "「この」（這個～）「その」（那個～）「あの」（那個～）「どの」（哪個～）<b>後面一定要接續名詞</b>。<br>" +
-      "「これ＋は…」：<b>これは誰のかばんですか。</b>（這是誰的包包？）<br>" +
-      "「この＋名詞＋は…」：<b>このかばんは誰のですか。</b>（這個包包是誰的？）<br>" +
-      "這兩句話意思相同，一句用「これ」，一句用「この」。<br><br>" +
-      "<b>價格的說法</b>（<b class='hl'>藍字</b>為特殊發音，要特別注意）" +
-      "<table class='ref'>" +
+    tips: [
+      {
+        label: "要注意！", title: "「この、その、あの、どの」＋名詞",
+        html: "「この」（這個～）「その」（那個～）「あの」（那個～）「どの」（哪個～）<b>後面一定要接續名詞</b>。" +
+          "<ul>" +
+          "<li>「これ＋は…」的句子：<b>これは誰のかばんですか。</b>（這是誰的包包？）</li>" +
+          "<li>「この＋名詞＋は…」的句子：<b>このかばんは誰のですか。</b>（這個包包是誰的？）</li>" +
+          "</ul>" +
+          "這兩句話意思相同，一句用「これ」，一句用「この」。"
+      },
+      {
+        label: "一定要會的！", title: "價格的說法",
+        html: "<b class='hl'>不同顏色的為特殊發音</b>，要特別注意！" +
+          "<table class='ref'>" +
       "<tr><th></th><th>万位</th><th>千位</th><th>百位</th><th>十位</th><th>個位</th><th>單位</th></tr>" +
       "<tr><th>1</th><td>いちまん</td><td><b class='hl'>せん</b></td><td><b class='hl'>ひゃく</b></td><td>じゅう</td><td>いち</td><td rowspan='9'>円<br>（日圓）</td></tr>" +
       "<tr><th>2</th><td>にまん</td><td>にせん</td><td>にひゃく</td><td>にじゅう</td><td>に</td></tr>" +
@@ -957,8 +1092,11 @@ const PAGES = [
       "<tr><th>6</th><td>ろくまん</td><td>ろくせん</td><td><b class='hl'>ろっぴゃく</b></td><td>ろくじゅう</td><td>ろく</td></tr>" +
       "<tr><th>7</th><td>ななまん</td><td>ななせん</td><td>ななひゃく</td><td>ななじゅう</td><td>なな</td></tr>" +
       "<tr><th>8</th><td>はちまん</td><td><b class='hl'>はっせん</b></td><td><b class='hl'>はっぴゃく</b></td><td>はちじゅう</td><td>はち</td></tr>" +
-      "<tr><th>9</th><td>きゅうまん</td><td>きゅうせん</td><td>きゅうひゃく</td><td>きゅうじゅう</td><td>きゅう</td></tr>" +
-      "</table>",
+          "<tr><th>9</th><td>きゅうまん</td><td>きゅうせん</td><td>きゅうひゃく</td><td>きゅうじゅう</td><td>きゅう</td></tr>" +
+          "</table>" +
+          "其他貨幣單位有：台湾元（台幣）、人民元（人民幣）、香港ドル（港幣）、ドル（美金）、ユーロ（歐元）、ウォン（韓圓）。"
+      }
+    ],
     groups: [
       {
         name: "「これ」與「この」", type: "phrase",
@@ -1043,10 +1181,26 @@ const PAGES = [
   },
   {
     course: "第02課", page: "041", lesson: "補充說明", title: "「あのう」／「どこの＋名詞」／「～いくらですか」",
-    memo: "「<b>あのう</b>」是喚起別人注意，以便開啟對話的發語詞。<br>" +
-      "詢問「原產地、哪一國製造、哪一個品牌、哪一家公司製造」可以說：<b>どこの＋（名詞）＋ですか。</b><br>" +
-      "回答時可以放入國家名、產地名稱、公司名稱、品牌名稱。<br>" +
-      "「この」後面要接名詞，所以是「この手帳」——這一點很重要，要記得！",
+    tips: [
+      {
+        label: "補充說明", title: "發語詞「あのう」",
+        html: "「あのう」是喚起別人注意，以便開啟對話的發語詞。例如，想要找洗手間時，可以這樣說：<br>" +
+          "<b>あのう、トイレはどこですか。</b>（那個，請問洗手間在哪裡呢？）"
+      },
+      {
+        label: "補充說明", title: "「どこの＋名詞」",
+        html: "詢問「原產地、哪一國製造、哪一個品牌、哪一家公司製造」可以說：<b>どこの＋（名詞）＋ですか。</b><br>" +
+          "回答時，可以放入國家名、產地名稱、公司名稱、品牌名稱。例如：<br>" +
+          "「<b>ドイツの車</b>」（德國製的汽車）、「<b>ソニーのパソコン</b>」（SONY 品牌的個人電腦）<br>" +
+          "Q：これはどこの車ですか。（這是哪一國製造的車子呢？）<br>" +
+          "A：それはドイツの車です。（那是德國製造的車子。）"
+      },
+      {
+        label: "補充說明", title: "「～いくらですか」",
+        html: "「～いくらですか。」＝～是多少錢呢？（例）<b>この手帳はいくらですか。</b>（這本記事本是多少錢呢？）<br>" +
+          "前面學過了：「この」後面要接名詞，所以這裡用「この手帳」。這一點很重要，要記得！！"
+      }
+    ],
     groups: [
       {
         name: "發語詞「あのう」", type: "phrase",
@@ -1261,6 +1415,13 @@ function playGroup(btn, container) {
 const content = document.getElementById('content');
 const pagenav = document.getElementById('pagenav');
 
+/* 課本 tip 標籤 → 樣式 */
+const TIP_CLASS = {
+  '要注意！': 'tip--warn',
+  '一定要會的！': 'tip--must',
+  '行有餘力再多學！': 'tip--extra'
+};
+
 function sayTextOf(item) {
   return item.s || item.j || item.k || '';
 }
@@ -1373,6 +1534,16 @@ PAGES.forEach(p => {
     sec.appendChild(memo);
   }
 
+  (p.tips || []).forEach(t => {
+    const tip = document.createElement('div');
+    tip.className = 'tip ' + (TIP_CLASS[t.label] || 'tip--note');
+    tip.innerHTML =
+      `<div class="tip-head"><span class="tip-label">${t.label}</span>` +
+      (t.title ? `<span class="tip-title">${t.title}</span>` : '') + '</div>' +
+      `<div class="tip-body">${t.html}</div>`;
+    sec.appendChild(tip);
+  });
+
   p.groups.forEach(g => {
     const wrap = document.createElement('div');
     wrap.className = 'group';
@@ -1418,8 +1589,7 @@ searchInput.addEventListener('input', () => {
       g.style.display = hit ? '' : 'none';
       pageHit += hit;
     });
-    const memo = sec.querySelector('.memo');
-    if (memo) memo.style.display = q ? 'none' : '';
+    sec.querySelectorAll('.memo, .tip').forEach(el => { el.style.display = q ? 'none' : ''; });
     sec.style.display = (!q || pageHit) ? '' : 'none';
   });
 });
