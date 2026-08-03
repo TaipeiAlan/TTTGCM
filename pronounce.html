@@ -102,41 +102,51 @@
     backdrop-filter: blur(8px);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 10px;
+    padding: 8px 10px;
     margin-bottom: 22px;
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
   }
 
-  .pagenav .label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--purple);
-    margin-right: 2px;
-    padding-left: 4px;
-    border-left: 2px solid rgba(167, 139, 250, 0.5);
+  #pagesel { flex: 0 1 250px; min-width: 120px; }
+
+  .pager {
+    flex: 1 1 auto;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    justify-content: flex-end;
+    overflow-x: auto;
+    scrollbar-width: thin;
   }
-  .pagenav .label:first-child { border-left: none; padding-left: 0; }
 
   .pagebtn {
     background: #0f172a;
     border: 1px solid var(--border);
     color: var(--text);
     border-radius: 999px;
-    padding: 6px 13px;
-    font-size: 0.85rem;
+    padding: 5px 11px;
+    font-size: 0.82rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     cursor: pointer;
+    white-space: nowrap;
     transition: all 0.15s ease;
   }
 
-  .pagebtn:hover { border-color: var(--accent); color: var(--accent); }
+  .pagebtn.nav {
+    font-family: inherit;
+    font-size: 0.78rem;
+    color: var(--muted);
+    padding: 5px 9px;
+  }
+
+  .pagebtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .pagebtn:disabled { opacity: 0.32; cursor: default; }
   .pagebtn.active { background: var(--accent); border-color: var(--accent); color: #0f172a; font-weight: 700; }
 
   /* ---- 頁區塊 ---- */
-  .page { margin-bottom: 34px; scroll-margin-top: 74px; }
+  .page { margin-bottom: 34px; scroll-margin-top: 64px; }
 
   .page-head {
     display: flex;
@@ -425,7 +435,10 @@
     <p class="warn" id="warn">此瀏覽器不支援語音合成（Web Speech API），請改用 Chrome、Edge 或 Safari。</p>
   </div>
 
-  <nav class="pagenav" id="pagenav"></nav>
+  <nav class="pagenav">
+    <select id="pagesel" aria-label="選擇頁碼"></select>
+    <div class="pager" id="pager"></div>
+  </nav>
 
   <main id="content"></main>
 
@@ -1413,7 +1426,6 @@ function playGroup(btn, container) {
 
 /* ============ 建立畫面 ============ */
 const content = document.getElementById('content');
-const pagenav = document.getElementById('pagenav');
 
 /* 課本 tip 標籤 → 樣式 */
 const TIP_CLASS = {
@@ -1496,25 +1508,7 @@ function buildItem(item, type) {
   return el;
 }
 
-let lastCourse = '';
 PAGES.forEach(p => {
-  if (p.course !== lastCourse) {
-    const lab = document.createElement('span');
-    lab.className = 'label';
-    lab.textContent = p.course;
-    pagenav.appendChild(lab);
-    lastCourse = p.course;
-  }
-
-  const btn = document.createElement('button');
-  btn.className = 'pagebtn';
-  btn.textContent = 'P.' + p.page;
-  btn.dataset.page = p.page;
-  btn.addEventListener('click', () => {
-    document.getElementById('p' + p.page).scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-  pagenav.appendChild(btn);
-
   const sec = document.createElement('section');
   sec.className = 'page';
   sec.id = 'p' + p.page;
@@ -1599,13 +1593,84 @@ document.getElementById('hideZh').addEventListener('change', e => {
   document.body.classList.toggle('hide-zh', e.target.checked);
 });
 
-/* ============ 捲動時標示目前頁碼 ============ */
-const pageBtns = [...pagenav.querySelectorAll('.pagebtn')];
+/* ============ 頁碼索引：下拉選單＋數字區 ============ */
+const pageSel = document.getElementById('pagesel');
+const pager = document.getElementById('pager');
+const WINDOW_SIZE = 5;              // 數字區同時顯示幾個頁碼
+let currentIdx = 0;
+
+/* 下拉選單依課別分組 */
+(() => {
+  let group = null, course = '';
+  PAGES.forEach((p, i) => {
+    if (p.course !== course) {
+      course = p.course;
+      group = document.createElement('optgroup');
+      group.label = course;
+      pageSel.appendChild(group);
+    }
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = `P.${p.page}　${p.title}`;
+    group.appendChild(opt);
+  });
+})();
+
+function goTo(idx) {
+  idx = Math.max(0, Math.min(PAGES.length - 1, idx));
+  document.getElementById('p' + PAGES[idx].page)
+    .scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setCurrent(idx);
+}
+
+function setCurrent(idx) {
+  currentIdx = idx;
+  pageSel.value = String(idx);
+  renderPager();
+}
+
+function renderPager() {
+  const last = PAGES.length - 1;
+  let start = currentIdx - Math.floor(WINDOW_SIZE / 2);
+  start = Math.max(0, Math.min(start, last - WINDOW_SIZE + 1));
+  if (start < 0) start = 0;
+  const end = Math.min(last, start + WINDOW_SIZE - 1);
+
+  pager.innerHTML = '';
+  const add = (text, targetIdx, opts = {}) => {
+    const b = document.createElement('button');
+    b.className = 'pagebtn' + (opts.nav ? ' nav' : '') + (opts.active ? ' active' : '');
+    b.textContent = text;
+    if (opts.disabled) b.disabled = true;
+    else b.addEventListener('click', () => goTo(targetIdx));
+    pager.appendChild(b);
+  };
+
+  add('«最首', 0, { nav: true, disabled: currentIdx === 0 });
+  add('‹前一頁', currentIdx - 1, { nav: true, disabled: currentIdx === 0 });
+  for (let i = start; i <= end; i++) {
+    add(PAGES[i].page, i, { active: i === currentIdx });
+  }
+  add('後一頁›', currentIdx + 1, { nav: true, disabled: currentIdx === last });
+  add('最尾»', last, { nav: true, disabled: currentIdx === last });
+
+  /* 窄螢幕時數字區可橫向捲動，把目前頁碼捲到看得見的位置 */
+  const act = pager.querySelector('.pagebtn.active');
+  if (act && pager.scrollWidth > pager.clientWidth) {
+    pager.scrollLeft = act.offsetLeft - (pager.clientWidth - act.offsetWidth) / 2;
+  }
+}
+
+pageSel.addEventListener('change', () => goTo(Number(pageSel.value)));
+setCurrent(0);
+
+/* 捲動時同步目前頁碼 */
+const IDX_OF_PAGE = Object.fromEntries(PAGES.map((p, i) => [p.page, i]));
 const obs = new IntersectionObserver(entries => {
   entries.forEach(en => {
     if (!en.isIntersecting) return;
-    const id = en.target.id.slice(1);
-    pageBtns.forEach(b => b.classList.toggle('active', b.dataset.page === id));
+    const idx = IDX_OF_PAGE[en.target.id.slice(1)];
+    if (idx !== undefined && idx !== currentIdx) setCurrent(idx);
   });
 }, { rootMargin: '-70px 0px -65% 0px' });
 document.querySelectorAll('.page').forEach(s => obs.observe(s));
