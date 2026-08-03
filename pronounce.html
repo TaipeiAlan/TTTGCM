@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日語發音練習 · 第01課</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-hover: #273449;
+    --border: #334155;
+    --accent: #38bdf8;
+    --accent-hover: #7dd3fc;
+    --purple: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --playing: #22d3ee;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'PingFang TC', 'Noto Sans TC', sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 80px;
+    line-height: 1.5;
+  }
+
+  .container { max-width: 980px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 20px; }
+
+  h1 {
+    font-size: clamp(1.6rem, 4vw, 2.3rem);
+    font-weight: 700;
+    background: linear-gradient(90deg, #38bdf8, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+
+  .subtitle { color: var(--muted); font-size: 0.9rem; }
+
+  /* ---- 控制列 ---- */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    align-items: center;
+  }
+
+  .ctrl { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+
+  select, input[type="search"] {
+    background: #0f172a;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    max-width: 100%;
+  }
+
+  select:focus, input[type="search"]:focus { outline: none; border-color: var(--accent); }
+
+  input[type="range"] { accent-color: var(--accent); width: 110px; }
+
+  .rate-val { font-variant-numeric: tabular-nums; color: var(--accent); min-width: 32px; }
+
+  .switch { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .switch input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  #search { flex: 1 1 200px; min-width: 160px; }
+
+  .warn {
+    margin-top: 10px;
+    font-size: 0.82rem;
+    color: #fca5a5;
+    display: none;
+  }
+
+  /* ---- 頁碼索引 ---- */
+  .pagenav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px;
+    margin-bottom: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .pagenav .label { font-size: 0.8rem; color: var(--muted); margin-right: 2px; }
+
+  .pagebtn {
+    background: #0f172a;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 6px 13px;
+    font-size: 0.85rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .pagebtn:hover { border-color: var(--accent); color: var(--accent); }
+  .pagebtn.active { background: var(--accent); border-color: var(--accent); color: #0f172a; font-weight: 700; }
+
+  /* ---- 頁區塊 ---- */
+  .page { margin-bottom: 34px; scroll-margin-top: 74px; }
+
+  .page-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 14px;
+  }
+
+  .page-no {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .page-title { font-size: 1.05rem; font-weight: 600; }
+  .page-lesson { font-size: 0.78rem; color: var(--muted); }
+  .mp3-tag {
+    font-size: 0.72rem;
+    color: var(--purple);
+    border: 1px solid rgba(167, 139, 250, 0.4);
+    border-radius: 999px;
+    padding: 2px 8px;
+  }
+
+  /* ---- 群組 ---- */
+  .group { margin-bottom: 18px; }
+
+  .group-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .group-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: rgba(56, 189, 248, 0.14);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 3px 10px;
+  }
+
+  .group-note { font-size: 0.78rem; color: var(--muted); }
+
+  .playall {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 4px 11px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .playall:hover { border-color: var(--accent); color: var(--accent); }
+  .playall.stop { border-color: #f87171; color: #f87171; }
+
+  /* ---- 條目 ---- */
+  .items { display: flex; flex-direction: column; gap: 6px; }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+    color: inherit;
+  }
+
+  .item:hover { background: var(--card-hover); border-left-color: var(--accent); }
+  .item.playing { background: #0e3a45; border-color: var(--playing); border-left-color: var(--playing); }
+
+  .accent {
+    flex: 0 0 auto;
+    min-width: 30px;
+    text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--purple);
+    background: rgba(167, 139, 250, 0.12);
+    border-radius: 6px;
+    padding: 2px 5px;
+  }
+
+  .body { flex: 1 1 auto; min-width: 0; }
+
+  .jp {
+    font-size: 1.05rem;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .jp .hl { color: var(--playing); text-decoration: underline; text-underline-offset: 3px; }
+
+  .reading {
+    font-size: 0.8rem;
+    color: var(--accent);
+    margin-top: 2px;
+    word-break: break-word;
+  }
+
+  .kanji { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+
+  .zh {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .zh .tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    color: var(--purple);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    border-radius: 5px;
+    padding: 0 5px;
+    margin-left: 6px;
+  }
+
+  .note { font-size: 0.76rem; color: #64748b; margin-top: 3px; }
+
+  .speaker {
+    flex: 0 0 auto;
+    font-size: 1.05rem;
+    color: var(--muted);
+    opacity: 0.6;
+  }
+  .item:hover .speaker { color: var(--accent); opacity: 1; }
+  .item.playing .speaker { color: var(--playing); opacity: 1; }
+
+  .speaker-name {
+    flex: 0 0 auto;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--purple);
+    min-width: 3.4em;
+  }
+
+  /* ---- 文法說明卡 ---- */
+  .memo {
+    background: rgba(56, 189, 248, 0.07);
+    border: 1px dashed rgba(56, 189, 248, 0.35);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  .memo b { color: var(--text); }
+
+  .empty { color: var(--muted); font-size: 0.9rem; padding: 20px 0; text-align: center; }
+
+  footer {
+    text-align: center;
+    margin-top: 44px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  .hide-zh .zh, .hide-zh .note { display: none; }
+
+  @media (max-width: 600px) {
+    .item { gap: 9px; padding: 9px 10px; }
+    .jp { font-size: 1rem; }
+    .playall { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>日語發音練習 · 第01課</h1>
+    <p class="subtitle">はじめまして、陳です。（初次見面，我姓陳。）· 以頁碼 016–024 為索引，點任一條目即可聽發音</p>
+  </header>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="ctrl">
+        <span>語音</span>
+        <select id="voice"></select>
+      </div>
+      <div class="ctrl">
+        <span>語速</span>
+        <input type="range" id="rate" min="0.5" max="1.3" step="0.05" value="0.9">
+        <span class="rate-val" id="rateVal">0.90</span>
+      </div>
+      <label class="switch"><input type="checkbox" id="repeat"><span>重複兩次</span></label>
+      <label class="switch"><input type="checkbox" id="hideZh"><span>隱藏中文</span></label>
+      <input type="search" id="search" placeholder="搜尋日文 / 漢字 / 中文…">
+    </div>
+    <p class="warn" id="warn">此瀏覽器不支援語音合成（Web Speech API），請改用 Chrome、Edge 或 Safari。</p>
+  </div>
+
+  <nav class="pagenav" id="pagenav"><span class="label">頁碼</span></nav>
+
+  <main id="content"></main>
+
+  <footer>
+    <p>資料來源：課本第01課 P.016–P.024 · <a href="index.html">回工具總覽</a></p>
+  </footer>
+</div>
+
+<script>
+/* ============ 課本資料（依頁碼索引） ============
+   item 欄位：
+     a 語調（重音）  k 發音（假名）  h 漢字・外來語  z 中文
+     j 日文句子      r 讀音          s 實際朗讀文字（未填則用 j 或 k）
+     n 備註          sp 對話者       tag 語氣標籤
+*/
+const PAGES = [
+  {
+    page: "016", lesson: "第01課", title: "本課單字（前半）", mp3: "MP3 001",
+    groups: [
+      {
+        name: "本課單字", note: "語調數字為重音位置",
+        type: "word",
+        items: [
+          { a: "0", k: "わたし", h: "私", z: "我" },
+          { a: "2", k: "あなた", h: "貴方", z: "你", n: "這個字多半用假名表示，較少用漢字" },
+          { a: "2", k: "あのひと", h: "あの人", z: "那個人" },
+          { a: "1", k: "かれ", h: "彼", z: "他" },
+          { a: "1", k: "かのじょ", h: "彼女", z: "她" },
+          { a: "0", k: "がくせい", h: "学生", z: "學生" },
+          { a: "3", k: "こうこうせい", h: "高校生", z: "高中生" },
+          { a: "3", k: "かいしゃいん", h: "会社員", z: "公司職員" },
+          { a: "1", k: "しゃいん", h: "社員", z: "～公司的職員" },
+          { a: "0", k: "どうりょう", h: "同僚", z: "同事" },
+          { a: "1", k: "しゅふ", h: "主婦", z: "家庭主婦" },
+          { a: "0", k: "[お]くに", h: "[お]国", z: "國家", s: "おくに" },
+          { a: "4", k: "にほんじん", h: "日本人", z: "日本人" },
+          { a: "4", k: "アメリカじん", h: "アメリカ人", z: "美國人" },
+          { a: "3", k: "たいわん", h: "台湾", z: "台灣" },
+          { a: "0", k: "タイペイ", h: "台北", z: "台北" },
+          { a: "0", k: "なまえ", h: "名前", z: "名字" },
+          { a: "0", k: "かいしゃ", h: "会社", z: "公司" },
+          { a: "5", k: "ぼうえきがいしゃ", h: "貿易会社", z: "貿易公司" },
+          { a: "0/5", k: "けいたい[でんわ]", h: "携帯[電話]", z: "手機", s: "けいたいでんわ" },
+          { a: "3", k: "ばんごう", h: "番号", z: "號碼" },
+          { a: "1", k: "なんばん", h: "何番", z: "幾號" },
+          { a: "1", k: "だれ", h: "誰", z: "誰" }
+        ]
+      }
+    ]
+  },
+  {
+    page: "017", lesson: "第01課", title: "本課單字（後半）／招呼用語／表現文型",
+    groups: [
+      {
+        name: "本課單字", type: "word",
+        items: [
+          { a: "1", k: "どなた", h: "", z: "哪一位", n: "だれ 的禮貌說法" },
+          { a: "0", k: "せんもん", h: "専門", z: "主修" },
+          { a: "1", k: "けいざい", h: "経済", z: "經濟" },
+          { a: "4", k: "メールアドレス", h: "Mail address", z: "電子郵件地址" },
+          { a: "3", k: "コンピューター", h: "computer", z: "電腦" },
+          { a: "1", k: "はい", h: "", z: "是的" },
+          { a: "3", k: "いいえ", h: "", z: "不是" },
+          { a: "1", k: "～さい", h: "～歳", z: "～歲", s: "さい" },
+          { a: "★", k: "～ね", h: "", z: "～耶、～對吧？", s: "ね" },
+          { a: "★", k: "～よ", h: "", z: "～囉", s: "よ" },
+          { a: "3", k: "パナソニック", h: "Panasonic", z: "日本松下電器" },
+          { a: "0", k: "ＮＥＣ", h: "NEC", z: "日本NEC公司", s: "エヌイーシー" },
+          { a: "4", k: "つくばだいがく", h: "筑波大学", z: "筑波大學" },
+          { a: "5", k: "とうきょうだいがく", h: "東京大学", z: "東京大學" }
+        ]
+      },
+      {
+        name: "招呼用語", note: "發音有較多起伏，請留意語調",
+        type: "phrase",
+        items: [
+          { j: "おはよう［ございます］", s: "おはようございます", z: "早安" },
+          { j: "はじめまして（初めまして）", s: "はじめまして", z: "初次見面、您好" },
+          { j: "どうぞよろしく［お願いします］", r: "どうぞよろしく［おねがいします］", s: "どうぞよろしくおねがいします", z: "請多關照" },
+          { j: "こちらこそよろしく［お願いします］", r: "こちらこそよろしく［おねがいします］", s: "こちらこそよろしくおねがいします", z: "彼此彼此" },
+          { j: "おいくつですか", z: "您幾歲" }
+        ]
+      },
+      {
+        name: "表現文型", note: "發音有較多起伏，請留意語調",
+        type: "phrase",
+        items: [
+          { j: "お国はどちらですか", r: "おくに は どちら ですか", z: "是哪一國人？" },
+          { j: "～から来ました", r: "～から きました", s: "からきました", z: "來自～" },
+          { j: "どんな漢字ですか", r: "どんな かんじ ですか", z: "是哪一個漢字？" },
+          { j: "～を教えてください", r: "～を おしえて ください", s: "をおしえてください", z: "請告訴我～" }
+        ]
+      }
+    ]
+  },
+  {
+    page: "018", lesson: "學習目標 1", title: "名詞肯定句", mp3: "MP3 002",
+    memo: "<b>私 は 学生 です。</b>　助詞「は」（唸作 wa）表示主語・主題；「です」表示肯定・斷定。「～さん」可以指「先生」或是「小姐」。",
+    groups: [
+      {
+        name: "句型", type: "phrase",
+        items: [
+          { j: "私は学生です。", r: "わたし は がくせい です", z: "我是學生。" }
+        ]
+      },
+      {
+        name: "例文", type: "phrase",
+        items: [
+          { j: "私は高校生です。", r: "わたし は こうこうせい です", z: "我是高中生。", n: "高校生＝高中生（名詞）" },
+          { j: "あの人は日本人です。", r: "あのひと は にほんじん です", z: "那個人是日本人。", n: "あの人＝那個人／日本人（名詞）" },
+          { j: "田中さんは主婦です。", r: "たなか さん は しゅふ です", z: "田中小姐是家庭主婦。", n: "主婦＝家庭主婦（名詞）" }
+        ]
+      }
+    ]
+  },
+  {
+    page: "019", lesson: "要注意！", title: "助詞「は」的發音",
+    memo: "助詞「は」的發音 ⇒「wa」（與「わ」發音相同）。平假名的破音字只有兩個：<b>「は」和「へ」</b>。",
+    groups: [
+      {
+        name: "「は」", note: "一般狀況唸 ha；當助詞時唸 wa",
+        type: "phrase",
+        items: [
+          { j: "おはようございます。", r: "o <b class='hl'>ha</b> yo u go za i ma su", z: "早安", n: "一般狀況：發音為 ha" },
+          { j: "私は会社員です。", r: "wa ta shi ／<b class='hl'>wa</b>／ka i sha i n ／de su", z: "我是公司職員。", n: "當助詞時：發音為 wa，表示主題" }
+        ]
+      },
+      {
+        name: "「へ」", note: "一般狀況唸 he；當助詞時唸 e",
+        type: "phrase",
+        items: [
+          { j: "平和な世界。", r: "<b class='hl'>he</b> i wa ／na ／se ka i", z: "和平的世界。", n: "一般狀況：發音為 he" },
+          { j: "日本へ行きます。", r: "ni ho n ／<b class='hl'>e</b> ／i ki ma su", z: "去日本。", n: "當助詞時：發音為 e，表示移動方向" }
+        ]
+      }
+    ]
+  },
+  {
+    page: "020", lesson: "學習目標 2", title: "名詞否定句", mp3: "MP3 003",
+    memo: "<b>私 は 会社員 じゃありません。</b>　「は」表示主題，「じゃありません」表示否定。<br>助詞「も」的意思是「也」，功能和「は」一樣，也是表示「主題」，所以句子裡不需要放原本的「は」。",
+    groups: [
+      {
+        name: "句型", type: "phrase",
+        items: [
+          { j: "私は会社員じゃありません。", r: "わたし は かいしゃいん じゃ ありません", z: "我不是公司職員。" }
+        ]
+      },
+      {
+        name: "例文", type: "phrase",
+        items: [
+          { j: "私は日本人じゃありません。", r: "わたし は にほんじん じゃ ありません", z: "我不是日本人。" },
+          { j: "あの人はアメリカ人じゃありません。", r: "あのひと は アメリカじん じゃ ありません", z: "那個人不是美國人。" },
+          { j: "田中さんは学生じゃありません。", r: "たなか さん は がくせい じゃ ありません", z: "田中先生／小姐不是學生。" }
+        ]
+      }
+    ]
+  },
+  {
+    page: "021", lesson: "第01課", title: "「も」的對話與例文",
+    groups: [
+      {
+        name: "も的對話", type: "dialog",
+        items: [
+          { sp: "佐藤", j: "私は学生です。鈴木さんも学生ですか。", r: "わたし は がくせい です。すずき さん も がくせい ですか", z: "我是學生。鈴木小姐也是學生嗎？" },
+          { sp: "鈴木", j: "はい、私も学生です。高橋さんも学生ですか。", r: "はい、わたし も がくせい です。たかはし さん も がくせい ですか", z: "是的，我也是學生。高橋先生也是學生嗎？" },
+          { sp: "高橋", j: "私は学生じゃありません。田中さんは？", r: "わたし は がくせい じゃ ありません。たなか さん は", z: "我不是學生。田中小姐呢？" },
+          { sp: "田中", j: "私も学生じゃありません。", r: "わたし も がくせい じゃ ありません", z: "我也不是學生。" }
+        ]
+      },
+      {
+        name: "例文", type: "phrase",
+        items: [
+          { j: "私は日本人です。彼も日本人です。", r: "わたし は にほんじん です。かれ も にほんじん です", z: "我是日本人。他也是日本人。" },
+          { j: "井上さんは高校生です。私も高校生です。", r: "いのうえ さん は こうこうせい です。わたし も こうこうせい です", z: "井上先生是高中生。我也是高中生。" },
+          { j: "私は会社員です。彼女も会社員です。", r: "わたし は かいしゃいん です。かのじょ も かいしゃいん です", z: "我是公司職員。她也是公司職員。" }
+        ]
+      }
+    ]
+  },
+  {
+    page: "022", lesson: "學習目標 3", title: "名詞疑問句", mp3: "MP3 004",
+    memo: "<b>陳さん は 学生 です か。</b>　助詞「か」表示疑問，句尾語調提高 ↗。",
+    groups: [
+      {
+        name: "句型", type: "phrase",
+        items: [
+          { j: "陳さんは学生ですか。", r: "ちん さん は がくせい ですか", z: "陳小姐是學生嗎？" }
+        ]
+      },
+      {
+        name: "例文", type: "dialog",
+        items: [
+          { sp: "A", j: "あなたは日本人ですか。", r: "あなた は にほんじん ですか", z: "你是日本人嗎？" },
+          { sp: "B", j: "はい、私は日本人です。", r: "はい、わたし は にほんじん です", z: "是的，我是日本人。" },
+          { sp: "A", j: "あの人は会社員ですか。", r: "あのひと は かいしゃいん ですか", z: "那個人是公司職員嗎？" },
+          { sp: "B", j: "いいえ、あの人は会社員じゃありません。", r: "いいえ、あのひと は かいしゃいん じゃ ありません", z: "不是，那個人不是公司職員。" }
+        ]
+      }
+    ]
+  },
+  {
+    page: "023", lesson: "第01課", title: "疑問句的「か」與語氣助詞「ね」「よ」",
+    memo: "只要是疑問句就需要「か」：<b>あの人 は 誰 です か。</b>（那個人是誰？）日文裡，正式的文章不需要加上「？」；非正式的文章，例如簡訊、網路或生活上的文章，還是會用到「？、！」等符號。",
+    groups: [
+      {
+        name: "例文", type: "dialog",
+        items: [
+          { sp: "A", j: "高橋さんは主婦ですか。", r: "たかはし さん は しゅふ ですか", z: "高橋小姐是家庭主婦嗎？" },
+          { sp: "B", j: "いいえ、高橋さんは会社員です。", r: "いいえ、たかはし さん は かいしゃいん です", z: "不是，高橋小姐是公司職員。" }
+        ]
+      },
+      {
+        name: "疑問詞句", type: "phrase",
+        items: [
+          { j: "あの人は誰ですか。", r: "あのひと は だれ ですか", z: "那個人是誰？" }
+        ]
+      },
+      {
+        name: "「ね」和「よ」", note: "常出現在句尾的語氣助詞",
+        type: "phrase",
+        items: [
+          { j: "あなたは学生ですね。", r: "あなた は がくせい ですね", z: "你是學生，對吧？", tag: "再確認" },
+          { j: "今日は寒いですね。", r: "きょう は さむい ですね", z: "今天很冷耶。", tag: "期待同意" },
+          { j: "そうですね。寒いですね。", r: "そう ですね。さむい ですね", z: "是啊，很冷耶。", tag: "表示同意" },
+          { j: "もう８時ですよ。", r: "もう はちじ ですよ", s: "もうはちじですよ。", z: "已經8點囉。", tag: "提醒" }
+        ]
+      }
+    ]
+  },
+  {
+    page: "024", lesson: "學習目標 4", title: "助詞「の」的用法", mp3: "MP3 005",
+    memo: "<b>私 は 貿易会社 の 社員 です。</b>　助詞「の」表示所屬、所有、所在、所產。",
+    groups: [
+      {
+        name: "句型", type: "phrase",
+        items: [
+          { j: "私は貿易会社の社員です。", r: "わたし は ぼうえきがいしゃ の しゃいん です", z: "我是貿易公司的員工。" }
+        ]
+      },
+      {
+        name: "例文", type: "phrase",
+        items: [
+          { j: "私は筑波大学の学生です。", r: "わたし は つくばだいがく の がくせい です", z: "我是筑波大學的學生。" },
+          { j: "あなたはパナソニックの社員ですか。", r: "あなた は パナソニック の しゃいん ですか", z: "你是松下電器的職員嗎？" },
+          { j: "あの人は東京大学の学生じゃありません。", r: "あのひと は とうきょうだいがく の がくせい じゃ ありません", z: "那個人不是東京大學的學生。" }
+        ]
+      }
+    ]
+  }
+];
+
+/* ============ 語音合成 ============ */
+const synth = window.speechSynthesis;
+const voiceSel = document.getElementById('voice');
+const rateInput = document.getElementById('rate');
+const rateVal = document.getElementById('rateVal');
+const repeatChk = document.getElementById('repeat');
+let voices = [];
+
+if (!synth) {
+  document.getElementById('warn').style.display = 'block';
+}
+
+function loadVoices() {
+  if (!synth) return;
+  voices = synth.getVoices().filter(v => /^ja/i.test(v.lang));
+  const prev = voiceSel.value;
+  voiceSel.innerHTML = '';
+  if (!voices.length) {
+    const opt = document.createElement('option');
+    opt.textContent = '系統預設（未偵測到日文語音）';
+    opt.value = '';
+    voiceSel.appendChild(opt);
+    return;
+  }
+  voices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = v.name + (v.localService ? '' : '（線上）');
+    voiceSel.appendChild(opt);
+  });
+  if (prev && voiceSel.querySelector(`option[value="${prev}"]`)) voiceSel.value = prev;
+}
+
+if (synth) {
+  loadVoices();
+  synth.onvoiceschanged = loadVoices;
+}
+
+rateInput.addEventListener('input', () => { rateVal.textContent = Number(rateInput.value).toFixed(2); });
+
+function makeUtterance(text) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP';
+  u.rate = Number(rateInput.value);
+  const v = voices[Number(voiceSel.value)];
+  if (v) u.voice = v;
+  return u;
+}
+
+/* 播放序列：一次可排入多段文字，結束後執行 done */
+let currentEl = null;
+let sequence = null;   // { els, idx, btn }
+
+function clearHighlight() {
+  if (currentEl) currentEl.classList.remove('playing');
+  currentEl = null;
+}
+
+function stopAll() {
+  if (synth) synth.cancel();
+  clearHighlight();
+  if (sequence && sequence.btn) {
+    sequence.btn.textContent = '▶ 全部播放';
+    sequence.btn.classList.remove('stop');
+  }
+  sequence = null;
+}
+
+function speakEl(el, done) {
+  if (!synth) return;
+  const text = el.dataset.say;
+  if (!text) { if (done) done(); return; }
+  clearHighlight();
+  el.classList.add('playing');
+  currentEl = el;
+  const times = repeatChk.checked ? 2 : 1;
+  let n = 0;
+  const run = () => {
+    n++;
+    const u = makeUtterance(text);
+    u.onend = () => {
+      if (n < times) { setTimeout(run, 220); return; }
+      if (currentEl === el) el.classList.remove('playing');
+      if (currentEl === el) currentEl = null;
+      if (done) done();
+    };
+    u.onerror = () => {
+      if (currentEl === el) el.classList.remove('playing');
+      if (done) done();
+    };
+    synth.speak(u);
+  };
+  run();
+}
+
+function playSingle(el) {
+  const wasPlaying = el.classList.contains('playing');
+  stopAll();
+  if (wasPlaying) return;   // 再點一次＝停止
+  speakEl(el, null);
+}
+
+function playGroup(btn, container) {
+  const running = sequence && sequence.btn === btn;
+  stopAll();
+  if (running) return;
+  const els = [...container.querySelectorAll('.item')].filter(e => e.style.display !== 'none');
+  if (!els.length) return;
+  sequence = { els, idx: 0, btn };
+  btn.textContent = '■ 停止';
+  btn.classList.add('stop');
+  const step = () => {
+    if (!sequence || sequence.btn !== btn) return;
+    if (sequence.idx >= els.length) { stopAll(); return; }
+    const el = els[sequence.idx++];
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    speakEl(el, () => setTimeout(step, 320));
+  };
+  step();
+}
+
+/* ============ 建立畫面 ============ */
+const content = document.getElementById('content');
+const pagenav = document.getElementById('pagenav');
+
+function sayTextOf(item) {
+  return item.s || item.j || item.k || '';
+}
+
+function buildItem(item, type) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'item';
+  el.dataset.say = sayTextOf(item);
+  el.dataset.search = [item.k, item.h, item.j, item.r, item.z, item.n, item.sp].filter(Boolean).join(' ').toLowerCase();
+
+  if (type === 'word' && item.a) {
+    const a = document.createElement('span');
+    a.className = 'accent';
+    a.textContent = item.a;
+    el.appendChild(a);
+  }
+  if (item.sp) {
+    const sp = document.createElement('span');
+    sp.className = 'speaker-name';
+    sp.textContent = item.sp + '：';
+    el.appendChild(sp);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'body';
+
+  const jp = document.createElement('div');
+  jp.className = 'jp';
+  jp.textContent = item.j || item.k;
+  body.appendChild(jp);
+
+  if (item.r) {
+    const r = document.createElement('div');
+    r.className = 'reading';
+    r.innerHTML = item.r;          // 部分讀音含 <b class="hl"> 標記
+    body.appendChild(r);
+  }
+  if (item.h) {
+    const h = document.createElement('div');
+    h.className = 'kanji';
+    h.textContent = item.h;
+    body.appendChild(h);
+  }
+  if (item.z) {
+    const z = document.createElement('div');
+    z.className = 'zh';
+    z.textContent = item.z;
+    if (item.tag) {
+      const t = document.createElement('span');
+      t.className = 'tag';
+      t.textContent = item.tag;
+      z.appendChild(t);
+    }
+    body.appendChild(z);
+  }
+  if (item.n) {
+    const n = document.createElement('div');
+    n.className = 'note';
+    n.textContent = '※ ' + item.n;
+    body.appendChild(n);
+  }
+
+  el.appendChild(body);
+
+  const sp = document.createElement('span');
+  sp.className = 'speaker';
+  sp.textContent = '🔊';
+  el.appendChild(sp);
+
+  el.addEventListener('click', () => playSingle(el));
+  return el;
+}
+
+PAGES.forEach(p => {
+  const btn = document.createElement('button');
+  btn.className = 'pagebtn';
+  btn.textContent = 'P.' + p.page;
+  btn.dataset.page = p.page;
+  btn.addEventListener('click', () => {
+    document.getElementById('p' + p.page).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  pagenav.appendChild(btn);
+
+  const sec = document.createElement('section');
+  sec.className = 'page';
+  sec.id = 'p' + p.page;
+
+  const head = document.createElement('div');
+  head.className = 'page-head';
+  head.innerHTML = `<span class="page-no">${p.page}</span>` +
+    `<span class="page-title">${p.title}</span>` +
+    `<span class="page-lesson">${p.lesson}</span>` +
+    (p.mp3 ? `<span class="mp3-tag">${p.mp3}</span>` : '');
+  sec.appendChild(head);
+
+  if (p.memo) {
+    const memo = document.createElement('div');
+    memo.className = 'memo';
+    memo.innerHTML = p.memo;
+    sec.appendChild(memo);
+  }
+
+  p.groups.forEach(g => {
+    const wrap = document.createElement('div');
+    wrap.className = 'group';
+
+    const gh = document.createElement('div');
+    gh.className = 'group-head';
+    gh.innerHTML = `<span class="group-name">${g.name}</span>` +
+      (g.note ? `<span class="group-note">※ ${g.note}</span>` : '');
+
+    const playBtn = document.createElement('button');
+    playBtn.className = 'playall';
+    playBtn.textContent = '▶ 全部播放';
+    gh.appendChild(playBtn);
+    wrap.appendChild(gh);
+
+    const list = document.createElement('div');
+    list.className = 'items';
+    g.items.forEach(it => list.appendChild(buildItem(it, g.type)));
+    wrap.appendChild(list);
+
+    playBtn.addEventListener('click', () => playGroup(playBtn, list));
+
+    sec.appendChild(wrap);
+  });
+
+  content.appendChild(sec);
+});
+
+/* ============ 搜尋 ============ */
+const searchInput = document.getElementById('search');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  stopAll();
+  document.querySelectorAll('.page').forEach(sec => {
+    let pageHit = 0;
+    sec.querySelectorAll('.group').forEach(g => {
+      let hit = 0;
+      g.querySelectorAll('.item').forEach(it => {
+        const show = !q || it.dataset.search.includes(q);
+        it.style.display = show ? '' : 'none';
+        if (show) hit++;
+      });
+      g.style.display = hit ? '' : 'none';
+      pageHit += hit;
+    });
+    const memo = sec.querySelector('.memo');
+    if (memo) memo.style.display = q ? 'none' : '';
+    sec.style.display = pageHit ? '' : 'none';
+  });
+});
+
+/* ============ 隱藏中文 ============ */
+document.getElementById('hideZh').addEventListener('change', e => {
+  document.body.classList.toggle('hide-zh', e.target.checked);
+});
+
+/* ============ 捲動時標示目前頁碼 ============ */
+const pageBtns = [...pagenav.querySelectorAll('.pagebtn')];
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if (!en.isIntersecting) return;
+    const id = en.target.id.slice(1);
+    pageBtns.forEach(b => b.classList.toggle('active', b.dataset.page === id));
+  });
+}, { rootMargin: '-70px 0px -65% 0px' });
+document.querySelectorAll('.page').forEach(s => obs.observe(s));
+
+/* Esc 停止播放；離開頁面時取消語音 */
+document.addEventListener('keydown', e => { if (e.key === 'Escape') stopAll(); });
+window.addEventListener('beforeunload', () => { if (synth) synth.cancel(); });
+</script>
+</body>
+</html>
