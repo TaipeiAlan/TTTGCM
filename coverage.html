@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建蔽率視覺化示意</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #273449;
+    --border: #334155;
+    --accent: #38bdf8;
+    --accent2: #a78bfa;
+    --building: #38bdf8;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    line-height: 1.55;
+  }
+
+  .container { max-width: 1180px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 24px; }
+
+  h1 {
+    font-size: clamp(1.6rem, 4vw, 2.3rem);
+    font-weight: 700;
+    background: linear-gradient(90deg, #38bdf8, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+
+  .subtitle { color: var(--muted); font-size: 0.92rem; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+
+  .panel + .panel { margin-top: 16px; }
+
+  .panel h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 14px;
+    letter-spacing: 0.04em;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+
+  label.lbl {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .row { display: flex; gap: 8px; align-items: center; }
+
+  input[type="number"] {
+    flex: 1;
+    min-width: 0;
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1rem;
+    padding: 8px 10px;
+    font-family: inherit;
+  }
+
+  input[type="number"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  .seg {
+    display: inline-flex;
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .seg button {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #0f172a; font-weight: 600; }
+
+  .seg.full { display: flex; width: 100%; }
+  .seg.full button { flex: 1; }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    margin-top: 4px;
+  }
+
+  .valline {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  .valline strong { color: var(--text); font-size: 1.05rem; font-weight: 600; }
+
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  .presets button {
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 0.76rem;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .presets button:hover { border-color: var(--accent); color: var(--accent); }
+  .presets button.on { background: rgba(56,189,248,0.15); border-color: var(--accent); color: var(--accent); }
+
+  .check { display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--muted); cursor: pointer; }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  .btn {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.84rem;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .stage {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .stage-hint {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+  }
+
+  .legend { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); display: inline-block; }
+  .swatch.b { background: rgba(56,189,248,0.55); border-color: #7dd3fc; }
+  .swatch.o {
+    background: repeating-linear-gradient(45deg, #16233d 0 3px, #22304d 3px 5px);
+    border-color: #3f5170;
+  }
+
+  svg#plan { width: 100%; height: auto; display: block; touch-action: none; user-select: none; border-radius: 8px; }
+  svg#plan:focus { outline: none; }
+  svg#plan:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .stat {
+    background: #0f172a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .stat .k { font-size: 0.76rem; color: var(--muted); }
+  .stat .v { font-size: 1.15rem; font-weight: 600; margin-top: 2px; }
+  .stat .s { font-size: 0.75rem; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .stat.hl .v { color: var(--accent); }
+
+  .note {
+    margin-top: 16px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .warn {
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: #fbbf24;
+    display: none;
+  }
+  .warn.show { display: block; }
+
+  footer { text-align: center; margin-top: 40px; color: var(--muted); font-size: 0.8rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>建蔽率視覺化示意</h1>
+      <p class="subtitle">輸入基地面積與建蔽率，看看建築物實際佔了基地的多少地面</p>
+    </header>
+
+    <div class="layout">
+      <!-- 控制面板 -->
+      <div>
+        <div class="panel">
+          <h2>基地條件</h2>
+
+          <div class="field">
+            <label class="lbl" for="area">基地面積</label>
+            <div class="row">
+              <input type="number" id="area" value="100" min="1" step="1">
+              <div class="seg" id="unitSeg">
+                <button type="button" data-unit="ping" aria-pressed="true">坪</button>
+                <button type="button" data-unit="m2" aria-pressed="false">m²</button>
+              </div>
+            </div>
+            <div class="valline" style="margin-top:6px"><span id="areaAlt"></span></div>
+          </div>
+
+          <div class="field">
+            <label class="lbl">基地形狀</label>
+            <div class="seg full" id="shapeSeg">
+              <button type="button" data-shape="long" aria-pressed="true">長型</button>
+              <button type="button" data-shape="square" aria-pressed="false">方形</button>
+            </div>
+          </div>
+
+          <div class="field" id="ratioField">
+            <div class="valline">
+              <label class="lbl" for="ratio" style="margin:0">基地長寬比</label>
+              <strong id="ratioVal">2.0 : 1</strong>
+            </div>
+            <input type="range" id="ratio" min="1.2" max="5" step="0.1" value="2">
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>建蔽率</h2>
+
+          <div class="field">
+            <div class="valline">
+              <span>建築物佔地比例</span>
+              <strong id="covVal">50%</strong>
+            </div>
+            <input type="range" id="coverage" min="5" max="100" step="1" value="50">
+            <div class="presets" id="presets">
+              <button type="button" data-c="30">住一 30%</button>
+              <button type="button" data-c="35">住二 35%</button>
+              <button type="button" data-c="45">住三 45%</button>
+              <button type="button" data-c="50">住四 50%</button>
+              <button type="button" data-c="60">乙工 60%</button>
+              <button type="button" data-c="80">商業 80%</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>建築物</h2>
+
+          <div class="field">
+            <label class="check">
+              <input type="checkbox" id="followSite" checked>
+              <span>建築物長寬比跟隨基地</span>
+            </label>
+          </div>
+
+          <div class="field" id="bratioField">
+            <div class="valline">
+              <label class="lbl" for="bratio" style="margin:0">建築物長寬比</label>
+              <strong id="bratioVal">2.0 : 1</strong>
+            </div>
+            <input type="range" id="bratio" min="0.3" max="5" step="0.1" value="2">
+          </div>
+
+          <div class="field row" style="gap:8px">
+            <button type="button" class="btn" id="centerBtn" style="flex:1">建築置中</button>
+            <button type="button" class="btn" id="cornerBtn" style="flex:1">靠左上角</button>
+          </div>
+
+          <p class="note" style="margin-top:12px">在圖上直接拖曳建築物即可挪移；選取後也可用方向鍵微調（每次 0.1 公尺，按住 Shift 為 1 公尺）。</p>
+        </div>
+      </div>
+
+      <!-- 視覺化 -->
+      <div>
+        <div class="stage">
+          <div class="stage-hint">
+            <span class="legend"><span class="swatch b"></span>建築物佔地</span>
+            <span class="legend"><span class="swatch o"></span>空地（含法定空地）</span>
+            <span id="gridHint"></span>
+          </div>
+          <svg id="plan" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="基地與建築物佔地示意圖" tabindex="0"></svg>
+          <div class="warn" id="warn"></div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="k">基地面積</div>
+              <div class="v" id="stSite">—</div>
+              <div class="s" id="stSiteDim">—</div>
+            </div>
+            <div class="stat hl">
+              <div class="k">建築面積（建蔽面積）</div>
+              <div class="v" id="stBldg">—</div>
+              <div class="s" id="stBldgDim">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">空地面積</div>
+              <div class="v" id="stOpen">—</div>
+              <div class="s" id="stOpenPct">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">四周退縮</div>
+              <div class="v" id="stGap">—</div>
+              <div class="s" id="stGap2">—</div>
+            </div>
+          </div>
+
+          <p class="note">
+            建蔽率＝建築面積 ÷ 基地面積。本頁以最單純的矩形基地與矩形建築示意「同樣的基地，不同建蔽率會佔掉多少地面」，
+            方便直覺比較；實際基地形狀、法定空地留設位置、退縮建築線、雨遮陽台等認定，仍以各地方政府土地使用分區管制規則與建築技術規則為準。
+            1 坪＝3.305785 m²。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>TTTGCM · <a href="index.html">回工具總覽</a></p>
+    </footer>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var M2_PER_PING = 400 / 121; // 3.305785...
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  var state = {
+    area: 100,
+    unit: 'ping',
+    shape: 'long',
+    ratio: 2,
+    coverage: 50,
+    bratio: 2,
+    followSite: true,
+    fx: 0.5, // 建築在可移動範圍中的水平位置 0~1
+    fy: 0.5
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var svg = $('plan');
+  var els = {}; // 圖面上需要即時更新的節點
+
+  /* ---------- 計算 ---------- */
+
+  function siteAreaM2() {
+    return state.unit === 'ping' ? state.area * M2_PER_PING : state.area;
+  }
+
+  function toPing(m2) { return m2 / M2_PER_PING; }
+
+  function compute() {
+    var A = Math.max(siteAreaM2(), 0.01);
+    var r = state.shape === 'square' ? 1 : state.ratio;
+    var H = Math.sqrt(A / r);      // 基地短邊（垂直方向）
+    var W = r * H;                 // 基地長邊（水平方向）
+
+    var Ab = A * state.coverage / 100;
+    var br = state.followSite ? r : state.bratio;
+    var bh = Math.sqrt(Ab / br);
+    var bw = br * bh;
+
+    // 建築不得超出基地：必要時自動壓扁成貼齊基地的比例
+    var clamped = false;
+    if (bw > W) { bw = W; bh = Ab / W; clamped = true; }
+    if (bh > H) { bh = H; bw = Ab / H; clamped = true; }
+
+    return { A: A, W: W, H: H, Ab: Ab, bw: bw, bh: bh, clamped: clamped };
+  }
+
+  function fmtArea(m2) {
+    var p = toPing(m2);
+    return (p >= 100 ? p.toFixed(0) : p.toFixed(1)) + ' 坪';
+  }
+
+  function fmtM2(m2) {
+    return (m2 >= 100 ? m2.toFixed(0) : m2.toFixed(1)) + ' m²';
+  }
+
+  function fmtLen(m) {
+    return (m >= 100 ? m.toFixed(0) : m.toFixed(m < 10 ? 2 : 1)) + ' m';
+  }
+
+  function niceStep(target) {
+    var steps = [0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100];
+    for (var i = 0; i < steps.length; i++) {
+      if (steps[i] >= target) return steps[i];
+    }
+    return 100;
+  }
+
+  /* ---------- 繪圖 ---------- */
+
+  var PAD_L = 72, PAD_R = 40, PAD_T = 56, PAD_B = 40, VB_W = 1000, MAX_PLAN_H = 520, FS = 18;
+  var geo = null;   // 目前幾何（公尺）
+  var scale = 1;    // viewBox 單位 / 公尺
+  var originX = PAD_L, originY = PAD_T;
+
+  function el(name, attrs, text) {
+    var n = document.createElementNS(SVGNS, name);
+    for (var k in attrs) {
+      if (Object.prototype.hasOwnProperty.call(attrs, k)) n.setAttribute(k, attrs[k]);
+    }
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  function draw() {
+    geo = compute();
+    var W = geo.W, H = geo.H;
+
+    // 窄螢幕縮小 viewBox，讓圖面文字相對放大、留白變少
+    var narrow = (svg.clientWidth || 700) < 520;
+    VB_W = narrow ? 560 : 1000;
+    PAD_L = narrow ? 50 : 72;
+    PAD_R = narrow ? 24 : 40;
+    PAD_T = narrow ? 42 : 56;
+    PAD_B = narrow ? 30 : 40;
+    MAX_PLAN_H = narrow ? 400 : 520;
+    FS = narrow ? 15 : 18;
+
+    var availW = VB_W - PAD_L - PAD_R;
+    scale = Math.min(availW / W, MAX_PLAN_H / H);
+    var sw = W * scale, sh = H * scale;
+    originX = PAD_L + (availW - sw) / 2;
+    originY = PAD_T;
+    var vbH = sh + PAD_T + PAD_B;
+
+    svg.setAttribute('viewBox', '0 0 ' + VB_W + ' ' + vbH);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    els = {};
+
+    // 空地底紋
+    var defs = el('defs');
+    var pat = el('pattern', { id: 'hatch', width: 10, height: 10, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
+    pat.appendChild(el('rect', { width: 10, height: 10, fill: '#16233d' }));
+    pat.appendChild(el('line', { x1: 0, y1: 0, x2: 0, y2: 10, stroke: '#22304d', 'stroke-width': 4 }));
+    defs.appendChild(pat);
+    svg.appendChild(defs);
+
+    // 基地
+    svg.appendChild(el('rect', {
+      x: originX, y: originY, width: sw, height: sh,
+      fill: 'url(#hatch)', stroke: '#64748b', 'stroke-width': 2
+    }));
+
+    // 格線
+    var step = niceStep(W / 14);
+    var g = el('g', { stroke: '#2b3b57', 'stroke-width': 1 });
+    for (var x = step; x < W - 1e-9; x += step) {
+      g.appendChild(el('line', { x1: originX + x * scale, y1: originY, x2: originX + x * scale, y2: originY + sh }));
+    }
+    for (var y = step; y < H - 1e-9; y += step) {
+      g.appendChild(el('line', { x1: originX, y1: originY + y * scale, x2: originX + sw, y2: originY + y * scale }));
+    }
+    svg.appendChild(g);
+    $('gridHint').textContent = '格線間距 ' + step + ' 公尺';
+
+    // 基地尺寸標註（上、左）
+    var dimStyle = { stroke: '#94a3b8', 'stroke-width': 1.5 };
+    var topY = originY - 22;
+    svg.appendChild(el('line', Object.assign({ x1: originX, y1: topY, x2: originX + sw, y2: topY }, dimStyle)));
+    svg.appendChild(el('line', Object.assign({ x1: originX, y1: topY - 5, x2: originX, y2: topY + 5 }, dimStyle)));
+    svg.appendChild(el('line', Object.assign({ x1: originX + sw, y1: topY - 5, x2: originX + sw, y2: topY + 5 }, dimStyle)));
+    svg.appendChild(el('text', {
+      x: originX + sw / 2, y: topY - 8, fill: '#cbd5e1', 'font-size': FS,
+      'text-anchor': 'middle', 'font-family': 'inherit'
+    }, '基地寬 ' + fmtLen(W)));
+
+    var leftX = originX - 24;
+    svg.appendChild(el('line', Object.assign({ x1: leftX, y1: originY, x2: leftX, y2: originY + sh }, dimStyle)));
+    svg.appendChild(el('line', Object.assign({ x1: leftX - 5, y1: originY, x2: leftX + 5, y2: originY }, dimStyle)));
+    svg.appendChild(el('line', Object.assign({ x1: leftX - 5, y1: originY + sh, x2: leftX + 5, y2: originY + sh }, dimStyle)));
+    svg.appendChild(el('text', {
+      x: leftX - 10, y: originY + sh / 2, fill: '#cbd5e1', 'font-size': FS,
+      'text-anchor': 'middle', 'font-family': 'inherit',
+      transform: 'rotate(-90 ' + (leftX - 10) + ' ' + (originY + sh / 2) + ')'
+    }, '基地深 ' + fmtLen(H)));
+
+    // 退縮距離標示（隨拖曳更新）
+    var gapG = el('g');
+    els.gapLines = [];
+    els.gapTexts = [];
+    for (var i = 0; i < 4; i++) {
+      var ln = el('line', { stroke: '#fbbf24', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' });
+      var tx = el('text', { fill: '#fbbf24', 'font-size': FS * 0.82, 'text-anchor': 'middle', 'font-family': 'inherit' });
+      gapG.appendChild(ln); gapG.appendChild(tx);
+      els.gapLines.push(ln); els.gapTexts.push(tx);
+    }
+    svg.appendChild(gapG);
+
+    // 建築物
+    var bg = el('g', { style: 'cursor:move' });
+    els.bRect = el('rect', {
+      rx: 2, fill: 'rgba(56,189,248,0.55)', stroke: '#7dd3fc', 'stroke-width': 2.5
+    });
+    els.bLine1 = el('text', { fill: '#0b1220', 'font-weight': '700', 'text-anchor': 'middle', 'font-family': 'inherit' });
+    els.bLine2 = el('text', { fill: '#0b1220', 'text-anchor': 'middle', 'font-family': 'inherit' });
+    bg.appendChild(els.bRect);
+    bg.appendChild(els.bLine1);
+    bg.appendChild(els.bLine2);
+    svg.appendChild(bg);
+    els.bGroup = bg;
+
+    place();
+    updateStats();
+  }
+
+  // 依 fx / fy 換算建築左上角座標（公尺）
+  function buildingPos() {
+    var freeX = Math.max(geo.W - geo.bw, 0);
+    var freeY = Math.max(geo.H - geo.bh, 0);
+    return { x: freeX * state.fx, y: freeY * state.fy, freeX: freeX, freeY: freeY };
+  }
+
+  function place() {
+    var p = buildingPos();
+    var bw = geo.bw * scale, bh = geo.bh * scale;
+    var bx = originX + p.x * scale, by = originY + p.y * scale;
+
+    els.bRect.setAttribute('x', bx);
+    els.bRect.setAttribute('y', by);
+    els.bRect.setAttribute('width', bw);
+    els.bRect.setAttribute('height', bh);
+
+    // 建築物內文字（空間不足時隱藏）
+    var fs = Math.max(FS * 0.62, Math.min(FS * 1.15, bw / 12, bh / 3.2));
+    var showText = bw > FS * 6 && bh > FS * 2.6;
+    els.bLine1.setAttribute('x', bx + bw / 2);
+    els.bLine1.setAttribute('y', by + bh / 2 - fs * 0.15);
+    els.bLine1.setAttribute('font-size', fs);
+    els.bLine1.setAttribute('opacity', showText ? 1 : 0);
+    els.bLine1.textContent = fmtArea(geo.Ab);
+
+    els.bLine2.setAttribute('x', bx + bw / 2);
+    els.bLine2.setAttribute('y', by + bh / 2 + fs * 1.05);
+    els.bLine2.setAttribute('font-size', fs * 0.8);
+    els.bLine2.setAttribute('opacity', showText ? 0.85 : 0);
+    els.bLine2.textContent = fmtLen(geo.bw) + ' × ' + fmtLen(geo.bh);
+
+    // 四邊退縮：左、右、上、下
+    var cx = bx + bw / 2, cy = by + bh / 2;
+    var gaps = [
+      { m: p.x, x1: originX, y1: cy, x2: bx, y2: cy, tx: (originX + bx) / 2, ty: cy - 6 },
+      { m: geo.W - geo.bw - p.x, x1: bx + bw, y1: cy, x2: originX + geo.W * scale, y2: cy, tx: (bx + bw + originX + geo.W * scale) / 2, ty: cy - 6 },
+      { m: p.y, x1: cx, y1: originY, x2: cx, y2: by, tx: cx + 8, ty: (originY + by) / 2 + 5, anchor: 'start' },
+      { m: geo.H - geo.bh - p.y, x1: cx, y1: by + bh, x2: cx, y2: originY + geo.H * scale, tx: cx + 8, ty: (by + bh + originY + geo.H * scale) / 2 + 5, anchor: 'start' }
+    ];
+
+    for (var i = 0; i < 4; i++) {
+      var gp = gaps[i], ln = els.gapLines[i], tx = els.gapTexts[i];
+      var px = Math.abs(i < 2 ? gp.x2 - gp.x1 : gp.y2 - gp.y1);
+      var vis = gp.m > 0.05 && px > 26;
+      ln.setAttribute('x1', gp.x1); ln.setAttribute('y1', gp.y1);
+      ln.setAttribute('x2', gp.x2); ln.setAttribute('y2', gp.y2);
+      ln.setAttribute('opacity', vis ? 0.9 : 0);
+      tx.setAttribute('x', gp.tx); tx.setAttribute('y', gp.ty);
+      tx.setAttribute('text-anchor', gp.anchor || 'middle');
+      tx.setAttribute('opacity', vis ? 1 : 0);
+      tx.textContent = fmtLen(Math.max(gp.m, 0));
+    }
+
+    els.gapM = [gaps[0].m, gaps[1].m, gaps[2].m, gaps[3].m];
+    updateGapStat();
+  }
+
+  /* ---------- 數據 ---------- */
+
+  function updateGapStat() {
+    var g = els.gapM || [0, 0, 0, 0];
+    var mn = Math.min(g[0], g[1], g[2], g[3]);
+    $('stGap').textContent = '最小 ' + fmtLen(Math.max(mn, 0));
+    $('stGap2').textContent = '左 ' + g[0].toFixed(1) + ' / 右 ' + g[1].toFixed(1) +
+      ' / 上 ' + g[2].toFixed(1) + ' / 下 ' + g[3].toFixed(1) + ' m';
+  }
+
+  function updateStats() {
+    var A = geo.A, Ab = geo.Ab, open = A - Ab;
+
+    $('stSite').textContent = fmtArea(A);
+    $('stSiteDim').textContent = fmtM2(A) + ' ／ ' + fmtLen(geo.W) + ' × ' + fmtLen(geo.H);
+    $('stBldg').textContent = fmtArea(Ab);
+    $('stBldgDim').textContent = fmtM2(Ab) + ' ／ 建蔽率 ' + state.coverage + '%';
+    $('stOpen').textContent = fmtArea(open);
+    $('stOpenPct').textContent = fmtM2(open) + ' ／ 佔基地 ' + (100 - state.coverage) + '%';
+
+    var altUnit = state.unit === 'ping' ? fmtM2(A) : fmtArea(A);
+    $('areaAlt').textContent = '≈ ' + altUnit;
+
+    var warn = $('warn');
+    if (geo.clamped) {
+      warn.textContent = '⚠ 依此建蔽率與長寬比，建築物已超出基地範圍，已自動貼齊基地邊界調整為 ' +
+        fmtLen(geo.bw) + ' × ' + fmtLen(geo.bh) + '。';
+      warn.classList.add('show');
+    } else {
+      warn.classList.remove('show');
+    }
+  }
+
+  /* ---------- 拖曳 ---------- */
+
+  var drag = null;
+
+  function svgPoint(evt) {
+    var ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    var pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    return pt.matrixTransform(ctm.inverse());
+  }
+
+  svg.addEventListener('pointerdown', function (evt) {
+    if (!els.bGroup || !els.bGroup.contains(evt.target)) return;
+    var p = svgPoint(evt);
+    if (!p) return;
+    var bp = buildingPos();
+    drag = {
+      dx: p.x - (originX + bp.x * scale),
+      dy: p.y - (originY + bp.y * scale)
+    };
+    svg.setPointerCapture(evt.pointerId);
+    // preventScroll：避免拖曳起始時頁面捲動造成建築物跳位
+    try { svg.focus({ preventScroll: true }); } catch (e) { svg.focus(); }
+    evt.preventDefault();
+  });
+
+  svg.addEventListener('pointermove', function (evt) {
+    if (!drag) return;
+    var p = svgPoint(evt);
+    if (!p) return;
+    var bp = buildingPos();
+    var mx = (p.x - drag.dx - originX) / scale;
+    var my = (p.y - drag.dy - originY) / scale;
+    state.fx = bp.freeX > 1e-9 ? Math.min(Math.max(mx / bp.freeX, 0), 1) : 0;
+    state.fy = bp.freeY > 1e-9 ? Math.min(Math.max(my / bp.freeY, 0), 1) : 0;
+    place();
+    evt.preventDefault();
+  });
+
+  function endDrag(evt) {
+    if (!drag) return;
+    drag = null;
+    if (svg.hasPointerCapture && svg.hasPointerCapture(evt.pointerId)) {
+      svg.releasePointerCapture(evt.pointerId);
+    }
+  }
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+
+  svg.addEventListener('keydown', function (evt) {
+    var map = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    var d = map[evt.key];
+    if (!d) return;
+    var stepM = evt.shiftKey ? 1 : 0.1;
+    var bp = buildingPos();
+    var nx = bp.x + d[0] * stepM;
+    var ny = bp.y + d[1] * stepM;
+    state.fx = bp.freeX > 1e-9 ? Math.min(Math.max(nx / bp.freeX, 0), 1) : 0;
+    state.fy = bp.freeY > 1e-9 ? Math.min(Math.max(ny / bp.freeY, 0), 1) : 0;
+    place();
+    evt.preventDefault();
+  });
+
+  /* ---------- 控制項 ---------- */
+
+  $('area').addEventListener('input', function () {
+    var v = parseFloat(this.value);
+    if (!isFinite(v) || v <= 0) return;
+    state.area = v;
+    draw();
+  });
+
+  $('unitSeg').addEventListener('click', function (evt) {
+    var b = evt.target.closest('button[data-unit]');
+    if (!b || b.getAttribute('aria-pressed') === 'true') return;
+    var next = b.dataset.unit;
+    // 換單位時保留實際面積，換算數值
+    var m2 = siteAreaM2();
+    state.unit = next;
+    state.area = next === 'ping' ? toPing(m2) : m2;
+    state.area = Math.round(state.area * 100) / 100;
+    $('area').value = state.area;
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function (x) {
+      x.setAttribute('aria-pressed', String(x === b));
+    });
+    draw();
+  });
+
+  $('shapeSeg').addEventListener('click', function (evt) {
+    var b = evt.target.closest('button[data-shape]');
+    if (!b) return;
+    state.shape = b.dataset.shape;
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function (x) {
+      x.setAttribute('aria-pressed', String(x === b));
+    });
+    $('ratioField').style.display = state.shape === 'square' ? 'none' : '';
+    syncBratioLabel();
+    draw();
+  });
+
+  $('ratio').addEventListener('input', function () {
+    state.ratio = parseFloat(this.value);
+    $('ratioVal').textContent = state.ratio.toFixed(1) + ' : 1';
+    syncBratioLabel();
+    draw();
+  });
+
+  $('coverage').addEventListener('input', function () {
+    state.coverage = parseInt(this.value, 10);
+    $('covVal').textContent = state.coverage + '%';
+    markPreset();
+    draw();
+  });
+
+  $('presets').addEventListener('click', function (evt) {
+    var b = evt.target.closest('button[data-c]');
+    if (!b) return;
+    state.coverage = parseInt(b.dataset.c, 10);
+    $('coverage').value = state.coverage;
+    $('covVal').textContent = state.coverage + '%';
+    markPreset();
+    draw();
+  });
+
+  function markPreset() {
+    Array.prototype.forEach.call($('presets').querySelectorAll('button'), function (b) {
+      b.classList.toggle('on', parseInt(b.dataset.c, 10) === state.coverage);
+    });
+  }
+
+  $('followSite').addEventListener('change', function () {
+    state.followSite = this.checked;
+    $('bratioField').style.display = this.checked ? 'none' : '';
+    draw();
+  });
+
+  $('bratio').addEventListener('input', function () {
+    state.bratio = parseFloat(this.value);
+    $('bratioVal').textContent = state.bratio.toFixed(1) + ' : 1';
+    draw();
+  });
+
+  function syncBratioLabel() {
+    if (!state.followSite) return;
+    var r = state.shape === 'square' ? 1 : state.ratio;
+    state.bratio = r;
+    $('bratio').value = r;
+    $('bratioVal').textContent = r.toFixed(1) + ' : 1';
+  }
+
+  $('centerBtn').addEventListener('click', function () {
+    state.fx = 0.5; state.fy = 0.5; place();
+  });
+
+  $('cornerBtn').addEventListener('click', function () {
+    state.fx = 0; state.fy = 0; place();
+  });
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { if (geo) draw(); }, 120);
+  });
+
+  /* ---------- 初始化 ---------- */
+
+  $('bratioField').style.display = 'none';
+  markPreset();
+  syncBratioLabel();
+  draw();
+})();
+</script>
+</body>
+</html>
