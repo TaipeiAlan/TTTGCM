@@ -71,7 +71,9 @@
     .deadline-pill .darrow{border:none;background:transparent;color:#2d6b2d;cursor:pointer;padding:4px 0;width:26px;font-size:12px;transition:.12s;text-align:center}
     .deadline-pill .darrow:hover:not(:disabled){background:#c5e8c5}
     .deadline-pill .darrow:disabled{color:#bcdcbc;cursor:default}
-    .deadline-pill .dlabel{padding:4px 12px;min-width:150px;text-align:center;white-space:nowrap;display:inline-flex;align-items:baseline;justify-content:center;gap:4px}
+    .deadline-pill .dlabel{padding:4px 12px;min-width:150px;text-align:center;white-space:nowrap;display:inline-flex;align-items:baseline;justify-content:center;gap:4px;border:none;background:transparent;font:inherit;font-weight:700;color:inherit;cursor:pointer;transition:.12s}
+    .deadline-pill .dlabel:hover{background:#c5e8c5}
+    .deadline-pill .dcaret{font-size:9px;opacity:.6}
     .deadline-pill .dsep{opacity:.6;font-weight:600;padding:0 1px}
     .deadline-pill .dall{font-weight:800}
     .deadline-pill > *:not(:first-child){border-left:1px solid #b6dab6}
@@ -80,6 +82,20 @@
     .deadline-pill.all-mode .darrow:hover:not(:disabled){background:#ead4ab}
     .deadline-pill.all-mode .darrow:disabled{color:#d8c39a}
     .deadline-pill.all-mode > *:not(:first-child){border-color:#dcbf8a}
+    .deadline-pill.all-mode .dlabel:hover{background:#ead4ab}
+    .range-wrap{position:relative;display:inline-flex}
+    .range-menu{display:none;position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid #7ab87a;border-radius:10px;box-shadow:0 6px 18px #00000030;padding:5px;min-width:196px;max-height:292px;overflow-y:auto;z-index:120}
+    .range-menu.open{display:block}
+    .rm-item{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;box-sizing:border-box;border:none;background:transparent;border-radius:7px;padding:6px 10px;font-family:inherit;font-size:12.5px;font-weight:700;line-height:1.3;color:#2d6b2d;text-align:left;cursor:pointer;transition:.12s}
+    .rm-item:hover:not(:disabled){background:#e5f3e5}
+    .rm-item.active{background:#7ab87a;color:#fff}
+    .rm-item:disabled{color:#bdbdbd;cursor:default}
+    .rm-cnt{font-size:11px;font-weight:600;opacity:.7;white-space:nowrap;flex-shrink:0}
+    .rm-item.active .rm-cnt{opacity:.92}
+    .rm-all{color:#79552a}
+    .rm-all:hover:not(:disabled){background:#f7e8cd}
+    .rm-all.active{background:#c7954f;color:#fff}
+    .rm-sep{height:1px;background:#dcefdc;margin:4px 3px}
     /* CSV overlay */
     .btn.csv-btn{border-color:#5ba8bf;background:#d0ecf5;color:#1a5f7a}
     .btn.csv-hide{background:#5ba8bf;color:#fff;border-color:#3d8fa8}
@@ -131,13 +147,16 @@
         </div>
         <div id="deadlineCtrl" class="deadline-ctrl">
           <span style="font-size:12px;color:#7d7d7d;">區間：</span>
-          <div class="deadline-pill all-mode" id="rangePill">
-            <button class="darrow" id="startPrev" title="起始往前一個月">◀</button>
-            <button class="darrow" id="startNext" title="起始往後一個月">▶</button>
-            <span class="dlabel" title="左側兩鈕調整起始、右側兩鈕調整截止"><span id="rangeStartText">全部</span><span class="dsep">～</span><span id="rangeEndText"></span></span>
-            <button class="darrow" id="endPrev" title="截止往前一個月">◀</button>
-            <button class="darrow" id="endNext" title="截止往後一個月">▶</button>
-            <button class="darrow dall" id="rangeAll" title="顯示全部區間">全</button>
+          <div class="range-wrap">
+            <div class="deadline-pill all-mode" id="rangePill">
+              <button class="darrow" id="startPrev" title="起始往前一個月">◀</button>
+              <button class="darrow" id="startNext" title="起始往後一個月">▶</button>
+              <button type="button" class="dlabel" id="rangeLabelBtn" title="點選可挑選並跳到指定月份（兩側箭頭可微調起始／截止）" aria-haspopup="listbox" aria-expanded="false"><span id="rangeStartText">全部</span><span class="dsep">～</span><span id="rangeEndText"></span><span class="dcaret">▾</span></button>
+              <button class="darrow" id="endPrev" title="截止往前一個月">◀</button>
+              <button class="darrow" id="endNext" title="截止往後一個月">▶</button>
+              <button class="darrow dall" id="rangeAll" title="顯示全部區間">全</button>
+            </div>
+            <div class="range-menu" id="rangeMenu" role="listbox" aria-label="跳到指定月份"></div>
           </div>
         </div>
         <div id="status">請先載入 Excel（第一個工作表）。</div>
@@ -1207,7 +1226,7 @@
     function updateDeadlineUI(){
       const ctrl=document.getElementById('deadlineCtrl');
       const r=rangeIdxs();
-      if(!currentRecords.length||!r){ctrl.style.display='none';return}
+      if(!currentRecords.length||!r){ctrl.style.display='none';closeRangeMenu();return}
       ctrl.style.display='flex';
       const {s,e,last}=r;
       document.getElementById('rangeStartText').textContent=toROCYM(deadlineMonthRange[s]);
@@ -1222,6 +1241,8 @@
       document.getElementById('endNext').disabled=(e>=last);
       // 只有非全區間時才能點「全」
       document.getElementById('rangeAll').disabled=isFull;
+      // 選單開著時同步刷新，維持勾選狀態正確
+      if(document.getElementById('rangeMenu').classList.contains('open'))buildRangeMenu();
     }
 
     function setDeadlineYM(ym){
@@ -1234,6 +1255,62 @@
     function setStartYM(ym){
       startYM=ym;
       if(startYM&&deadlineYM&&startYM>deadlineYM)deadlineYM=startYM;
+      updateDeadlineUI();
+      const cached=loadCache();
+      renderWithCsv(getFilteredRecords(),cached||{});
+    }
+
+    // 各月份的交易筆數（僅計入可解析交易日期者）
+    function monthCountMap(){
+      const map=new Map();
+      currentRecords.forEach(r=>{
+        const iso=rocToISO(r.交易日期);if(!iso)return;
+        const ym=iso.slice(0,7);
+        map.set(ym,(map.get(ym)||0)+1);
+      });
+      return map;
+    }
+
+    // 重建「跳到指定月份」選單：全部區間 + 各年月與當月交易筆數
+    function buildRangeMenu(){
+      const menu=document.getElementById('rangeMenu');
+      const r=rangeIdxs();
+      if(!r){menu.innerHTML='';return}
+      const counts=monthCountMap();
+      const isFull=(r.s===0&&r.e===r.last);
+      const single=(startYM&&deadlineYM&&startYM===deadlineYM)?startYM:'';
+      const rows=[
+        `<button type="button" class="rm-item rm-all${isFull?' active':''}" data-ym="__all__" role="option" aria-selected="${isFull}">全部區間<span class="rm-cnt">${currentRecords.length} 筆</span></button>`,
+        '<div class="rm-sep"></div>'
+      ];
+      // 由新到舊列出，最近的月份最好找
+      for(let i=deadlineMonthRange.length-1;i>=0;i--){
+        const ym=deadlineMonthRange[i];
+        const c=counts.get(ym)||0;
+        const on=(ym===single);
+        rows.push(`<button type="button" class="rm-item${on?' active':''}" data-ym="${ym}" role="option" aria-selected="${on}"${c?'':' disabled'}>${toROCYM(ym)}<span class="rm-cnt">${c} 筆</span></button>`);
+      }
+      menu.innerHTML=rows.join('');
+    }
+
+    function closeRangeMenu(){
+      const menu=document.getElementById('rangeMenu');
+      if(!menu.classList.contains('open'))return;
+      menu.classList.remove('open');
+      document.getElementById('rangeLabelBtn').setAttribute('aria-expanded','false');
+    }
+    function openRangeMenu(){
+      buildRangeMenu();
+      const menu=document.getElementById('rangeMenu');
+      menu.classList.add('open');
+      document.getElementById('rangeLabelBtn').setAttribute('aria-expanded','true');
+      const act=menu.querySelector('.rm-item.active');
+      if(act)act.scrollIntoView({block:'nearest'});
+    }
+
+    // 跳到單一月份：起始與截止都設成該月
+    function jumpToMonth(ym){
+      startYM=ym;deadlineYM=ym;
       updateDeadlineUI();
       const cached=loadCache();
       renderWithCsv(getFilteredRecords(),cached||{});
@@ -1254,10 +1331,30 @@
       document.getElementById('startNext').addEventListener('click',()=>moveStart(1));
       document.getElementById('endPrev').addEventListener('click',()=>moveEnd(-1));
       document.getElementById('endNext').addEventListener('click',()=>moveEnd(1));
-      document.getElementById('rangeAll').addEventListener('click',()=>{
+      function showAll(){
         startYM=null;deadlineYM=null;updateDeadlineUI();
         const cached=loadCache();renderWithCsv(getFilteredRecords(),cached||{});
+      }
+      document.getElementById('rangeAll').addEventListener('click',showAll);
+
+      // 點區間文字 → 開關月份下拉選單
+      const labelBtn=document.getElementById('rangeLabelBtn');
+      const menu=document.getElementById('rangeMenu');
+      labelBtn.addEventListener('click',e=>{
+        e.stopPropagation();
+        menu.classList.contains('open')?closeRangeMenu():openRangeMenu();
       });
+      menu.addEventListener('click',e=>{
+        const item=e.target.closest('.rm-item');
+        if(!item||item.disabled)return;
+        const ym=item.dataset.ym;
+        closeRangeMenu();
+        ym==='__all__'?showAll():jumpToMonth(ym);
+      });
+      document.addEventListener('click',e=>{
+        if(!e.target.closest('#rangeMenu')&&!e.target.closest('#rangeLabelBtn'))closeRangeMenu();
+      });
+      document.addEventListener('keydown',e=>{if(e.key==='Escape')closeRangeMenu();});
     })();
     // ─────────────────────────────────────────────────────────────────────────
   </script>
