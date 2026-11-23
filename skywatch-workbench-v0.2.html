@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Alan Kuo">
+<title>Skywatch 場域影像工作台 v0.2</title>
+<style>
+:root{--pri:#1570B8;--tint:#E7F1FA;--navy:#1F3A5F;--text:#2B3442;--gray:#6B7889;--card:#F7F9FB;--border:#E3E8EE;--danger:#C0392B;--ok:#1E8E5A;--warn:#C77700}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC","Heiti TC",system-ui,sans-serif;color:var(--text);background:#fff;font-size:14px}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-rows:56px 1fr;height:100vh}
+header{display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid var(--border);background:#fff;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--navy);font-size:18px;letter-spacing:1px;white-space:nowrap}
+.brand small{font-weight:500;color:var(--gray);font-size:13px;letter-spacing:0}
+.brand img{height:28px}
+.lbl{color:var(--gray);font-size:12px}
+select,input[type=text],input[type=password],input[type=datetime-local],input[type=date],textarea{border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:#fff}
+.spacer{flex:1}
+.conn{display:flex;align-items:center;gap:6px;color:var(--gray);font-size:13px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--gray)}
+.dot.on{background:var(--ok)}.dot.mock{background:var(--warn)}.dot.err{background:var(--danger)}
+.btn{border:1px solid var(--border);background:#fff;border-radius:6px;padding:6px 12px;color:var(--text);white-space:nowrap}
+.btn:hover{border-color:var(--pri);color:var(--pri)}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.pri:hover{filter:brightness(1.08);color:#fff}
+.btn.sm{padding:3px 8px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+main{display:grid;grid-template-columns:minmax(0,1fr) 410px;min-height:0}
+.stage{display:flex;flex-direction:column;min-height:0;padding:16px;gap:12px;overflow:auto;background:var(--card)}
+.players{display:grid;gap:12px}
+.players.two{grid-template-columns:1fr 1fr}
+.pcard{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.phead{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)}
+.phead .name{font-weight:600;color:var(--navy)}
+.badge{font-size:11px;padding:1px 7px;border-radius:10px;background:var(--tint);color:var(--pri);font-weight:600}
+.badge.live{background:#FDECEA;color:var(--danger)}
+.ptime{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--gray);font-size:13px}
+.pview{position:relative;background:#0d1520;aspect-ratio:16/9}
+.pview>*{position:absolute;inset:0;width:100%;height:100%}
+.pview vortex-streaming{display:block}
+.pmsg{display:flex;align-items:center;justify-content:center;color:#9fb0c3;font-size:13px;text-align:center;padding:20px;pointer-events:none}
+.pctrl{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;align-items:center}
+.pctrl .grp{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.pctrl .sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+.flash{background:#fff;opacity:0;pointer-events:none;transition:opacity .3s}
+.flash.go{opacity:.65;transition:none}
+.card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.tl-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.tl-head .title{font-weight:600;color:var(--navy)}
+.tl{position:relative;height:48px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;user-select:none;margin-top:16px}
+.tl .tick{position:absolute;top:0;bottom:0;border-left:1px solid var(--border);font-size:10px;color:var(--gray);padding-left:2px;pointer-events:none}
+.tl .hit{position:absolute;top:22px;height:10px;background:var(--pri);border-radius:2px;min-width:3px;pointer-events:none}
+.tl .mk{position:absolute;top:6px;width:2px;height:16px;background:var(--navy);pointer-events:none}
+.tl .mk::after{content:"";position:absolute;top:-4px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--navy)}
+.tl .cap{position:absolute;top:37px;width:5px;height:5px;border-radius:50%;background:var(--gray);margin-left:-2px;pointer-events:none}
+.tl .cur{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--danger);pointer-events:none}
+.tl .hover{position:absolute;top:-22px;font-size:11px;background:var(--navy);color:#fff;padding:1px 6px;border-radius:4px;transform:translateX(-50%);pointer-events:none;white-space:nowrap;display:none}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--gray);margin-left:auto;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+aside{border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0;background:#fff}
+.tabs{display:flex;border-bottom:1px solid var(--border)}
+.tab{flex:1;padding:12px 4px;border:none;background:none;color:var(--gray);border-bottom:2px solid transparent;font-weight:600}
+.tab.on{color:var(--pri);border-bottom-color:var(--pri)}
+.cnt{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--tint);color:var(--pri);font-size:11px;margin-left:4px}
+.cnt.busy{background:var(--pri);color:#fff}
+.panel{display:none;flex-direction:column;min-height:0;flex:1}
+.panel.on{display:flex}
+.pbody{padding:14px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:12px}
+.sec-title{font-weight:600;color:var(--navy);font-size:13px}
+.hint{color:var(--gray);font-size:12px;line-height:1.6}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--gray)}
+.field select,.field input{color:var(--text);width:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2>*{min-width:0}
+.field input[type=datetime-local]{min-width:0;font-size:12px;padding:6px 4px}
+textarea{width:100%;resize:vertical;min-height:64px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--tint);color:var(--pri);border-radius:12px;padding:2px 10px;font-size:12px}
+.chip.muted{background:var(--card);color:var(--gray)}
+.chip.warn{background:#FFF4E0;color:var(--warn)}
+details{border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--card)}
+details[open]{display:flex;flex-direction:column;gap:10px}
+details summary{cursor:pointer;color:var(--navy);font-weight:600;font-size:13px}
+.colorpick{display:flex;flex-wrap:wrap;gap:4px}
+.colorpick label,.checks label{display:flex;align-items:center;gap:4px;font-size:12px;border:1px solid var(--border);border-radius:12px;padding:2px 8px;background:#fff;cursor:pointer;color:var(--text)}
+.checks{display:flex;flex-wrap:wrap;gap:4px}
+.checks label,.colorpick label{white-space:nowrap;flex-shrink:0}
+.colorpick input,.checks input{margin:0}
+.sw{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,.2)}
+.progress{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.progress>div{height:100%;background:var(--pri);width:0;transition:width .2s}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;gap:10px;align-items:flex-start;background:#fff}
+.item .thumb{width:100px;height:56px;border-radius:4px;background:#0d1520;object-fit:cover;flex-shrink:0}
+.item .meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.item .t{font-weight:600;color:var(--navy);font-variant-numeric:tabular-nums;font-size:13px}
+.item .s{font-size:12px;color:var(--gray);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.item .acts{display:flex;gap:4px;flex-wrap:wrap}
+.item input.note{width:100%;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px}
+.item select{padding:1px 4px;font-size:12px}
+.caps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.capc{position:relative;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#0d1520}
+.capc img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;cursor:zoom-in}
+.capc .cl{font-size:10px;color:var(--gray);background:#fff;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.capc .x{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:4px;font-size:11px;padding:0 5px}
+.capc .src{position:absolute;top:2px;left:2px;background:rgba(21,112,184,.9);color:#fff;font-size:10px;border-radius:3px;padding:0 4px}
+.empty{color:var(--gray);text-align:center;padding:24px 0;font-size:13px}
+.st{font-size:11px;padding:1px 7px;border-radius:9px;background:var(--card);color:var(--gray);border:1px solid var(--border);white-space:nowrap}
+.st.ok{background:#E8F6EF;color:var(--ok);border-color:#C6E9D7}
+.st.err{background:#FDECEA;color:var(--danger);border-color:#F6C9C4}
+.st.run{background:var(--tint);color:var(--pri);border-color:#C9DFF2}
+.modal-bg{position:fixed;inset:0;background:rgba(31,58,95,.38);display:none;align-items:center;justify-content:center;z-index:50}
+.modal-bg.on{display:flex}
+.modal{background:#fff;border-radius:12px;width:min(540px,92vw);max-height:90vh;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
+.modal h3{margin:0;color:var(--navy)}
+.modal .field input,.modal .field select{width:100%}
+.lightbox{flex-direction:column;gap:10px}
+.lightbox img{max-width:90vw;max-height:78vh;border-radius:8px;background:#000}
+.toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:60}
+.toast{background:var(--navy);color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;max-width:380px;box-shadow:0 4px 14px rgba(0,0,0,.15);line-height:1.5}
+.toast.err{background:var(--danger)}
+.camsel{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.camsel label{display:flex;gap:4px;align-items:center;font-size:12px;border:1px solid var(--border);border-radius:12px;padding:2px 8px;cursor:pointer}
+.notice{background:#FFF4E0;color:#8a5300;border:1px solid #F3D9A8;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6}
+@media (max-width:1100px){main{grid-template-columns:1fr}aside{border-left:none;border-top:1px solid var(--border);min-height:560px}.players.two{grid-template-columns:1fr}}
+@media (max-width:760px){
+  html,body{height:auto}
+  .app{display:block;height:auto;min-height:100vh}
+  header{flex-wrap:wrap;gap:8px 10px;padding:8px 12px;position:sticky;top:0;z-index:20}
+  .brand{font-size:16px}.brand small{display:none}
+  #siteSel{flex:1;min-width:0}
+  header .spacer{display:none}
+  header>.lbl{display:none}
+  .conn #connText{display:none}
+  #btnSettings{padding:6px 10px}
+  .camsel{order:10;width:100%}
+  main{display:block}
+  .stage{padding:8px;gap:8px;overflow:visible}
+  .pcard{border-radius:8px}
+  .phead{padding:6px 10px}
+  .ptime{font-size:12px}
+  .pctrl{padding:8px;gap:6px}
+  .pctrl .sep{display:none}
+  .pctrl .grp{width:100%;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .pctrl .grp:last-child{grid-template-columns:1fr 1fr 1.6fr}
+  .btn.sm{padding:8px 4px;font-size:13px}
+  .tl-head{gap:6px}
+  .tl-head .legend{display:none}
+  .tl-head input[type=date]{flex:1}
+  .tl-head input[type=datetime-local]{flex:1 1 100%;min-width:0}
+  .tl-head .lbl{display:none}
+  .tl-head .btn{flex:1}
+  .tl .tick:nth-child(odd){color:transparent}
+  aside{border-top:1px solid var(--border);min-height:0}
+  .tabs{position:sticky;top:var(--hdr,52px);background:#fff;z-index:15}
+  .tab{padding:11px 2px;font-size:13px}
+  .panel{flex:none}
+  .pbody{overflow:visible;padding:12px}
+  .item .thumb{width:84px;height:48px}
+  .caps{grid-template-columns:repeat(2,1fr)}
+  .grid2{grid-template-columns:1fr}
+  .toasts{left:12px;right:12px;bottom:12px}
+  .toast{max-width:none}
+  select,input,textarea{font-size:16px}
+  .field input[type=datetime-local]{font-size:15px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand" id="brand"><span id="brandMark">SKYWATCH</span><small>場域影像工作台</small></div>
+  <span class="lbl">場域</span><select id="siteSel"></select>
+  <div class="camsel" id="camSel"></div>
+  <div class="spacer"></div>
+  <div class="conn"><span class="dot" id="connDot"></span><span id="connText">未連線</span></div>
+  <button class="btn" id="btnSettings">⚙ 設定</button>
+</header>
+<main>
+  <section class="stage">
+    <div class="players" id="players"></div>
+    <div class="card">
+      <div class="tl-head">
+        <span class="title">時間軸</span>
+        <input type="date" id="tlDate">
+        <span class="lbl">前往</span><input type="datetime-local" id="gotoTime" step="1">
+        <button class="btn sm pri" id="btnGotoAll">全部畫面前往</button>
+        <button class="btn sm" id="btnLiveAll">全部回到即時</button>
+        <div class="legend"><span><i style="background:var(--pri)"></i>AI 搜尋結果</span><span><i style="background:var(--navy)"></i>標記</span><span><i style="background:var(--gray);border-radius:50%"></i>截圖</span><span><i style="background:var(--danger)"></i>播放位置</span></div>
+      </div>
+      <div class="tl" id="tl"><div class="hover" id="tlHover"></div></div>
+      <div class="hint" style="margin-top:6px">點時間軸任一處，所有畫面同步跳到該時間回放。</div>
+    </div>
+  </section>
+  <aside>
+    <div class="tabs">
+      <button class="tab on" data-tab="search">AI 搜尋<span class="cnt" id="cntSearch">0</span></button>
+      <button class="tab" data-tab="marks">標記<span class="cnt" id="cntMarks">0</span></button>
+      <button class="tab" data-tab="caps">截圖<span class="cnt" id="cntCaps">0</span></button>
+      <button class="tab" data-tab="export">匯出<span class="cnt" id="cntJobs">0</span></button>
+    </div>
+
+    <div class="panel on" id="panel-search"><div class="pbody">
+      <div class="sec-title">輸入 AI 搜尋指令</div>
+      <textarea id="q" placeholder="例如：今天下午穿紅色上衣的男性&#10;例如：昨天晚上 8 點到 11 點的貨車&#10;例如：最近 3 小時提著袋子的人"></textarea>
+      <div class="row">
+        <button class="btn pri" id="btnSearch">開始搜尋</button>
+        <button class="btn" id="btnParse">只解析條件</button>
+        <button class="btn" id="btnStop" disabled>停止</button>
+      </div>
+      <div class="chips" id="chips"></div>
+      <details id="adv">
+        <summary>搜尋條件（可手動調整）</summary>
+        <div class="field">搜尋的攝影機<div class="checks" id="fCams"></div></div>
+        <div class="grid2">
+          <label class="field">對象<select id="fObj"><option value="">不限</option><option value="Human">人</option><option value="Vehicle">車</option></select></label>
+          <span></span>
+        </div>
+        <div id="hGroup" style="display:flex;flex-direction:column;gap:8px">
+          <div class="grid2">
+            <label class="field">性別<select id="fGender"><option value="">不限</option><option value="Male">男</option><option value="Female">女</option></select></label>
+            <label class="field">年齡<select id="fAge"><option value="">不限</option><option value="Adult">成人</option><option value="Child">孩童</option></select></label>
+          </div>
+          <div class="field">上衣顏色<div class="colorpick" id="fUpper"></div></div>
+          <div class="field">下身顏色<div class="colorpick" id="fLower"></div></div>
+          <div class="field">配件<div class="checks"><label><input type="checkbox" id="fAccHat">帽子</label><label><input type="checkbox" id="fAccBag">包／袋子</label></div></div>
+        </div>
+        <div id="vGroup" style="display:flex;flex-direction:column;gap:8px">
+          <label class="field">車種<select id="fVType"><option value="">不限</option><option value="Car">汽車</option><option value="Truck">貨車</option><option value="Bus">公車</option><option value="Motorcycle">機車</option><option value="Bicycle">腳踏車</option></select></label>
+          <div class="field">車身顏色<div class="colorpick" id="fVColor"></div></div>
+        </div>
+        <div class="grid2">
+          <label class="field">開始時間<input type="datetime-local" id="fStart" step="1"></label>
+          <label class="field">結束時間<input type="datetime-local" id="fEnd" step="1"></label>
+          <label class="field">結果時段長度<select id="fGran"><option value="1">1 分鐘（最細）</option><option value="2" selected>2 分鐘</option><option value="5">5 分鐘</option><option value="10">10 分鐘</option></select></label>
+          <label class="field">查詢次數上限<select id="fMax"><option value="60">60 次</option><option value="150" selected>150 次</option><option value="300">300 次</option></select></label>
+        </div>
+        <div class="hint">系統會把時間範圍逐步切小，找出目標出現的時段。範圍越大、時段越細，需要的查詢次數越多。</div>
+      </details>
+      <div id="sProg" style="display:none;flex-direction:column;gap:6px">
+        <div class="hint" id="sProgText"></div>
+        <div class="progress"><div id="sBar"></div></div>
+      </div>
+      <div class="list" id="hits"><div class="empty">輸入指令後按「開始搜尋」</div></div>
+    </div></div>
+
+    <div class="panel" id="panel-marks"><div class="pbody">
+      <div class="hint">在影像畫面按「🔖 標記」，就會在目前的播放時間加上標記。</div>
+      <div class="row">
+        <select id="mkFilterCam"><option value="">全部攝影機</option></select>
+        <select id="mkFilterTag"><option value="">全部標籤</option></select>
+        <div class="spacer"></div>
+        <button class="btn sm" id="btnMkCsv">匯出 CSV</button>
+      </div>
+      <div class="list" id="marks"></div>
+    </div></div>
+
+    <div class="panel" id="panel-caps"><div class="pbody">
+      <div class="row">
+        <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="capWm" checked>加上場域／時間浮水印</label>
+        <div class="spacer"></div>
+        <button class="btn sm pri" id="btnCapZip">全部下載</button>
+        <button class="btn sm" id="btnCapClear">清空</button>
+      </div>
+      <div class="hint">張數不限。截圖暫存在本頁，重新整理或關閉前請先下載。</div>
+      <div class="caps" id="caps"></div>
+    </div></div>
+
+    <div class="panel" id="panel-export"><div class="pbody">
+      <div class="sec-title">匯出影片並下載到電腦</div>
+      <label class="field">攝影機<select id="exCam"></select></label>
+      <div class="grid2">
+        <label class="field">開始<input type="datetime-local" id="exStart" step="1"></label>
+        <label class="field">結束<input type="datetime-local" id="exEnd" step="1"></label>
+      </div>
+      <div class="row">
+        <button class="btn sm" id="exFromNowS">開始＝畫面時間</button>
+        <button class="btn sm" id="exFromNowE">結束＝畫面時間</button>
+        <button class="btn sm" id="exLast5">前 5 分鐘</button>
+      </div>
+      <div class="row">
+        <label class="lbl" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="exAuto" checked>完成後自動下載</label>
+        <div class="spacer"></div>
+        <button class="btn pri" id="btnExAdd">加入匯出</button>
+      </div>
+      <div class="hint">匯出在背景進行，期間可以繼續搜尋、標記、截圖。超過 1 小時的區段會自動拆成多個檔案。</div>
+      <div class="list" id="jobs"></div>
+    </div></div>
+  </aside>
+</main>
+</div>
+
+<div class="modal-bg" id="mSettings"><div class="modal">
+  <h3>設定</h3>
+  <label class="field">模式
+    <select id="sMode"><option value="mock">模擬展示（不需帳號，用假畫面示範操作）</option><option value="real">正式連線（使用雲端平台 API Key）</option></select>
+  </label>
+  <div class="notice" id="sNotice" style="display:none">目前開啟的是 <b>線上展示版</b>。為了安全，這個環境禁止網頁連到外部平台，所以只能使用「模擬展示」。要連線正式平台，請改用檔案版（直接開 HTML 檔）或部署版。</div>
+  <div id="sRealBox" style="display:flex;flex-direction:column;gap:10px">
+    <label class="field">API Key<input type="password" id="sKey" placeholder="貼上 API Key" autocomplete="off"></label>
+    <label class="lbl" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="sRemember">在這台電腦記住 API Key（公用電腦請勿勾選）</label>
+    <details><summary>進階</summary>
+      <label class="field">API 位址<input type="text" id="sBase"></label>
+      <label class="field">播放元件位址<input type="text" id="sSdk"></label>
+      <div class="hint">若連線時出現跨網域錯誤，請用隨附的本地代理程式開啟本頁，API 位址會自動改成本地代理。</div>
+    </details>
+  </div>
+  <div class="row" style="justify-content:flex-end"><button class="btn" id="sCancel">取消</button><button class="btn pri" id="sSave">儲存並連線</button></div>
+</div></div>
+
+<div class="modal-bg lightbox" id="mLight"><img id="lbImg" alt=""><div class="row"><span id="lbCap" style="color:#fff"></span><button class="btn sm pri" id="lbDl">下載</button><button class="btn sm" id="lbClose">關閉</button></div></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+'use strict';
+/* ====== 品牌：可把 Skywatch 官方 logo 的網址或 data URI 填在這裡 ====== */
+const BRAND_LOGO = '';
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const fmt = (ms, withDate = true) => { const d = new Date(ms); return (withDate ? `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ` : '') + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const fmtFile = ms => { const d = new Date(ms); return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`; };
+const toLocalInput = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const toDateInput = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const fromLocalInput = v => v ? new Date(v).getTime() : NaN;
+const isoZ = ms => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const safeName = s => String(s).replace(/[\\/:*?"<>|\s]+/g, '_');
+const dayStart = ms => { const d = new Date(ms); d.setHours(0,0,0,0); return d.getTime(); };
+const uid = () => Math.random().toString(36).slice(2, 10);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+  sget(k, d) { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  sset(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+function toast(msg, err) {
+  const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = msg;
+  $('#toasts').appendChild(t); setTimeout(() => t.remove(), err ? 7000 : 3200);
+}
+/* 線上展示版（Claude 發佈頁）偵測：該環境提供 window.claude.use，且禁止連外 */
+const IN_SANDBOX = !!(window.claude && typeof window.claude.use === 'function');
+let hostDownloads = null;
+if (IN_SANDBOX) { try { window.claude.use('downloads').then(d => { hostDownloads = d; }).catch(() => {}); } catch {} }
+let cspBlocked = false;
+document.addEventListener('securitypolicyviolation', e => {
+  if (cspBlocked || !e.blockedURI || /^(data|blob|inline|eval)/.test(e.blockedURI)) return;
+  cspBlocked = true;
+  if (state && state.cfg.mode === 'real') toast('這個頁面所在的環境禁止連到外部平台（線上展示版的安全限制）。請改用檔案版或部署版來正式連線。', 1);
+});
+async function saveBlob(blob, name) {
+  if (hostDownloads) {
+    try { await hostDownloads.save({ filename: name, data: blob }); }
+    catch (e) { if (e && e.code !== 'declined') toast('下載未完成：' + (e.message || e.code), 1); }
+    return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+}
+const canvasBlob = (c, type = 'image/jpeg', q = 0.92) => new Promise((res, rej) => { try { c.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), type, q); } catch (e) { rej(e); } });
+
+/* ---------- state ---------- */
+const isLocalProxy = location.protocol.startsWith('http') && ['localhost', '127.0.0.1'].includes(location.hostname);
+const DEFAULT_CFG = {
+  mode: 'mock',
+  apiBase: isLocalProxy ? location.origin + '/v1' : 'https://api.vortexcloud.com/v1',
+  sdkUrl: 'https://portal.vortexcloud.com/vortex-streaming.min.js',
+  remember: false,
+};
+const state = {
+  cfg: Object.assign({}, DEFAULT_CFG, store.get('sw_ws_cfg', {})),
+  apiKey: '',
+  groups: [], devices: [], dsIds: null,
+  group: null, cams: [], selCamIds: [],
+  players: [], marks: [], caps: [], jobs: [], hits: [],
+  searching: false, abort: false, lastQuery: '',
+};
+state.apiKey = state.cfg.remember ? store.get('sw_ws_key', '') : store.sget('sw_ws_key', '');
+const VIEWABLE = ['CAMERA', 'NVRCAMERA', 'VSSCHANNEL', 'MACHANNEL'];
+const TAGS = ['待確認', '重要', '已處理'];
+const isMock = () => state.cfg.mode === 'mock';
+const siteName = () => state.group ? state.group.name : '';
+const macOf = cam => String(cam.mac || String(cam.deviceId).split('-')[0]).replace(/[:\-]/g, '').toUpperCase();
+
+/* ---------- mock backend ---------- */
+const mock = {
+  groups: [{ groupId: 'demo-a', name: '示範場域 A（雙鏡頭）' }, { groupId: 'demo-b', name: '示範場域 B（單鏡頭）' }],
+  devices: [
+    { deviceId: '0002D1000001-1', groupId: 'demo-a', name: '路口東側', mac: '0002D1000001', deviceType: 'CAMERA', online: true, seed: 3 },
+    { deviceId: '0002D1000002-1', groupId: 'demo-a', name: '路口西側', mac: '0002D1000002', deviceType: 'CAMERA', online: true, seed: 7 },
+    { deviceId: '0002D1000003-1', groupId: 'demo-b', name: '巷口清潔箱', mac: '0002D1000003', deviceType: 'CAMERA', online: true, seed: 11 },
+  ],
+  archives: {},
+  hash(n) { n = (n ^ 61) ^ (n >>> 16); n = n + (n << 3); n = n ^ (n >>> 4); n = Math.imul(n, 0x27d4eb2d); n = n ^ (n >>> 15); return (n >>> 0) / 4294967296; },
+  count(body) {
+    const s = Date.parse(body.start), e = Date.parse(body.end);
+    const key = JSON.stringify([body.obj_type || '', body.attributes || {}]);
+    let seed = 7; for (const ch of (body.mac_list[0] + key)) seed = (seed * 31 + ch.charCodeAt(0)) | 0;
+    const nAttr = body.attributes ? Object.values(body.attributes).flat().length : 0;
+    const thr = 0.05 / (1 + nAttr) / (body.obj_type ? 1.5 : 1);
+    let c = 0; const m0 = Math.floor(s / 60000), m1 = Math.floor((e - 1) / 60000);
+    for (let m = m0; m <= m1; m++) if (this.hash(m * 7919 + seed) < thr) c += 1 + Math.floor(this.hash(m + seed) * 3);
+    return c;
+  },
+  async req(method, path, body) {
+    await sleep(80 + Math.random() * 160);
+    if (path.startsWith('/groups')) return { data: this.groups };
+    if (path.startsWith('/devices?') || path === '/devices') return { data: this.devices };
+    if (path === '/deepsearch/count') return { count: this.count(body) };
+    let m;
+    if ((m = path.match(/^\/devices\/([^/]+)\/archive$/)) && method === 'POST') {
+      const id = 'ar-' + uid();
+      const a = { archiveId: id, deviceId: decodeURIComponent(m[1]), startAt: new Date(body.startTimestamp * 1000).toISOString(), endAt: new Date(body.endTimestamp * 1000).toISOString(), status: 'START_ARCHIVE', created: Date.now(), sharedUrl: null, filename: id + '.mp4' };
+      this.archives[id] = a; return a;
+    }
+    if (path === '/archives') {
+      const out = Object.values(this.archives).filter(a => !body.deviceIdList || body.deviceIdList.includes(a.deviceId));
+      out.forEach(a => { const el = Date.now() - a.created; a.status = el < 3000 ? 'UPLOADING' : el < 7000 ? 'GEN_MP4' : 'MP4_READY'; });
+      return out;
+    }
+    if ((m = path.match(/archives\/([^/]+)\/share\/on$/))) { const a = this.archives[m[1]]; a.sharedUrl = 'mock://' + a.archiveId; return a; }
+    throw Object.assign(new Error('模擬模式未支援：' + path), { status: 404 });
+  },
+};
+
+/* ---------- API ---------- */
+const api = {
+  async req(method, path, body, raw) {
+    if (isMock()) return mock.req(method, path, body);
+    let res;
+    try {
+      res = await fetch(state.cfg.apiBase.replace(/\/$/, '') + path, {
+        method, headers: Object.assign({ Authorization: 'Bearer ' + state.apiKey }, body ? { 'Content-Type': 'application/json' } : {}),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      throw Object.assign(new Error(IN_SANDBOX || cspBlocked ? '線上展示版禁止連到外部平台，請改用檔案版或部署版' : '無法連線到雲端平台（可能被瀏覽器跨網域限制擋下，請改用本地代理程式開啟本頁）'), { network: true });
+    }
+    if (res.status === 429) throw Object.assign(new Error('查詢太頻繁，稍候重試'), { status: 429, retryAfter: +res.headers.get('Retry-After') || 5 });
+    if (!res.ok) {
+      let msg = `錯誤 ${res.status}`;
+      try { const j = await res.json(); msg += '：' + (j.error || j.detail || j.title || ''); } catch {}
+      if (res.status === 401) msg = 'API Key 無效或已過期（401）';
+      if (res.status === 403) msg = '此帳號沒有權限執行這個動作（403）';
+      throw Object.assign(new Error(msg), { status: res.status });
+    }
+    if (raw) return res;
+    const t = await res.text(); try { return JSON.parse(t); } catch { return t; }
+  },
+  async paged(path) {
+    let out = [], token = '';
+    for (let i = 0; i < 50; i++) {
+      const sep = path.includes('?') ? '&' : '?';
+      const r = await this.req('GET', path + sep + 'limit=100' + (token ? '&nextToken=' + encodeURIComponent(token) : ''));
+      out = out.concat(r.data || []); token = r.nextToken; if (!token) break;
+    }
+    return out;
+  },
+  groups() { return this.paged('/groups'); },
+  devices(perm) { return this.paged('/devices' + (perm ? '?permission=' + perm : '')); },
+  deepCount(body) { return this.req('POST', '/deepsearch/count', body); },
+  createArchive(id, s, e) { return this.req('POST', `/devices/${encodeURIComponent(id)}/archive`, { startTimestamp: Math.floor(s / 1000), endTimestamp: Math.floor(e / 1000) }); },
+  listArchives(ids, s, e) { return this.req('POST', '/archives', { deviceIdList: ids, startTimestamp: Math.floor(s / 1000), endTimestamp: Math.floor(e / 1000) }); },
+  shareArchive(id, aid) { return this.req('PUT', `/devices/${encodeURIComponent(id)}/archives/${encodeURIComponent(aid)}/share/on`); },
+  async snapshot(cam, tsMs, precise) {
+    if (isMock()) { const c = document.createElement('canvas'); c.width = 1280; c.height = 720; drawScene(c.getContext('2d'), 1280, 720, tsMs || Date.now(), cam); return canvasBlob(c); }
+    const q = []; if (tsMs) q.push('timestamp=' + Math.floor(tsMs / 1000)); if (precise) q.push('precision=second');
+    const res = await this.req('GET', `/devices/${encodeURIComponent(cam.deviceId)}/snapshot${q.length ? '?' + q.join('&') : ''}`, null, true);
+    return res.blob();
+  },
+};
+
+/* ---------- mock scene ---------- */
+const FONT = '"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif';
+function drawScene(ctx, w, h, ms, cam) {
+  const d = new Date(ms), hr = d.getHours() + d.getMinutes() / 60;
+  const day = Math.max(0.15, Math.min(1, Math.sin((hr - 5) / 14 * Math.PI) + 0.25));
+  const L = v => Math.round(v * day);
+  const seed = cam.seed || 1, t = ms / 1000;
+  const sky = ctx.createLinearGradient(0, 0, 0, h * .45);
+  sky.addColorStop(0, `rgb(${L(110)},${L(165)},${L(215)})`); sky.addColorStop(1, `rgb(${L(175)},${L(205)},${L(230)})`);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h * .45);
+  for (let i = 0; i < 9; i++) { const bw = w / 9, bh = h * (.12 + .25 * mock.hash(i * 13 + seed)); ctx.fillStyle = `rgb(${L(95)},${L(105)},${L(120)})`; ctx.fillRect(i * bw, h * .45 - bh, bw - 4, bh); }
+  ctx.fillStyle = `rgb(${L(90)},${L(94)},${L(100)})`; ctx.fillRect(0, h * .45, w, h * .55);
+  ctx.fillStyle = `rgb(${L(165)},${L(160)},${L(150)})`; ctx.fillRect(0, h * .45, w, h * .13);
+  ctx.fillStyle = `rgba(255,255,255,${.3 + .5 * day})`; for (let x = 0; x < w; x += 120) ctx.fillRect(x, h * .77, 60, 6);
+  ctx.fillStyle = '#2E7D4F'; ctx.fillRect(w * .82, h * .40, w * .05, h * .15); ctx.fillStyle = '#1f5a39'; ctx.fillRect(w * .815, h * .395, w * .06, h * .02);
+  for (let i = 0; i < 3; i++) { const sp = 70 + i * 40, x = ((t * sp + i * 420 + seed * 97) % (w + 300)) - 150, y = h * (.62 + i * .09); ctx.fillStyle = ['#c0392b', '#ecf0f1', '#2c3e50'][i]; ctx.fillRect(x, y, 150, 50); ctx.fillStyle = 'rgba(30,40,55,.85)'; ctx.fillRect(x + 25, y - 22, 95, 24); }
+  for (let i = 0; i < 4; i++) { const sp = 20 + i * 8; let x = (t * sp + i * 300 + seed * 53) % (w + 80); if (i % 2) x = w - x; const y = h * .47 + i * 7; ctx.fillStyle = ['#1E66D0', '#D93025', '#202124', '#F4C430'][i]; ctx.fillRect(x, y, 16, 30); ctx.fillStyle = '#4b3a2c'; ctx.fillRect(x, y + 30, 16, 22); ctx.fillStyle = '#e9b98a'; ctx.beginPath(); ctx.arc(x + 8, y - 7, 8, 0, 7); ctx.fill(); }
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, w, 42);
+  ctx.fillStyle = '#fff'; ctx.font = `bold 22px ${FONT}`; ctx.fillText(cam.name, 14, 29);
+  ctx.font = '20px monospace'; const ts = fmt(ms); ctx.fillText(ts, w - ctx.measureText(ts).width - 14, 29);
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = `bold 26px ${FONT}`; ctx.fillText('模擬畫面 DEMO', 14, h - 18);
+}
+
+/* ---------- SDK loader ---------- */
+let sdkP = null;
+function loadSdk() {
+  if (sdkP) return sdkP;
+  sdkP = new Promise((res, rej) => {
+    if (customElements.get('vortex-streaming')) return res();
+    const s = document.createElement('script'); s.src = state.cfg.sdkUrl; s.defer = true;
+    s.onload = () => Promise.race([customElements.whenDefined('vortex-streaming'), sleep(8000)]).then(res);
+    s.onerror = () => { sdkP = null; rej(new Error('播放元件載入失敗，請確認網路')); };
+    document.head.appendChild(s);
+  });
+  return sdkP;
+}
+
+/* ---------- Player ---------- */
+class Player {
+  constructor(cam, root) {
+    this.cam = cam; this.mode = 'live'; this.base = 0; this.baseWall = 0; this.paused = false; this.pausedTs = 0; this.el = null; this.raf = 0;
+    const c = document.createElement('div'); c.className = 'pcard';
+    c.innerHTML = `<div class="phead"><span class="name">${esc(cam.name)}</span><span class="badge live" data-r="badge">即時</span>${cam.online === false ? '<span class="st err">離線</span>' : ''}<span class="ptime" data-r="time">--</span></div>
+      <div class="pview" data-r="view"><div class="pmsg" data-r="msg"></div><div class="flash" data-r="flash"></div></div>
+      <div class="pctrl">
+        <div class="grp"><button class="btn sm" data-a="live">● 即時</button><button class="btn sm" data-a="back">« 10 秒</button><button class="btn sm" data-a="pause">❚❚ 暫停</button><button class="btn sm" data-a="fwd">10 秒 »</button></div>
+        <div class="sep"></div>
+        <div class="grp"><button class="btn sm pri" data-a="cap">📷 截圖</button><button class="btn sm" data-a="mark">🔖 標記</button><button class="btn sm" data-a="exp">⬇ 匯出前後 30 秒</button></div>
+      </div>`;
+    this.card = c; this.r = k => c.querySelector(`[data-r="${k}"]`);
+    c.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b) this.action(b.dataset.a); });
+    root.appendChild(c);
+  }
+  async mount() {
+    const view = this.r('view'), flash = this.r('flash');
+    if (isMock()) {
+      const cv = document.createElement('canvas'); cv.width = 1280; cv.height = 720; view.insertBefore(cv, flash); this.canvas = cv;
+      const ctx = cv.getContext('2d');
+      const loop = () => { drawScene(ctx, 1280, 720, this.now(), this.cam); this.raf = requestAnimationFrame(loop); };
+      loop(); return;
+    }
+    this.r('msg').textContent = '載入影像中…';
+    try {
+      await loadSdk();
+      const el = document.createElement('vortex-streaming');
+      el.setAttribute('device-id', this.cam.deviceId);
+      el.setAttribute('api-token', state.apiKey);
+      el.setAttribute('device-type', ['NVRCAMERA', 'VSSCHANNEL', 'MACHANNEL'].includes(this.cam.deviceType) ? 'nvrchannel' : 'camera');
+      el.setAttribute('muted', '');
+      el.addEventListener('play', () => { this.r('msg').textContent = ''; });
+      el.addEventListener('error', e => { console.warn('stream error', e.detail); this.r('msg').textContent = '影像錯誤：' + (e.detail && (e.detail.message || e.detail.code) || '請稍後重試'); });
+      el.addEventListener('notify', e => this.onNotify(e.detail));
+      view.insertBefore(el, flash); this.el = el;
+    } catch (e) { this.r('msg').textContent = e.message; }
+  }
+  onNotify(d) {
+    let v = null;
+    if (typeof d === 'number') v = d; else if (d && typeof d === 'object') for (const k of ['timestamp', 'time', 'currentTime', 'ts', 'playTime']) if (typeof d[k] === 'number') { v = d[k]; break; }
+    if (v && v < 1e11) v *= 1000;
+    if (v && v > 1e12 && this.mode === 'playback' && !this.paused) { this.base = v; this.baseWall = Date.now(); }
+  }
+  async ex() {
+    for (let i = 0; i < 50; i++) { const x = this.el && this.el._instance && this.el._instance.exposed; if (x) return x; await sleep(200); }
+    throw new Error('播放元件尚未就緒');
+  }
+  now() {
+    if (this.paused) return this.pausedTs;
+    if (this.mode === 'live') return Date.now();
+    return Math.min(this.base + (Date.now() - this.baseWall), Date.now());
+  }
+  async live() { this.mode = 'live'; this.paused = false; if (!isMock()) try { (await this.ex()).play(); } catch (e) { toast(e.message, 1); } }
+  async playAt(ms) {
+    if (ms >= Date.now() - 2000) return this.live();
+    this.mode = 'playback'; this.base = ms; this.baseWall = Date.now(); this.paused = false;
+    if (!isMock()) try { (await this.ex()).play(ms); } catch (e) { toast(e.message, 1); }
+  }
+  async togglePause() {
+    if (this.paused) {
+      this.base = this.pausedTs; this.baseWall = Date.now(); this.paused = false; this.mode = 'playback';
+      if (!isMock()) try { (await this.ex()).resume(); } catch (e) { toast(e.message, 1); }
+    } else {
+      this.pausedTs = this.now(); this.paused = true;
+      if (!isMock()) try { (await this.ex()).pause(); } catch (e) { toast(e.message, 1); }
+    }
+  }
+  async jump(sec) {
+    const t = this.now() + sec * 1000;
+    if (sec > 0 && (this.mode === 'live' || t >= Date.now() - 2000)) return this.live();
+    const wasPaused = this.paused;
+    this.mode = 'playback'; this.base = t; this.baseWall = Date.now(); if (wasPaused) this.pausedTs = t;
+    if (!isMock()) try { const x = await this.ex(); sec < 0 ? x.backward(-sec) : x.forward(sec); } catch (e) { toast(e.message, 1); }
+  }
+  findMedia() {
+    if (!this.el) return null;
+    const roots = [this.el]; const seen = new Set();
+    while (roots.length) {
+      const r = roots.shift(); if (seen.has(r)) continue; seen.add(r);
+      const m = r.querySelector && r.querySelector('video,canvas'); if (m) return m;
+      if (r.shadowRoot) roots.push(r.shadowRoot);
+      if (r.querySelectorAll) r.querySelectorAll('*').forEach(n => { if (n.shadowRoot) roots.push(n.shadowRoot); });
+    }
+    return null;
+  }
+  async capture() {
+    const ts = this.now();
+    if (isMock()) return { blob: await stamp(this.canvas, 1280, 720, ts, this.cam), ts, source: '畫面' };
+    const m = this.findMedia();
+    if (m) {
+      try {
+        const w = m.videoWidth || m.width, h = m.videoHeight || m.height;
+        if (w && h) {
+          const probe = document.createElement('canvas'); probe.width = 16; probe.height = 9;
+          const pc = probe.getContext('2d'); pc.drawImage(m, 0, 0, 16, 9);
+          const px = pc.getImageData(0, 0, 16, 9).data; let sum = 0; for (let i = 0; i < px.length; i += 4) sum += px[i] + px[i + 1] + px[i + 2];
+          if (sum > 0) return { blob: await stamp(m, w, h, ts, this.cam), ts, source: '畫面' };
+        }
+      } catch (e) { console.warn('frame capture blocked, fallback to cloud snapshot', e); }
+    }
+    const blob = await api.snapshot(this.cam, this.mode === 'live' && !this.paused ? null : ts, this.mode === 'live' && !this.paused);
+    const bmp = await createImageBitmap(blob);
+    return { blob: await stamp(bmp, bmp.width, bmp.height, ts, this.cam), ts, source: '雲端快照' };
+  }
+  async action(a) {
+    try {
+      if (a === 'live') await this.live();
+      else if (a === 'back') await this.jump(-10);
+      else if (a === 'fwd') await this.jump(10);
+      else if (a === 'pause') await this.togglePause();
+      else if (a === 'cap') {
+        const f = this.r('flash'); f.classList.add('go'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('go')));
+        const r = await this.capture(); addCap(Object.assign(r, { cam: this.cam, site: siteName() }));
+      } else if (a === 'mark') addMark(this.cam, this.now());
+      else if (a === 'exp') { const t = this.now(); addJob(this.cam, t - 30000, Math.min(t + 30000, Date.now() - 5000)); }
+    } catch (e) { toast(e.message || String(e), 1); }
+  }
+  tick() {
+    this.r('time').textContent = fmt(this.now());
+    const b = this.r('badge'); const live = this.mode === 'live' && !this.paused;
+    b.textContent = live ? '即時' : this.paused ? '暫停' : '回放'; b.className = 'badge' + (live ? ' live' : '');
+    const pb = this.card.querySelector('[data-a="pause"]'); pb.textContent = this.paused ? '▶ 繼續' : '❚❚ 暫停';
+  }
+  destroy() { cancelAnimationFrame(this.raf); this.card.remove(); }
+}
+async function stamp(src, w, h, ts, cam) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d');
+  ctx.drawImage(src, 0, 0, w, h);
+  if ($('#capWm').checked) {
+    const fs = Math.max(14, Math.round(h / 34)); const bar = fs * 1.9;
+    ctx.fillStyle = 'rgba(31,58,95,.78)'; ctx.fillRect(0, h - bar, w, bar);
+    ctx.fillStyle = '#fff'; ctx.font = `${fs}px ${FONT}`; ctx.textBaseline = 'middle';
+    ctx.fillText(`${siteName()}｜${cam.name}｜${fmt(ts)}`, fs * .8, h - bar / 2);
+  }
+  return canvasBlob(c);
+}
+
+/* ---------- connection & site ---------- */
+function setConn(kind, text) { $('#connDot').className = 'dot ' + kind; $('#connText').textContent = text; }
+async function connect() {
+  state.players.forEach(p => p.destroy()); state.players = [];
+  if (!isMock() && !state.apiKey) { setConn('err', '尚未設定 API Key'); openSettings(); return; }
+  setConn('', '連線中…');
+  try {
+    const [groups, devices] = await Promise.all([api.groups(), api.devices()]);
+    state.groups = groups; state.devices = devices.filter(d => VIEWABLE.includes(d.deviceType));
+    state.dsIds = null;
+    if (!isMock()) api.devices('deepsearch').then(l => { state.dsIds = new Set(l.map(d => d.deviceId)); renderSearchCams(); }).catch(() => {});
+    const sel = $('#siteSel'); sel.innerHTML = '';
+    const usable = groups.filter(g => state.devices.some(d => d.groupId === g.groupId));
+    if (!usable.length) { setConn('err', '找不到可用的場域'); toast('此帳號底下沒有含攝影機的場域', 1); return; }
+    usable.forEach(g => { const o = document.createElement('option'); o.value = g.groupId; o.textContent = g.name; sel.appendChild(o); });
+    const last = store.get('sw_ws_site', ''); sel.value = usable.some(g => g.groupId === last) ? last : usable[0].groupId;
+    setConn(isMock() ? 'mock' : 'on', isMock() ? '模擬展示模式' : '已連線');
+    loadSite(sel.value);
+  } catch (e) { setConn('err', '連線失敗'); toast(e.message, 1); }
+}
+function loadSite(gid) {
+  state.group = state.groups.find(g => g.groupId === gid); store.set('sw_ws_site', gid);
+  state.cams = state.devices.filter(d => d.groupId === gid);
+  const saved = store.get('sw_ws_cams_' + gid, null);
+  state.selCamIds = (saved && saved.filter(id => state.cams.some(c => c.deviceId === id)).slice(0, 2)) || [];
+  if (!state.selCamIds.length) state.selCamIds = state.cams.slice(0, 2).map(c => c.deviceId);
+  state.hits = []; renderHits();
+  state.marks = store.get('sw_ws_marks_' + gid, []);
+  renderCamSel(); mountPlayers(); renderMarks(); renderSearchCams(); renderExportCams(); renderTimeline();
+}
+function renderCamSel() {
+  const box = $('#camSel'); box.innerHTML = '';
+  if (state.cams.length <= 2) return;
+  box.insertAdjacentHTML('beforeend', '<span class="lbl">顯示（最多 2 支）</span>');
+  state.cams.forEach(c => {
+    const l = document.createElement('label');
+    l.innerHTML = `<input type="checkbox" value="${esc(c.deviceId)}" ${state.selCamIds.includes(c.deviceId) ? 'checked' : ''}>${esc(c.name)}`;
+    l.querySelector('input').addEventListener('change', e => {
+      let ids = state.selCamIds.filter(id => id !== c.deviceId); if (e.target.checked) ids.push(c.deviceId);
+      if (ids.length > 2) { e.target.checked = false; toast('一頁最多顯示 2 支攝影機'); return; }
+      if (!ids.length) { e.target.checked = true; return; }
+      state.selCamIds = ids; store.set('sw_ws_cams_' + state.group.groupId, ids);
+      mountPlayers(); renderSearchCams(); renderExportCams(); renderTimeline();
+    });
+    box.appendChild(l);
+  });
+}
+const viewCams = () => state.selCamIds.map(id => state.cams.find(c => c.deviceId === id)).filter(Boolean);
+function mountPlayers() {
+  state.players.forEach(p => p.destroy()); state.players = [];
+  const root = $('#players'); const cams = viewCams(); root.className = 'players' + (cams.length > 1 ? ' two' : '');
+  cams.forEach(c => { const p = new Player(c, root); state.players.push(p); p.mount(); });
+}
+const playerOf = cam => state.players.find(p => p.cam.deviceId === cam.deviceId);
+function gotoAll(ms) { ensureDay(ms); state.players.forEach(p => p.playAt(ms)); }
+function ensureDay(ms) { const v = toDateInput(ms); if ($('#tlDate').value !== v) { $('#tlDate').value = v; renderTimeline(); } }
+
+/* ---------- AI search: parser ---------- */
+const COLORS = [['紅', 'Red'], ['咖啡', 'Brown'], ['棕', 'Brown'], ['橘', 'Orange'], ['橙', 'Orange'], ['黃', 'Yellow'], ['綠', 'Green'], ['藍', 'Blue'], ['紫', 'Purple'], ['粉', 'Pink'], ['灰', 'Gray'], ['白', 'White'], ['黑', 'Black']];
+const COLOR_LIST = ['Red', 'Brown', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Pink', 'Gray', 'White', 'Black'];
+const COLOR_ZH = { Red: '紅', Brown: '棕', Orange: '橘', Yellow: '黃', Green: '綠', Blue: '藍', Purple: '紫', Pink: '粉', Gray: '灰', White: '白', Black: '黑' };
+const COLOR_HEX = { Red: '#D93025', Brown: '#8B5A2B', Orange: '#F28C28', Yellow: '#F4C430', Green: '#2E9E4F', Blue: '#1E66D0', Purple: '#7B3FB5', Pink: '#F28DB2', Gray: '#9AA0A6', White: '#FFFFFF', Black: '#202124' };
+const VTYPES = [['機車|摩托車|重機|速克達', 'Motorcycle'], ['腳踏車|單車|自行車|自由車', 'Bicycle'], ['公車|巴士|遊覽車|客運', 'Bus'], ['貨車|卡車|垃圾車|發財車|貨卡|大車', 'Truck'], ['汽車|轎車|小客車|休旅車|計程車', 'Car']];
+const VT_ZH = { Car: '汽車', Truck: '貨車', Bus: '公車', Motorcycle: '機車', Bicycle: '腳踏車' };
+const ZHN = { 一: 1, 二: 2, 兩: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+function zhNum(s) {
+  if (/^\d+$/.test(s)) return +s;
+  if (s === '十') return 10;
+  if (s.length === 2 && s[0] === '十') return 10 + (ZHN[s[1]] || 0);
+  if (s.length === 2 && s[1] === '十') return (ZHN[s[0]] || 0) * 10;
+  if (s.length === 3 && s[1] === '十') return (ZHN[s[0]] || 0) * 10 + (ZHN[s[2]] || 0);
+  return ZHN[s] ?? NaN;
+}
+function parseQuery(raw) {
+  const t = raw.replace(/\s+/g, '');
+  const r = { obj: '', gender: '', age: '', upper: [], lower: [], acc: [], vtype: '', vcolor: [], start: null, end: null, warn: '' };
+  const add = (a, v) => { if (!a.includes(v)) a.push(v); };
+  const colorAlt = COLORS.map(c => c[0]).join('|'), colorOf = z => COLORS.find(c => c[0] === z)[1];
+  const now = Date.now(), d0 = dayStart(now);
+  let day = null, m;
+  if (/前天/.test(t)) day = d0 - 2 * 864e5; else if (/昨天|昨日|昨晚/.test(t)) day = d0 - 864e5; else if (/今天|今日|今晚|今早/.test(t)) day = d0;
+  if ((m = t.match(/(?:最近|過去|近)([0-9一二兩三四五六七八九十]+)(?:個)?(小時|鐘頭|天|日|分鐘)/))) {
+    const n = zhNum(m[1]); const ms = /天|日/.test(m[2]) ? n * 864e5 : /分/.test(m[2]) ? n * 6e4 : n * 36e5;
+    if (n > 0) { r.start = now - ms; r.end = now; }
+  } else if (/(最近|過去)半(個)?小時/.test(t)) { r.start = now - 18e5; r.end = now; }
+  const periods = [['凌晨|半夜|深夜', 0, 6], ['清晨', 5, 8], ['早上|上午|今早', 6, 12], ['中午', 11, 14], ['下午', 12, 18], ['傍晚', 17, 19], ['晚上|夜間|今晚|昨晚', 18, 24]];
+  const per = periods.find(p => new RegExp(p[0]).test(t));
+  const N = '\\d{1,2}|[一二兩三四五六七八九十]{1,3}';
+  const hm = t.match(new RegExp(`(${N})[點時:：](\\d{1,2})?分?(?:到|至|-|~|－|～)(${N})[點時:：]?(\\d{1,2})?`));
+  if (r.start === null) {
+    const base = day ?? d0;
+    if (hm) {
+      let h1 = zhNum(hm[1]), m1 = +(hm[2] || 0), h2 = zhNum(hm[3]), m2 = +(hm[4] || 0);
+      if (per && per[1] >= 12) { if (h1 < 12) h1 += 12; if (h2 < 12) h2 += 12; }
+      if (h2 < h1) h2 += 12;
+      r.start = base + h1 * 36e5 + m1 * 6e4; r.end = base + Math.min(h2, 24) * 36e5 + m2 * 6e4;
+    } else if (per) { r.start = base + per[1] * 36e5; r.end = base + per[2] * 36e5; }
+    else if (day !== null) { r.start = day; r.end = day + 864e5; }
+  }
+  if (r.end !== null && r.end > now) r.end = now;
+  if (r.start !== null && r.start >= r.end) { r.warn = '指定的時段還沒到，已改為最近 24 小時'; r.start = r.end = null; }
+  for (const [re, v] of VTYPES) if (new RegExp(re).test(t)) { r.obj = 'Vehicle'; r.vtype = v; break; }
+  if (!r.obj) { if (/人|男|女|小孩|兒童|孩童|小朋友|行人|民眾|大人|成人|老人|婦人/.test(t)) r.obj = 'Human'; else if (/車/.test(t)) r.obj = 'Vehicle'; }
+  if (r.obj === 'Human') {
+    if (/男/.test(t)) r.gender = 'Male'; else if (/女/.test(t)) r.gender = 'Female';
+    if (/小孩|兒童|孩童|小朋友/.test(t)) r.age = 'Child'; else if (/大人|成人|成年/.test(t)) r.age = 'Adult';
+    if (/帽/.test(t)) add(r.acc, 'Hat'); if (/包|袋|提著|背著|拎著/.test(t)) add(r.acc, 'Bag');
+    let rest = t;
+    rest = rest.replace(new RegExp(`(${colorAlt})色?的?(?:上衣|衣服|外套|襯衫|T恤|t恤|背心|上身|衣)`, 'g'), (_, c) => { add(r.upper, colorOf(c)); return ''; });
+    rest = rest.replace(new RegExp(`(${colorAlt})色?的?(?:長褲|短褲|褲子|褲|裙子|裙|下身)`, 'g'), (_, c) => { add(r.lower, colorOf(c)); return ''; });
+    if (!r.upper.length && !r.lower.length) (rest.match(new RegExp(colorAlt, 'g')) || []).forEach(c => add(r.upper, colorOf(c)));
+  } else if (r.obj === 'Vehicle') {
+    (t.match(new RegExp(colorAlt, 'g')) || []).forEach(c => add(r.vcolor, colorOf(c)));
+  }
+  return r;
+}
+
+/* ---------- AI search: form ---------- */
+function buildColorPick(id) {
+  const box = $('#' + id);
+  box.innerHTML = COLOR_LIST.map(c => `<label><input type="checkbox" value="${c}"><span class="sw" style="background:${COLOR_HEX[c]}"></span>${COLOR_ZH[c]}</label>`).join('');
+  box.addEventListener('change', () => renderChips(readForm()));
+}
+const getColors = id => [...$('#' + id).querySelectorAll('input:checked')].map(i => i.value);
+const setColors = (id, arr) => $('#' + id).querySelectorAll('input').forEach(i => i.checked = arr.includes(i.value));
+function renderSearchCams() {
+  const box = $('#fCams'); const prev = new Set([...box.querySelectorAll('input:checked')].map(i => i.value));
+  box.innerHTML = '';
+  viewCams().forEach(c => {
+    const ok = !state.dsIds || state.dsIds.has(c.deviceId);
+    const l = document.createElement('label');
+    l.innerHTML = `<input type="checkbox" value="${esc(c.deviceId)}" ${(prev.size ? prev.has(c.deviceId) : true) && ok ? 'checked' : ''} ${ok ? '' : 'disabled'}>${esc(c.name)}${ok ? '' : '（未開通 AI 搜尋）'}`;
+    box.appendChild(l);
+  });
+}
+function toggleObjGroups() { const o = $('#fObj').value; $('#hGroup').style.display = o === 'Human' ? 'flex' : 'none'; $('#vGroup').style.display = o === 'Vehicle' ? 'flex' : 'none'; }
+function applyParsed(r) {
+  $('#fObj').value = r.obj; $('#fGender').value = r.gender; $('#fAge').value = r.age;
+  setColors('fUpper', r.upper); setColors('fLower', r.lower); setColors('fVColor', r.vcolor);
+  $('#fAccHat').checked = r.acc.includes('Hat'); $('#fAccBag').checked = r.acc.includes('Bag');
+  $('#fVType').value = r.vtype;
+  const now = Date.now();
+  $('#fStart').value = toLocalInput(r.start ?? now - 864e5); $('#fEnd').value = toLocalInput(r.end ?? now);
+  toggleObjGroups();
+}
+function readForm() {
+  return {
+    cams: [...$('#fCams').querySelectorAll('input:checked')].map(i => state.cams.find(c => c.deviceId === i.value)).filter(Boolean),
+    obj: $('#fObj').value, gender: $('#fGender').value, age: $('#fAge').value,
+    upper: getColors('fUpper'), lower: getColors('fLower'), acc: [$('#fAccHat').checked && 'Hat', $('#fAccBag').checked && 'Bag'].filter(Boolean),
+    vtype: $('#fVType').value, vcolor: getColors('fVColor'),
+    start: fromLocalInput($('#fStart').value), end: fromLocalInput($('#fEnd').value),
+    gran: +$('#fGran').value * 60000, max: +$('#fMax').value,
+  };
+}
+function condText(f) {
+  const out = [];
+  if (f.obj === 'Human') {
+    out.push('人'); if (f.gender) out.push(f.gender === 'Male' ? '男性' : '女性'); if (f.age) out.push(f.age === 'Adult' ? '成人' : '孩童');
+    if (f.upper.length) out.push('上衣 ' + f.upper.map(c => COLOR_ZH[c]).join('/') + '色');
+    if (f.lower.length) out.push('下身 ' + f.lower.map(c => COLOR_ZH[c]).join('/') + '色');
+    if (f.acc.length) out.push(f.acc.map(a => a === 'Hat' ? '戴帽子' : '帶包／袋子').join('、'));
+  } else if (f.obj === 'Vehicle') {
+    out.push(f.vtype ? VT_ZH[f.vtype] : '車輛'); if (f.vcolor.length) out.push('車身 ' + f.vcolor.map(c => COLOR_ZH[c]).join('/') + '色');
+  } else out.push('所有人車');
+  return out;
+}
+function renderChips(f, warn) {
+  const box = $('#chips'); const parts = condText(f).map(t => `<span class="chip">${esc(t)}</span>`);
+  if (!isNaN(f.start) && !isNaN(f.end)) parts.push(`<span class="chip muted">${esc(fmt(f.start))} – ${esc(fmt(f.end, dayStart(f.start) !== dayStart(f.end)))}</span>`);
+  parts.push(`<span class="chip muted">${f.cams.length} 支攝影機</span>`);
+  if (warn) parts.push(`<span class="chip warn">${esc(warn)}</span>`);
+  box.innerHTML = parts.join('');
+}
+function buildBody(f, mac, s, e) {
+  const b = { start: isoZ(s), end: isoZ(e), mac_list: [mac] };
+  if (f.obj) b.obj_type = f.obj;
+  const a = {};
+  if (f.obj === 'Human') { if (f.gender) a.Gender = f.gender; if (f.age) a.Age = f.age; if (f.upper.length) a.UpperColor = f.upper; if (f.lower.length) a.LowerColor = f.lower; if (f.acc.length) a.Accessories = f.acc; }
+  if (f.obj === 'Vehicle') { if (f.vtype) a.Type = f.vtype; if (f.vcolor.length) a.Color = f.vcolor; }
+  if (Object.keys(a).length) b.attributes = a;
+  return b;
+}
+
+/* ---------- AI search: run (time bisection on count API) ---------- */
+async function runSearch() {
+  const q = $('#q').value.trim();
+  let warn = '';
+  if (q) { const r = parseQuery(q); warn = r.warn; applyParsed(r); }
+  const f = readForm(); renderChips(f, warn);
+  if (!f.cams.length) return toast('請至少勾選一支攝影機（在「搜尋條件」裡）', 1);
+  if (isNaN(f.start) || isNaN(f.end) || f.start >= f.end) return toast('搜尋時間範圍不正確', 1);
+  state.lastQuery = q || condText(f).join(' ');
+  state.searching = true; state.abort = false; state.hits = []; renderHits();
+  $('#btnSearch').disabled = true; $('#btnStop').disabled = false; $('#sProg').style.display = 'flex';
+  const total = (f.end - f.start) * f.cams.length; let covered = 0, calls = 0, truncated = false;
+  const prog = (extra = '') => {
+    $('#sBar').style.width = Math.min(100, covered / total * 100).toFixed(1) + '%';
+    $('#sProgText').textContent = `已查詢 ${calls} 次 · 找到 ${state.hits.length} 個時段${extra ? ' · ' + extra : ''}`;
+    updateCounts();
+  };
+  prog();
+  try {
+    outer: for (const cam of f.cams) {
+      const mac = macOf(cam), stack = [[f.start, f.end]];
+      while (stack.length) {
+        if (state.abort) break outer;
+        if (calls >= f.max) { truncated = true; break outer; }
+        const [s, e] = stack.pop();
+        let c;
+        try { c = (await api.deepCount(buildBody(f, mac, s, e))).count; calls++; }
+        catch (err) {
+          if (err.status === 429) { stack.push([s, e]); prog(`查詢太頻繁，等待 ${err.retryAfter} 秒`); await sleep(err.retryAfter * 1000); continue; }
+          throw err;
+        }
+        if (!c) { covered += e - s; prog(); continue; }
+        if (e - s <= f.gran) { covered += e - s; addHit(cam, s, e, c); prog(); continue; }
+        const mid = s + Math.round((e - s) / 2000) * 1000;
+        stack.push([mid, e]); stack.push([s, mid]);
+      }
+    }
+    prog(state.abort ? '已停止' : truncated ? '已達查詢上限，結果可能不完整（可縮小時間範圍或提高上限）' : '完成');
+    if (!state.hits.length && !state.abort) $('#hits').innerHTML = `<div class="empty">${truncated ? '查詢次數用完前沒有找到符合的時段' : '這段時間沒有找到符合條件的目標'}</div>`;
+  } catch (err) { prog('發生錯誤'); toast('搜尋失敗：' + err.message, 1); }
+  state.searching = false; $('#btnSearch').disabled = false; $('#btnStop').disabled = true; updateCounts();
+}
+function addHit(cam, s, e, c) {
+  const last = [...state.hits].reverse().find(h => h.cam.deviceId === cam.deviceId);
+  if (last && last.e === s) { last.e = e; last.count += c; renderHitItem(last); }
+  else { const h = { id: uid(), cam, s, e, count: c, thumb: null }; state.hits.push(h); renderHitItem(h); queueThumb(h); }
+  renderTimeline();
+}
+function renderHits() {
+  const box = $('#hits'); box.innerHTML = state.hits.length ? '' : '<div class="empty">輸入指令後按「開始搜尋」</div>';
+  state.hits.forEach(renderHitItem); updateCounts();
+}
+function renderHitItem(h) {
+  const box = $('#hits'); if (box.querySelector('.empty')) box.innerHTML = '';
+  let el = box.querySelector(`[data-hit="${h.id}"]`);
+  if (!el) {
+    el = document.createElement('div'); el.className = 'item'; el.dataset.hit = h.id;
+    el.innerHTML = `<img class="thumb" alt=""><div class="meta"><div class="t"></div><div class="s"></div><div class="acts">
+      <button class="btn sm pri" data-a="play">▶ 播放</button><button class="btn sm" data-a="mark">🔖 標記</button><button class="btn sm" data-a="exp">⬇ 匯出此段</button></div></div>`;
+    el.addEventListener('click', ev => {
+      const a = ev.target.closest('[data-a]'); if (!a) return;
+      if (a.dataset.a === 'play') gotoAll(h.s);
+      if (a.dataset.a === 'mark') addMark(h.cam, h.s, 'AI 搜尋：' + state.lastQuery);
+      if (a.dataset.a === 'exp') addJob(h.cam, h.s, h.e);
+    });
+    box.appendChild(el);
+  }
+  el.querySelector('.t').textContent = `${fmt(h.s)} – ${fmt(h.e, false)}`;
+  el.querySelector('.s').textContent = `${h.cam.name} · 約 ${h.count} 筆偵測`;
+  if (h.thumb) el.querySelector('.thumb').src = h.thumb;
+}
+const thumbQ = []; let thumbBusy = false;
+function queueThumb(h) { thumbQ.push(h); pumpThumbs(); }
+async function pumpThumbs() {
+  if (thumbBusy) return; thumbBusy = true;
+  while (thumbQ.length) {
+    const h = thumbQ.shift(); if (!state.hits.includes(h)) continue;
+    try { const b = await api.snapshot(h.cam, h.s + Math.min(30000, (h.e - h.s) / 2), false); h.thumb = URL.createObjectURL(b); renderHitItem(h); } catch (e) { console.warn('thumb', e); }
+  }
+  thumbBusy = false;
+}
+
+/* ---------- marks ---------- */
+const saveMarks = () => state.group && store.set('sw_ws_marks_' + state.group.groupId, state.marks);
+function addMark(cam, ts, note = '') {
+  state.marks.push({ id: uid(), ts, deviceId: cam.deviceId, camName: cam.name, tag: TAGS[0], note });
+  saveMarks(); renderMarks(); renderTimeline(); toast(`已標記 ${cam.name} ${fmt(ts, false)}`);
+}
+function renderMarks() {
+  const fc = $('#mkFilterCam'), ft = $('#mkFilterTag'); const vc = fc.value, vt = ft.value;
+  fc.innerHTML = '<option value="">全部攝影機</option>' + state.cams.map(c => `<option value="${esc(c.deviceId)}">${esc(c.name)}</option>`).join(''); fc.value = state.cams.some(c => c.deviceId === vc) ? vc : '';
+  ft.innerHTML = '<option value="">全部標籤</option>' + TAGS.map(t => `<option>${t}</option>`).join(''); ft.value = vt;
+  const list = state.marks.filter(m => (!fc.value || m.deviceId === fc.value) && (!ft.value || m.tag === ft.value)).sort((a, b) => b.ts - a.ts);
+  const box = $('#marks'); box.innerHTML = list.length ? '' : '<div class="empty">尚無標記</div>';
+  list.forEach(m => {
+    const el = document.createElement('div'); el.className = 'item';
+    el.innerHTML = `<div class="meta"><div class="t">${esc(fmt(m.ts))}</div>
+      <div class="s">${esc(m.camName)}<select>${TAGS.map(t => `<option ${t === m.tag ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <input class="note" placeholder="備註…" value="${esc(m.note)}">
+      <div class="acts"><button class="btn sm pri" data-a="go">▶ 前往</button><button class="btn sm" data-a="exp">⬇ 匯出前後 30 秒</button><button class="btn sm" data-a="del">刪除</button></div></div>`;
+    el.querySelector('select').addEventListener('change', e => { m.tag = e.target.value; saveMarks(); });
+    el.querySelector('.note').addEventListener('change', e => { m.note = e.target.value; saveMarks(); });
+    el.addEventListener('click', ev => {
+      const a = ev.target.closest('[data-a]'); if (!a) return;
+      const cam = state.cams.find(c => c.deviceId === m.deviceId) || { deviceId: m.deviceId, name: m.camName };
+      if (a.dataset.a === 'go') gotoAll(m.ts);
+      if (a.dataset.a === 'exp') addJob(cam, m.ts - 30000, Math.min(m.ts + 30000, Date.now() - 5000));
+      if (a.dataset.a === 'del') { state.marks = state.marks.filter(x => x !== m); saveMarks(); renderMarks(); renderTimeline(); }
+    });
+    box.appendChild(el);
+  });
+  updateCounts();
+}
+function marksCsv() {
+  const rows = [['時間', '場域', '攝影機', '標籤', '備註']].concat([...state.marks].sort((a, b) => a.ts - b.ts).map(m => [fmt(m.ts), siteName(), m.camName, m.tag, m.note]));
+  const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${safeName(siteName())}_標記_${fmtFile(Date.now())}.csv`);
+}
+
+/* ---------- captures ---------- */
+let capSeq = 0;
+function addCap(c) {
+  c.id = uid(); c.seq = ++capSeq; c.url = URL.createObjectURL(c.blob);
+  c.name = `${safeName(c.site)}_${safeName(c.cam.name)}_${fmtFile(c.ts)}_${String(c.seq).padStart(3, '0')}.jpg`;
+  state.caps.push(c); renderCaps(); renderTimeline();
+}
+function renderCaps() {
+  const box = $('#caps'); box.innerHTML = state.caps.length ? '' : '<div class="empty" style="grid-column:1/-1">尚無截圖</div>';
+  [...state.caps].reverse().forEach(c => {
+    const el = document.createElement('div'); el.className = 'capc';
+    el.innerHTML = `<img src="${c.url}" alt=""><span class="src">${esc(c.source)}</span><button class="x" title="刪除">✕</button><div class="cl">${esc(c.cam.name)} ${esc(fmt(c.ts, false))}</div>`;
+    el.querySelector('img').addEventListener('click', () => openLight(c));
+    el.querySelector('.x').addEventListener('click', () => { URL.revokeObjectURL(c.url); state.caps = state.caps.filter(x => x !== c); renderCaps(); renderTimeline(); });
+    box.appendChild(el);
+  });
+  updateCounts();
+}
+let lbCur = null;
+function openLight(c) { lbCur = c; $('#lbImg').src = c.url; $('#lbCap').textContent = `${c.site}｜${c.cam.name}｜${fmt(c.ts)}`; $('#mLight').classList.add('on'); }
+let zipP = null;
+function loadZip() {
+  if (window.JSZip) return Promise.resolve();
+  if (!zipP) zipP = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload = res; s.onerror = () => { zipP = null; rej(); }; document.head.appendChild(s); });
+  return zipP;
+}
+async function downloadAllCaps() {
+  if (!state.caps.length) return toast('沒有截圖可下載');
+  try {
+    await loadZip(); const zip = new JSZip(); state.caps.forEach(c => zip.file(c.name, c.blob));
+    saveBlob(await zip.generateAsync({ type: 'blob' }), `截圖_${safeName(siteName())}_${fmtFile(Date.now())}.zip`);
+  } catch {
+    toast('壓縮元件載入失敗，改為逐張下載');
+    for (const c of state.caps) { await saveBlob(c.blob, c.name); await sleep(350); }
+  }
+}
+
+/* ---------- export jobs ---------- */
+const AR_ZH = { START_ARCHIVE: '準備中', UPLOADING: '上傳中', UPLOAD_DONE: '處理中', HLS_READY: '轉檔中', GEN_MP4: '轉檔中', MP4_READY: '可下載', GEN_MP4_FAIL: '轉檔失敗', GEN_M3U8_FAIL: '轉檔失敗', ERR: '失敗', NEW: '排隊中' };
+const HOUR = 3600 * 1000;
+async function addJob(cam, s, e) {
+  s = Math.floor(s / 1000) * 1000; e = Math.floor(e / 1000) * 1000;
+  if (!(s < e)) return toast('匯出區段不正確（結束時間要晚於開始時間，且不能是未來）', 1);
+  const parts = []; for (let t = s; t < e; t += HOUR) parts.push({ s: t, e: Math.min(t + HOUR, e), status: 'NEW', archiveId: null, sharedUrl: null, done: false });
+  const job = { id: uid(), cam, site: siteName(), s, e, parts, auto: $('#exAuto').checked };
+  state.jobs.unshift(job); renderJobs(); toast(`已加入匯出：${cam.name} ${fmt(s, false)}–${fmt(e, false)}`);
+  for (const p of parts) {
+    try { const a = await api.createArchive(cam.deviceId, p.s, p.e); p.archiveId = a.archiveId; p.status = a.status || 'START_ARCHIVE'; }
+    catch (err) { p.status = 'ERR'; p.err = err.message; }
+    renderJobs();
+  }
+  pollJobs();
+}
+const pendingPart = p => p.archiveId && !['MP4_READY', 'GEN_MP4_FAIL', 'GEN_M3U8_FAIL', 'ERR'].includes(p.status);
+let polling = false;
+async function pollJobs() {
+  if (polling) return; polling = true;
+  while (state.jobs.some(j => j.parts.some(pendingPart))) {
+    await sleep(isMock() ? 1500 : 5000);
+    const byDev = {};
+    state.jobs.forEach(j => j.parts.filter(pendingPart).forEach(p => { (byDev[j.cam.deviceId] = byDev[j.cam.deviceId] || []).push({ j, p }); }));
+    for (const [dev, items] of Object.entries(byDev)) {
+      try {
+        const s = Math.min(...items.map(x => x.p.s)) - HOUR, e = Math.max(...items.map(x => x.p.e)) + HOUR;
+        const list = await api.listArchives([dev], s, e); const map = new Map((Array.isArray(list) ? list : []).map(a => [a.archiveId, a]));
+        items.forEach(({ j, p }) => { const a = map.get(p.archiveId); if (a) { p.status = a.status; if (a.sharedUrl) p.sharedUrl = a.sharedUrl; if (p.status === 'MP4_READY' && j.auto && !p.done) downloadPart(j, p); } });
+      } catch (err) { console.warn('poll', err); }
+    }
+    renderJobs();
+  }
+  polling = false; updateCounts();
+}
+async function downloadPart(j, p) {
+  p.done = true; const idx = j.parts.indexOf(p);
+  const name = `${safeName(j.site)}_${safeName(j.cam.name)}_${fmtFile(p.s)}-${fmtFile(p.e).slice(9)}${j.parts.length > 1 ? '_' + (idx + 1) : ''}.mp4`;
+  try {
+    if (isMock()) { saveBlob(new Blob([`模擬匯出檔\n${j.site} ${j.cam.name}\n${fmt(p.s)} – ${fmt(p.e)}\n（正式連線時這裡會是 MP4 影片）`], { type: 'text/plain' }), name.replace(/\.mp4$/, '_模擬.txt')); renderJobs(); return; }
+    if (!p.sharedUrl) { const a = await api.shareArchive(j.cam.deviceId, p.archiveId); p.sharedUrl = a.sharedUrl; }
+    if (!p.sharedUrl) throw new Error('沒有取得下載連結');
+    let ok = false;
+    try { const r = await fetch(p.sharedUrl); const ct = r.headers.get('content-type') || ''; if (r.ok && /video|octet|mp4/.test(ct)) { saveBlob(await r.blob(), name); ok = true; } } catch {}
+    if (!ok) { window.open(p.sharedUrl, '_blank', 'noopener'); toast('已在新分頁開啟下載連結'); }
+  } catch (err) { p.done = false; toast('下載失敗：' + err.message, 1); }
+  renderJobs();
+}
+function renderJobs() {
+  const box = $('#jobs'); box.innerHTML = state.jobs.length ? '' : '<div class="empty">尚無匯出工作</div>';
+  state.jobs.forEach(j => {
+    const el = document.createElement('div'); el.className = 'item';
+    const parts = j.parts.map((p, i) => {
+      const cls = p.status === 'MP4_READY' ? 'ok' : (p.status === 'ERR' || /FAIL/.test(p.status)) ? 'err' : 'run';
+      const lab = (j.parts.length > 1 ? `第 ${i + 1} 段 ` : '') + (AR_ZH[p.status] || p.status) + (p.done ? '（已下載）' : '');
+      return `<span class="st ${cls}" title="${esc(p.err || '')}">${esc(lab)}</span>${p.status === 'MP4_READY' ? `<button class="btn sm" data-p="${i}">下載</button>` : ''}`;
+    }).join(' ');
+    el.innerHTML = `<div class="meta"><div class="t">${esc(fmt(j.s))} – ${esc(fmt(j.e, dayStart(j.s) !== dayStart(j.e)))}</div><div class="s">${esc(j.site)} · ${esc(j.cam.name)}</div><div class="acts" style="align-items:center">${parts}</div></div>`;
+    el.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => downloadPart(j, j.parts[+b.dataset.p])));
+    box.appendChild(el);
+  });
+  updateCounts();
+}
+function renderExportCams() {
+  const s = $('#exCam'), v = s.value;
+  s.innerHTML = viewCams().map(c => `<option value="${esc(c.deviceId)}">${esc(c.name)}</option>`).join('');
+  if (viewCams().some(c => c.deviceId === v)) s.value = v;
+}
+const exPlayer = () => state.players.find(p => p.cam.deviceId === $('#exCam').value) || state.players[0];
+
+/* ---------- timeline ---------- */
+function renderTimeline() {
+  const tl = $('#tl'); [...tl.querySelectorAll(':not(#tlHover)')].forEach(n => n.remove());
+  const d0 = fromLocalInput($('#tlDate').value + 'T00:00:00'); if (isNaN(d0)) return;
+  const pos = ms => ((ms - d0) / 864e5 * 100);
+  for (let h = 0; h <= 24; h += 2) { const t = document.createElement('div'); t.className = 'tick'; t.style.left = (h / 24 * 100) + '%'; t.textContent = h < 24 ? pad(h) : ''; tl.appendChild(t); }
+  const camIds = new Set(viewCams().map(c => c.deviceId));
+  state.hits.filter(h => camIds.has(h.cam.deviceId) && h.e > d0 && h.s < d0 + 864e5).forEach(h => {
+    const el = document.createElement('div'); el.className = 'hit'; el.style.left = Math.max(0, pos(h.s)) + '%'; el.style.width = Math.max(.2, pos(h.e) - Math.max(0, pos(h.s))) + '%'; tl.appendChild(el);
+  });
+  state.marks.filter(m => m.ts >= d0 && m.ts < d0 + 864e5).forEach(m => { const el = document.createElement('div'); el.className = 'mk'; el.style.left = pos(m.ts) + '%'; tl.appendChild(el); });
+  state.caps.filter(c => c.site === siteName() && c.ts >= d0 && c.ts < d0 + 864e5).forEach(c => { const el = document.createElement('div'); el.className = 'cap'; el.style.left = pos(c.ts) + '%'; tl.appendChild(el); });
+  state.players.forEach(p => { const el = document.createElement('div'); el.className = 'cur'; el.dataset.cur = p.cam.deviceId; tl.appendChild(el); });
+  tickTimeline();
+}
+function tickTimeline() {
+  const d0 = fromLocalInput($('#tlDate').value + 'T00:00:00');
+  state.players.forEach(p => {
+    const el = $('#tl').querySelector(`[data-cur="${CSS.escape(p.cam.deviceId)}"]`); if (!el) return;
+    const v = (p.now() - d0) / 864e5 * 100; el.style.display = v >= 0 && v <= 100 ? 'block' : 'none'; el.style.left = v + '%';
+  });
+}
+function tlTimeAt(ev) { const r = $('#tl').getBoundingClientRect(); const f = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)); return fromLocalInput($('#tlDate').value + 'T00:00:00') + f * 864e5; }
+
+/* ---------- counts ---------- */
+function updateCounts() {
+  const cs = $('#cntSearch'); cs.textContent = state.hits.length; cs.classList.toggle('busy', state.searching);
+  $('#cntMarks').textContent = state.marks.length; $('#cntCaps').textContent = state.caps.length;
+  const cj = $('#cntJobs'); const busy = state.jobs.some(j => j.parts.some(p => p.status === 'NEW' || pendingPart(p)));
+  cj.textContent = state.jobs.length; cj.classList.toggle('busy', busy);
+}
+
+/* ---------- settings ---------- */
+function openSettings() {
+  $('#sMode').value = state.cfg.mode; $('#sKey').value = state.apiKey; $('#sRemember').checked = state.cfg.remember;
+  $('#sBase').value = state.cfg.apiBase; $('#sSdk').value = state.cfg.sdkUrl;
+  $('#sRealBox').style.display = state.cfg.mode === 'real' && !IN_SANDBOX ? 'flex' : 'none';
+  $('#sNotice').style.display = IN_SANDBOX ? 'block' : 'none';
+  $('#sMode').querySelector('option[value=real]').disabled = IN_SANDBOX;
+  $('#mSettings').classList.add('on');
+}
+function saveSettings() {
+  const prevMode = state.cfg.mode;
+  state.cfg.mode = $('#sMode').value; state.cfg.remember = $('#sRemember').checked;
+  state.cfg.apiBase = $('#sBase').value.trim() || DEFAULT_CFG.apiBase; state.cfg.sdkUrl = $('#sSdk').value.trim() || DEFAULT_CFG.sdkUrl;
+  state.apiKey = $('#sKey').value.trim();
+  store.set('sw_ws_cfg', state.cfg);
+  if (state.cfg.remember) store.set('sw_ws_key', state.apiKey); else { store.del('sw_ws_key'); store.sset('sw_ws_key', state.apiKey); }
+  $('#mSettings').classList.remove('on');
+  if (state.cfg.mode === 'real' && !state.apiKey) return toast('請輸入 API Key', 1);
+  if (prevMode !== state.cfg.mode) { state.hits = []; renderHits(); }
+  connect();
+}
+
+/* ---------- wire up ---------- */
+function init() {
+  if (IN_SANDBOX && state.cfg.mode === 'real') { state.cfg.mode = 'mock'; toast('線上展示版只能使用模擬展示模式'); }
+  const setHdr = () => document.documentElement.style.setProperty('--hdr', document.querySelector('header').offsetHeight + 'px');
+  window.addEventListener('resize', setHdr); setHdr();
+  if (BRAND_LOGO) $('#brandMark').innerHTML = `<img src="${esc(BRAND_LOGO)}" alt="Skywatch">`;
+  ['fUpper', 'fLower', 'fVColor'].forEach(buildColorPick);
+  $('#tlDate').value = toDateInput(Date.now()); $('#gotoTime').value = toLocalInput(Date.now() - 5 * 60000);
+  $('#exStart').value = toLocalInput(Date.now() - 5 * 60000); $('#exEnd').value = toLocalInput(Date.now() - 60000);
+  applyParsed(parseQuery(''));
+
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'panel-' + t.dataset.tab));
+  }));
+  $('#siteSel').addEventListener('change', e => loadSite(e.target.value));
+  $('#btnSettings').addEventListener('click', openSettings);
+  $('#sMode').addEventListener('change', e => $('#sRealBox').style.display = e.target.value === 'real' && !IN_SANDBOX ? 'flex' : 'none');
+  $('#sCancel').addEventListener('click', () => $('#mSettings').classList.remove('on'));
+  $('#sSave').addEventListener('click', saveSettings);
+
+  $('#btnSearch').addEventListener('click', runSearch);
+  $('#btnStop').addEventListener('click', () => { state.abort = true; });
+  $('#btnParse').addEventListener('click', () => { const r = parseQuery($('#q').value); applyParsed(r); renderChips(readForm(), r.warn); $('#adv').open = true; });
+  $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runSearch(); });
+  $('#fObj').addEventListener('change', () => { toggleObjGroups(); renderChips(readForm()); });
+  ['fGender', 'fAge', 'fVType', 'fStart', 'fEnd', 'fAccHat', 'fAccBag'].forEach(id => $('#' + id).addEventListener('change', () => renderChips(readForm())));
+  $('#fCams').addEventListener('change', () => renderChips(readForm()));
+
+  $('#mkFilterCam').addEventListener('change', renderMarks); $('#mkFilterTag').addEventListener('change', renderMarks);
+  $('#btnMkCsv').addEventListener('click', marksCsv);
+  $('#btnCapZip').addEventListener('click', downloadAllCaps);
+  let clearArmed = 0;
+  $('#btnCapClear').addEventListener('click', e => {
+    if (!state.caps.length) return;
+    const b = e.currentTarget;
+    if (Date.now() - clearArmed > 3000) { clearArmed = Date.now(); b.textContent = '再按一次確認'; setTimeout(() => { b.textContent = '清空'; }, 3000); return; }
+    clearArmed = 0; b.textContent = '清空';
+    state.caps.forEach(c => URL.revokeObjectURL(c.url)); state.caps = []; renderCaps(); renderTimeline();
+  });
+  $('#lbClose').addEventListener('click', () => $('#mLight').classList.remove('on'));
+  $('#mLight').addEventListener('click', e => { if (e.target.id === 'mLight') $('#mLight').classList.remove('on'); });
+  $('#lbDl').addEventListener('click', () => lbCur && saveBlob(lbCur.blob, lbCur.name));
+
+  $('#exFromNowS').addEventListener('click', () => { const p = exPlayer(); if (p) $('#exStart').value = toLocalInput(p.now()); });
+  $('#exFromNowE').addEventListener('click', () => { const p = exPlayer(); if (p) $('#exEnd').value = toLocalInput(Math.min(p.now(), Date.now() - 5000)); });
+  $('#exLast5').addEventListener('click', () => { const p = exPlayer(); const t = p ? Math.min(p.now(), Date.now() - 5000) : Date.now() - 5000; $('#exEnd').value = toLocalInput(t); $('#exStart').value = toLocalInput(t - 5 * 60000); });
+  $('#btnExAdd').addEventListener('click', () => {
+    const cam = viewCams().find(c => c.deviceId === $('#exCam').value); if (!cam) return toast('請先選擇攝影機', 1);
+    const s = fromLocalInput($('#exStart').value), e = fromLocalInput($('#exEnd').value);
+    if (e > Date.now()) return toast('結束時間不能晚於現在', 1);
+    addJob(cam, s, e);
+  });
+
+  $('#btnGotoAll').addEventListener('click', () => { const t = fromLocalInput($('#gotoTime').value); if (isNaN(t)) return; gotoAll(t); });
+  $('#btnLiveAll').addEventListener('click', () => state.players.forEach(p => p.live()));
+  $('#tlDate').addEventListener('change', renderTimeline);
+  const tl = $('#tl'), hv = $('#tlHover');
+  tl.addEventListener('mousemove', e => { const t = tlTimeAt(e); const r = tl.getBoundingClientRect(); hv.style.display = 'block'; hv.style.left = (e.clientX - r.left) + 'px'; hv.textContent = fmt(t, false); });
+  tl.addEventListener('mouseleave', () => hv.style.display = 'none');
+  tl.addEventListener('click', e => { const t = tlTimeAt(e); if (t > Date.now()) return state.players.forEach(p => p.live()); state.players.forEach(p => p.playAt(t)); });
+
+  window.addEventListener('beforeunload', e => {
+    if (state.caps.length || state.jobs.some(j => j.parts.some(p => p.status === 'NEW' || pendingPart(p)))) { e.preventDefault(); e.returnValue = ''; }
+  });
+  setInterval(() => { state.players.forEach(p => p.tick()); tickTimeline(); }, 250);
+  renderJobs(); renderCaps(); updateCounts();
+  connect();
+}
+init();
+</script>
+</body>
+</html>
