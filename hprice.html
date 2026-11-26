@@ -103,6 +103,20 @@
     td.cell.csv-only.active{outline:2px solid #5ba8bf;outline-offset:-2px;background:#d4eef7}
     tbody th.floor.csv-unknown{background:#c8e9f3;color:#0d4f6b}
     td.cell.csv-unknown-empty{background:#f0fafd;color:#7fb8c8;text-align:center;vertical-align:middle;font-size:calc(var(--sub-size) + 1px);font-weight:600}
+    /* 平均單價 欄／列 */
+    th.avg-head{background:#e4c99a;color:#6b4e22;min-width:96px}
+    td.avg-cell{background:#faf3e6;text-align:center;vertical-align:middle;color:#6b4e22;padding:3px 5px;min-width:96px}
+    td.avg-cell.avg-empty-cell{background:#f6efe2}
+    tbody tr.avg-row td,tbody tr.avg-row th{position:sticky;bottom:0;z-index:2;background:#f3e7cf}
+    tbody tr.avg-row th.avg-row-head{left:0;z-index:5;color:#6b4e22;text-align:center;font-weight:800;line-height:1.05;padding:0}
+    tbody tr.avg-row th.avg-row-head span{display:block;font-size:11px}
+    td.avg-corner{background:#ecd9b6!important}
+    .avg-line{font-size:calc(var(--sub-size) + 2px);line-height:1.2;white-space:nowrap;font-weight:800;color:#b5532f}
+    .avg-line.avg-weighted{color:#7a5a2b}
+    .avg-k{display:inline-block;min-width:12px;font-size:9px;color:#9a7b45;margin-right:3px;font-weight:700}
+    .avg-cnt{font-size:var(--sub-size);color:#8a6a2f;margin-top:1px;font-weight:700}
+    .avg-empty{color:#c0b199}
+    body.size-xs .avg-weighted{display:none}
     #chartModal{align-items:center}
     #chartModal .modal-card{width:min(880px,100%);max-height:92vh}
   </style>
@@ -308,6 +322,42 @@
       return toNumber(record.單價);
     }
 
+    // 依單價模式取出「可加權」的總價與坪數（與 calcUnitPrice 的分子/分母一致）
+    function priceAreaForMode(record,includeParking){
+      const total=toNumber(record.總價);
+      if(total===null)return null;
+      if(includeParking){
+        const area=clampPositive(toNumber(record.總面積));
+        return area!==null?{price:total,area}:null;
+      }
+      const parkingPrice=toNumber(record.車位總價)||0;
+      const houseArea=clampPositive(toNumber(record.房屋總面積));
+      if(houseArea!==null){
+        const hp=total-parkingPrice;
+        if(hp>0)return {price:hp,area:houseArea};
+      }
+      return null;
+    }
+    // 回傳一組紀錄的平均單價統計：簡單平均、面積加權平均、納入戶數
+    function avgStats(records,includeParking){
+      let sum=0,n=0,wPrice=0,wArea=0;
+      (records||[]).forEach(r=>{
+        const up=calcUnitPrice(r,includeParking);
+        if(up!==null&&Number.isFinite(up)){sum+=up;n++;}
+        const pa=priceAreaForMode(r,includeParking);
+        if(pa){wPrice+=pa.price;wArea+=pa.area;}
+      });
+      return {simple:n?sum/n:null,weighted:wArea>0?wPrice/wArea:null,count:n};
+    }
+    function avgCellHTML(st){
+      if(!st.count)return '<div class="avg-empty">—</div>';
+      const s=st.simple!==null?formatAmount(st.simple,2):'-';
+      const w=st.weighted!==null?formatAmount(st.weighted,2):'-';
+      return `<div class="avg-line avg-simple"><span class="avg-k">簡</span>${s}</div>`+
+             `<div class="avg-line avg-weighted"><span class="avg-k">權</span>${w}</div>`+
+             `<div class="avg-cnt">${st.count} 戶</div>`;
+    }
+
     function extractData(rows){
       const hi=detectHeaderRow(rows);if(hi<0)throw new Error('找不到標題列');
       const header=rows[hi];const col=Object.fromEntries(header.map((h,i)=>[h,i]));
@@ -444,6 +494,9 @@
       const units=allUnits;
       const floors=allFloors;
       const latestRecords=[...latestMap.values()];
+      // 平均單價：累積各戶別（欄）納入計算的紀錄；樓層（列）用 floorCounted 當場累積
+      const countedByUnit=new Map();
+      const pushUnit=(u,rec)=>{if(!countedByUnit.has(u))countedByUnit.set(u,[]);countedByUnit.get(u).push(rec);};
 
       const table=document.createElement('table');const thead=document.createElement('thead');const hr=document.createElement('tr');
       const corner=document.createElement('th');corner.textContent='全棟';corner.addEventListener('click',()=>showBuildingStats(latestRecords,floors,units));hr.appendChild(corner);
@@ -457,6 +510,7 @@
         th.addEventListener('mouseleave',clearHover);
         hr.appendChild(th);
       });
+      const avgHead=document.createElement('th');avgHead.className='avg-head';avgHead.textContent='平均單價';hr.appendChild(avgHead);
       thead.appendChild(hr);table.appendChild(thead);
 
       const tbody=document.createElement('tbody');
@@ -467,10 +521,13 @@
         fth.addEventListener('mouseenter',()=>applyHover(floor,undefined));fth.addEventListener('mouseleave',clearHover);
         tr.appendChild(fth);
 
+        const floorCounted=[];
         units.forEach(unit=>{
           const td=document.createElement('td');td.className='cell';td.dataset.floor=floor;td.dataset.unit=unit;
           const record=latestMap.get(`${floor}__${unit}`);
           const csvRecord=csvLatestMap?csvLatestMap.get(`${floor}__${unit}`):null;
+          const dispRec=record||csvRecord;
+          if(dispRec){floorCounted.push(dispRec);pushUnit(unit,dispRec);}
           td.addEventListener('mouseenter',()=>applyHover(floor,unit));td.addEventListener('mouseleave',clearHover);
           if(!record&&!csvRecord){
             td.classList.add('empty');td.textContent='尚未登錄';
@@ -493,6 +550,9 @@
           }
           tr.appendChild(td);
         });
+        const favg=document.createElement('td');favg.className='avg-cell';
+        favg.innerHTML=avgCellHTML(avgStats(floorCounted,withParkingPrice));
+        tr.appendChild(favg);
         tbody.appendChild(tr);
       });
 
@@ -527,18 +587,38 @@
             } else {
               const rec=sortedGroups.get(matchKey).sorted[ri];
               const up=calcUnitPrice(rec,withParkingPrice);
+              pushUnit(unit,rec);
               td.classList.add('csv-only');
               td.innerHTML=`<span class="badge" style="background:#5ba8bf">CSV</span><div class="date" style="color:#1a5f7a">${rec.交易日期||'-'}</div><div class="unit-price"><span class="num" style="color:#1a5f7a">${up!==null?formatAmount(up,2):'-'}</span><span class="u">萬/坪</span></div><div class="total" style="color:#1a5f7a">${rec.總價?formatAmount(rec.總價,0)+' 萬':'-'}</div>`;
               td.addEventListener('click',()=>{removeActive();td.classList.add('active');showRecordDetail(rec,'?',unit);});
             }
             tr.appendChild(td);
           });
+          const ua=document.createElement('td');ua.className='avg-cell avg-empty-cell';ua.innerHTML='<div class="avg-empty">—</div>';
+          tr.appendChild(ua);
           unknownRows.push(tr);
         }
         // 由下往上插入，讓 row 0 在最頂
         for(let i=unknownRows.length-1;i>=0;i--) tbody.insertBefore(unknownRows[i],tbody.firstChild);
       }
       // ─────────────────────────────────────────────────────────────────────
+
+      // ── 平均單價 列（各戶別平均；右下角為整體平均）────────────────────────
+      if(units.length){
+        const avgTr=document.createElement('tr');avgTr.className='avg-row';
+        const avgTh=document.createElement('th');avgTh.className='floor avg-row-head';
+        avgTh.innerHTML='<span>平均</span><span>單價</span>';avgTr.appendChild(avgTh);
+        units.forEach(unit=>{
+          const td=document.createElement('td');td.className='avg-cell';td.dataset.unit=unit;
+          td.innerHTML=avgCellHTML(avgStats(countedByUnit.get(unit)||[],withParkingPrice));
+          avgTr.appendChild(td);
+        });
+        const allCounted=[...countedByUnit.values()].flat();
+        const corner=document.createElement('td');corner.className='avg-cell avg-corner';
+        corner.innerHTML=avgCellHTML(avgStats(allCounted,withParkingPrice));
+        avgTr.appendChild(corner);
+        tbody.appendChild(avgTr);
+      }
 
       table.appendChild(tbody);gridWrap.innerHTML='';gridWrap.appendChild(table);
       const dataDate=info.dataDate||'-';const cachedAt=info.cachedAt?new Date(info.cachedAt).toLocaleString('zh-TW'):new Date().toLocaleString('zh-TW');
